@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Runloop MVP – Generar rutas</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <title>Runloop – Generar rutas</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
   <style>
     body{font-family:system-ui;background:#0b0c10;color:#e8f0fe;margin:0}
     header{padding:16px;border-bottom:1px solid #1b1f2a;background:#0d1017}
@@ -14,24 +14,40 @@
     @media(max-width:900px){.wrap{grid-template-columns:1fr}}
     .card{background:#11131a;border:1px solid #1b2131;border-radius:10px;padding:12px}
     label{font-size:13px;color:#9fb3c8;display:block;margin-top:8px}
-    input,select,button{width:100%;padding:8px;margin-top:4px;border-radius:8px;border:1px solid #243247;background:#0f1320;color:#e8f0fe}
+    input,select,button,textarea{width:100%;padding:8px;margin-top:4px;border-radius:8px;border:1px solid #243247;background:#0f1320;color:#e8f0fe}
     button{cursor:pointer;background:#25a244;border-color:#1f6f34;font-weight:600;margin-top:10px}
     .map{height:560px;border-radius:10px;overflow:hidden;margin-top:10px}
     .muted{opacity:.75}
     .row{display:flex;gap:8px}
+    .ok{color:#46d369}.err{color:#ff6b6b}
+    pre{white-space:pre-wrap;background:#0f1320;border:1px solid #243247;padding:8px;border-radius:8px;max-height:220px;overflow:auto}
+    .link-btn{background:#3b82f6;border-color:#215ab6}
   </style>
 </head>
 <body>
   <header>
-    <h1>🏃 Runloop MVP – Generación de rutas</h1>
-    <p class="muted" style="font-size:13px">Sin login, con geolocalización y 5 variantes</p>
+    <h1>🏃 Runloop – Generación de rutas</h1>
+    <p class="muted" style="font-size:13px">API fija en API Gateway</p>
+    <div class="row">
+      <a href="run.html" style="flex:1;text-align:center;text-decoration:none">
+        <button class="link-btn" style="width:100%">▶️ Ir a “Salir a correr”</button>
+      </a>
+    </div>
   </header>
 
   <div class="wrap">
+    <!-- Config mínima -->
     <div class="card">
-      <h2>Configuración</h2>
-      <label>API Base URL (API Gateway)</label>
-      <input id="apiBase" placeholder="https://xxx.execute-api.eu-west-1.amazonaws.com" />
+      <h2>Conexión</h2>
+      <label>API Base URL (Fija)</label>
+      <input id="apiBase" disabled />
+      <button id="btnTestApi" class="link-btn">Probar API</button>
+      <details style="margin-top:10px">
+        <summary>Resultado de la prueba</summary>
+        <div id="testOut" class="muted" style="font-size:13px"></div>
+      </details>
+
+      <h2>Ubicación</h2>
       <div class="row">
         <div style="flex:1">
           <label>Lat/Lon por defecto</label>
@@ -42,14 +58,16 @@
           <button id="btnUseLoc">📍 Usar mi ubicación</button>
         </div>
       </div>
-      <button id="btnSaveCfg">Guardar configuración</button>
+      <button id="btnSaveCfg">Guardar</button>
     </div>
 
+    <!-- Mapa -->
     <div class="card">
       <h2>Mapa</h2>
       <div id="map" class="map"></div>
     </div>
 
+    <!-- Generar rutas -->
     <div class="card">
       <h2>Generar rutas</h2>
       <label>Inicio (lat,lon)</label>
@@ -82,34 +100,27 @@
       </div>
       <button id="btnExport">Exportar GPX (ruta destacada)</button>
       <p id="routeInfo" class="muted" style="font-size:13px"></p>
-      <p class="muted" style="font-size:12px;margin-top:6px">Puedes hacer clic en una ruta gris para destacarla en azul.</p>
+      <details>
+        <summary>Depuración (última respuesta)</summary>
+        <pre id="debug"></pre>
+      </details>
     </div>
 
-    <!--
-    <div class="card">
-      <h2>Crear evento (OCULTO EN MVP)</h2>
-      (sección comentada a petición)
-    </div>
-
-    <div class="card">
-      <h2>Próximos eventos (OCULTO EN MVP)</h2>
-      (sección comentada a petición)
-    </div>
-    -->
+    <!-- Eventos ocultos -->
+    <!-- … -->
   </div>
 
   <script>
+    // ===== Config fija =====
+    const API_BASE = "https://djz7dstg9k.execute-api.eu-west-1.amazonaws.com"; // <- TU API
     const $ = id => document.getElementById(id);
     const S = {
-      map: null, youMarker: null,
-      variantLayers: [], highlightLayer: null,
-      startMarker: null, endMarker: null,
-      highlightedRoute: null,
-      cfg: { apiBase: '', defaultLatLon: '40.4168,-3.7038' }
+      map:null, youMarker:null,
+      variantLayers:[], highlightLayer:null,
+      startMarker:null, endMarker:null,
+      highlightedRoute:null,
+      cfg:{ defaultLatLon:'40.4168,-3.7038' }
     };
-
-    function loadCfg(){ try{ Object.assign(S.cfg, JSON.parse(localStorage.getItem('cfg')||'{}')); }catch{} }
-    function saveCfg(){ localStorage.setItem('cfg', JSON.stringify(S.cfg)); }
 
     function initMap(){
       const center = S.cfg.defaultLatLon.split(',').map(Number);
@@ -121,11 +132,31 @@
       clearAllRoutes();
     }
 
-    function apiUrl(p){ return S.cfg.apiBase.replace(/\/$/,'') + p; }
+    async function fx(path, {method='GET', body=null, headers={}, timeoutMs=15000}={}){
+      const url = API_BASE.replace(/\/+$/,'') + path;
+      const h = {...headers};
+      const ctrl = new AbortController();
+      const t = setTimeout(()=>ctrl.abort(), timeoutMs);
+      let reqBody = undefined;
+      if (body !== null && body !== undefined){
+        h['Content-Type'] = h['Content-Type'] || 'application/json';
+        reqBody = (typeof body === 'string') ? body : JSON.stringify(body);
+      }
+      try{
+        const r = await fetch(url, {method, headers:h, body:reqBody, signal:ctrl.signal});
+        const txt = await r.text();
+        let data = null; try{ data = JSON.parse(txt); } catch { data = txt; }
+        clearTimeout(t);
+        return { ok:r.ok, status:r.status, data };
+      }catch(e){
+        clearTimeout(t);
+        return { ok:false, status:0, data:{ message:String(e) } };
+      }
+    }
 
     function clearMarkers(){
-      if (S.startMarker) { S.map.removeLayer(S.startMarker); S.startMarker = null; }
-      if (S.endMarker)   { S.map.removeLayer(S.endMarker);   S.endMarker   = null; }
+      if (S.startMarker) { S.map.removeLayer(S.startMarker); S.startMarker=null; }
+      if (S.endMarker)   { S.map.removeLayer(S.endMarker);   S.endMarker=null; }
     }
     function putMarkers(start, end){
       clearMarkers();
@@ -142,28 +173,25 @@
         }).addTo(S.map).bindPopup("Final");
       }
     }
-
     function clearAllRoutes(){
       S.variantLayers.forEach(v => S.map.removeLayer(v.layer));
       S.variantLayers = [];
-      if (S.highlightLayer) { S.map.removeLayer(S.highlightLayer); S.highlightLayer = null; }
-      S.highlightedRoute = null;
+      if (S.highlightLayer) { S.map.removeLayer(S.highlightLayer); S.highlightLayer=null; }
+      S.highlightedRoute=null;
       clearMarkers();
-      $('routeInfo').textContent = '';
+      $('routeInfo').textContent='';
     }
-
     function drawHighlight(geom){
       if (S.highlightLayer) S.map.removeLayer(S.highlightLayer);
-      S.highlightLayer = L.geoJSON(geom, { style: { color: '#3388ff', weight: 6, opacity: 0.9 } }).addTo(S.map);
+      S.highlightLayer = L.geoJSON(geom, { style:{ color:'#3388ff', weight:6, opacity:0.9 } }).addTo(S.map);
       const b = S.highlightLayer.getBounds();
       if (b.isValid()) S.map.fitBounds(b, { padding: [30,30] });
     }
     function drawVariant(geom, onClick){
-      const layer = L.geoJSON(geom, { style: { color: '#888', weight: 3, opacity: 0.6 } }).addTo(S.map);
+      const layer = L.geoJSON(geom, { style:{ color:'#888', weight:3, opacity:0.6 } }).addTo(S.map);
       layer.on('click', onClick);
       return layer;
     }
-
     function deriveEndpointsFromGeom(geom){
       try{
         const coords = (geom?.coordinates)||[];
@@ -179,31 +207,30 @@
     async function generateOne(seed){
       const start = $('routeStart').value.split(',').map(Number);
       const km = parseFloat($('routeKm').value || '10');
-      const hill = $('altPref').value;      // flat | mixed | hilly
-      const surf = $('surfacePref').value;  // paved | unpaved
+      const hill = $('altPref').value;
+      const surf = $('surfacePref').value;
 
-      const res = await fetch(apiUrl('/routes/generate'), {
+      const res = await fx('/routes/generate', {
         method:'POST',
-        headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({
+        body:{
           start:{ lat:start[0], lon:start[1] },
           distance_m: km*1000,
           hill_pref: hill,
           surface_pref: surf,
           seed
-        })
+        }
       });
-      const j = await res.json();
-      if (!res.ok) throw new Error(j?.message || 'Error generando ruta');
+      $('debug').textContent = JSON.stringify(res.data, null, 2);
+      if (!res.ok) throw new Error(res.data?.message || 'Error generando ruta');
 
-      const geom = j.geom || null;
-      let startPoint = j.start_point, endPoint = j.end_point;
+      const geom = res.data.geom || null;
+      let startPoint = res.data.start_point, endPoint = res.data.end_point;
       if ((!startPoint || !endPoint) && geom){
         const d = deriveEndpointsFromGeom(geom);
         startPoint = startPoint || d.start;
         endPoint   = endPoint   || d.end;
       }
-      return { route_id: j.route_id, geom, start_point: startPoint, end_point: endPoint };
+      return { route_id: res.data.route_id, geom, start_point: startPoint, end_point: endPoint };
     }
 
     async function onGenerate1(){
@@ -241,41 +268,49 @@
 
     async function onExport(){
       if (!S.highlightedRoute?.route_id) return alert('No hay ruta destacada. Genera primero.');
-      const r = await fetch(apiUrl(`/routes/${S.highlightedRoute.route_id}/export`), { method:'POST' });
-      const j = await r.json();
-      if (j.url) window.open(j.url, '_blank'); else alert('No se pudo obtener el GPX');
+      const r = await fx(`/routes/${S.highlightedRoute.route_id}/export`, { method:'POST' });
+      if (r.data?.url) window.open(r.data.url, '_blank'); else alert('No se pudo obtener el GPX');
     }
 
-    // Geolocalización (centra y mantiene marcador)
+    // Test API (POST gen -> si falla lo muestra)
+    $('btnTestApi').onclick = async () => {
+      const out = [];
+      out.push(`Base: ${API_BASE}`);
+      const start = $('defaultLatLon').value || '40.4168,-3.7038';
+      const [lat,lon] = start.split(',').map(Number);
+      const res = await fx('/routes/generate', {
+        method:'POST',
+        body:{ start:{lat,lon}, distance_m: 2000, seed: 1 }
+      });
+      out.push(`POST /routes/generate → ${res.status}`);
+      if (!res.ok) out.push(JSON.stringify(res.data));
+      else out.push(`route_id: ${res.data.route_id}`);
+      $('testOut').innerHTML = out.map(x=>`<div>${x}</div>`).join('');
+    };
+
+    // Ubicación / guardar cfg local solo para latlon
     $('btnUseLoc').onclick = () => {
       navigator.geolocation.getCurrentPosition(p => {
         const s = `${p.coords.latitude.toFixed(5)},${p.coords.longitude.toFixed(5)}`;
         $('defaultLatLon').value = s;
         $('routeStart').value = s;
-        S.cfg.defaultLatLon = s; saveCfg(); initMap();
+        initMap();
       }, () => alert('No se pudo obtener ubicación'), { enableHighAccuracy:true, timeout:10000 });
-      // seguimiento suave (opcional)
       navigator.geolocation.watchPosition(p => {
-        const lat = p.coords.latitude, lon = p.coords.longitude;
-        if (S.youMarker) { S.youMarker.setLatLng([lat,lon]); }
+        const lat=p.coords.latitude, lon=p.coords.longitude;
+        if (S.youMarker) S.youMarker.setLatLng([lat,lon]);
       }, null, { enableHighAccuracy:true });
     };
-
     $('btnSaveCfg').onclick = () => {
-      S.cfg.apiBase = $('apiBase').value.trim();
-      S.cfg.defaultLatLon = $('defaultLatLon').value.trim();
-      saveCfg(); initMap();
-      $('routeStart').value = S.cfg.defaultLatLon;
+      initMap();
+      $('routeStart').value = $('defaultLatLon').value.trim();
     };
 
     // init
-    loadCfg();
-    $('apiBase').value = S.cfg.apiBase;
+    $('apiBase').value = API_BASE;
     $('defaultLatLon').value = S.cfg.defaultLatLon;
     initMap();
     $('routeStart').value = S.cfg.defaultLatLon;
-
-    // botones
     $('btnGen1').onclick  = onGenerate1;
     $('btnGen5').onclick  = onGenerate5;
     $('btnExport').onclick = onExport;
