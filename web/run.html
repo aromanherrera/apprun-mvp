@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Runloop – Salir a correr</title>
+  <style>
+    body{font-family:system-ui;background:#0b0c10;color:#e8f0fe;margin:0;padding:16px}
+    h1{margin-top:0}
+    .card{background:#11131a;border:1px solid #1b2131;border-radius:10px;padding:12px;max-width:640px}
+    label{font-size:13px;color:#9fb3c8;display:block;margin-top:8px}
+    input,button{width:100%;padding:10px;margin-top:6px;border-radius:8px;border:1px solid #243247;background:#0f1320;color:#e8f0fe}
+    button{cursor:pointer;background:#25a244;border-color:#1f6f34;font-weight:600}
+    .row{display:flex;gap:10px}
+    .row>div{flex:1}
+    .stat{font-size:28px}
+    .muted{opacity:.7}
+    .controls button{width:33%}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🏃 Salir a correr</h1>
+    <label>API Base URL</label>
+    <input id="apiBase" placeholder="https://xxx.execute-api.eu-west-1.amazonaws.com" />
+
+    <div class="row">
+      <div><label>Distancia total</label><div class="stat"><span id="dist">0.00</span> km</div></div>
+      <div><label>Velocidad</label><div class="stat"><span id="speed">0.0</span> km/h</div></div>
+      <div><label>Tiempo</label><div class="stat"><span id="time">00:00</span></div></div>
+    </div>
+    <div class="row">
+      <div><label>Desnivel +</label><div class="stat"><span id="gain">0</span> m</div></div>
+      <div><label>Última altitud</label><div class="stat"><span id="alt">–</span> m</div></div>
+    </div>
+
+    <div class="controls row" style="margin-top:12px">
+      <button id="btnPlay">▶︎ Play</button>
+      <button id="btnPause" style="background:#f0ad4e;border-color:#b37e2e">⏸️ Pause</button>
+      <button id="btnStop"  style="background:#e55353;border-color:#9c2f2f">■ Stop</button>
+    </div>
+
+    <p class="muted">Consejo: mantén la pantalla encendida. La precisión depende del GPS del dispositivo.</p>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const state = {
+      apiBase: '', runId: null, watchingId: null,
+      active: false, lastPoint: null, // {lat,lon,alt,ts}
+      distMeters: 0, gain: 0,
+      t0: null, pauseAccum: 0, pausedAt: null,
+      batch: [] // puntos pendientes de enviar
+    };
+
+    function apiUrl(p){ return state.apiBase.replace(/\/$/,'') + p; }
+    function fmtTime(ms){
+      const s = Math.floor(ms/1000), m = Math.floor(s/60), r = s%60;
+      return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`;
+    }
+    function hav(lat1, lon1, lat2, lon2){
+      const R=6371000, toRad=d=>d*Math.PI/180;
+      const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+      const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+      return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+    }
+
+    async function startRun(){
+      const r = await fetch(apiUrl('/runs/start'), {method:'POST'});
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.message||'Error start');
+      state.runId = j.run_id;
+      state.t0 = Date.now();
+      state.pauseAccum = 0;
+      $('dist').textContent = '0.00';
+      $('speed').textContent = '0.0';
+      $('time').textContent = '00:00';
+      $('gain').textContent = '0';
+      $('alt').textContent = '–';
+    }
+    async function sendBatch(){
+      if (!state.runId || state.batch.length===0) return;
+      const payload = { points: state.batch.slice(0) };
+      state.batch = [];
+      await fetch(apiUrl(`/runs/${state.runId}/track`), {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+      }).catch(()=>{ /* si falla, se pierden puntos en MVP */ });
+    }
+    async function finishRun(){
+      const r = await fetch(apiUrl(`/runs/${state.runId}/finish`), {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ dist_m: state.distMeters, gain_m: state.gain, duration_s: Math.round((Date.now()-state.t0-state.pauseAccum)/1000) })
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.message||'Error finish');
+      return j;
+    }
+
+    function onPos(p){
+      if (!state.active) return;
+      const ts=Date.now();
+      const lat=p.coords.latitude, lon=p.coords.longitude;
+      // velocidad del dispositivo (m/s) a km/h si está disponible
+      const speedKmh = (Number.isFinite(p.coords.speed)? Math.max(0,p.coords.speed)*3.6 : NaN);
+      let alt = (Number.isFinite(p.coords.altitude)? p.coords.altitude : undefined);
+
+      if (state.lastPoint){
+        const d = hav(state.lastPoint.lat, state.lastPoint.lon, lat, lon);
+        // descarta saltos raros
+        if (d < 100) {
+          state.distMeters += d;
+          if (alt!==undefined && state.lastPoint.alt!==undefined){
+            const delta = alt - state.lastPoint.alt;
+            if (delta>0) state.gain += delta;
+          }
+        }
+      }
+      state.lastPoint = { lat, lon, alt, ts };
+
+      $('dist').textContent = (state.distMeters/1000).toFixed(2);
+      if (Number.isFinite(speedKmh)) $('speed').textContent = speedKmh.toFixed(1);
+      if (alt!==undefined) $('alt').textContent = Math.round(alt);
+
+      const elapsed = Date.now()-state.t0-state.pauseAccum;
+      $('time').textContent = fmtTime(elapsed);
+
+      // añade al lote
+      state.batch.push({ ts, lat, lon, speed_kmh: Number.isFinite(speedKmh)? +speedKmh.toFixed(1) : null, alt: alt ?? null });
+      if (state.batch.length >= 5) sendBatch(); // envía cada 5 puntos
+    }
+
+    $('btnPlay').onclick = async () => {
+      state.apiBase = $('apiBase').value.trim();
+      if (!state.runId) await startRun();
+      state.active = true;
+      if (state.pausedAt) { state.pauseAccum += (Date.now()-state.pausedAt); state.pausedAt=null; }
+      if (!state.watchingId){
+        state.watchingId = navigator.geolocation.watchPosition(onPos, err => alert('GPS error: ' + err.message), {
+          enableHighAccuracy:true, maximumAge:1000, timeout:15000
+        });
+      }
+    };
+    $('btnPause').onclick = () => {
+      state.active = false;
+      state.pausedAt = Date.now();
+      sendBatch();
+    };
+    $('btnStop').onclick = async () => {
+      state.active = false;
+      sendBatch();
+      if (state.watchingId){ navigator.geolocation.clearWatch(state.watchingId); state.watchingId=null; }
+      if (state.runId){
+        try{
+          const sum = await finishRun();
+          alert(`Guardado ✅\nDist: ${(sum.dist_m/1000).toFixed(2)} km\nTiempo: ${fmtTime(sum.duration_s*1000)}\nDesnivel+: ${Math.round(sum.gain_m)} m`);
+        }catch(e){ alert('Error al guardar: '+e.message); }
+      }
+      state.runId = null; state.lastPoint=null; state.distMeters=0; state.gain=0;
+    };
+  </script>
+</body>
+</html>
