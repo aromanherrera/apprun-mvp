@@ -24,10 +24,9 @@
     .link-btn{background:#3b82f6;border-color:#215ab6}
     .danger{background:#e55353;border-color:#9c2f2f}
     .ghost{background:#0f1320;border-color:#243247}
-    .ok{color:#46d369}.err{color:#ff6b6b}
     pre{white-space:pre-wrap;background:#0f1320;border:1px solid #243247;padding:8px;border-radius:8px;max-height:240px;overflow:auto}
     .badge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid #243247;background:#0f1320;font-size:12px;margin-left:8px}
-    .note{font-size:13px;padding:8px;border:1px dashed #3b82f6;border-radius:8px;background:#0f1320;margin-top:8px}
+    .note{font-size:13px;padding:8px;border:1px dashed #3b82f6;border-radius:8px;background:#0f1320;margin-top:8px;display:none}
   </style>
 </head>
 <body>
@@ -35,14 +34,12 @@
     <h1>🏃 Runloop – Generación de rutas</h1>
     <div class="row" style="margin-top:8px">
       <div class="badge">API: <code>https://djz7dstg9k.execute-api.eu-west-1.amazonaws.com</code></div>
-      <div class="badge">Mapbox: <code>pk…WHH1XA</code></div>
       <a href="run.html" style="text-decoration:none;margin-left:auto"><button class="link-btn">▶️ Ir a “Salir a correr”</button></a>
     </div>
-    <p class="muted" style="font-size:13px;margin-top:6px">Circular o punto a punto · Geocodificación y ruteo con Mapbox</p>
+    <p class="muted" style="font-size:13px;margin-top:6px">Circular o punto a punto · Superficie preferida · Mapbox Outdoors</p>
   </header>
 
   <div class="wrap">
-    <!-- Panel izquierdo -->
     <div class="card">
       <h2>Ubicación & Preferencias</h2>
 
@@ -62,7 +59,7 @@
         <div class="row" style="margin-top:6px">
           <div>
             <label>Distancia (km)</label>
-            <input id="routeKm" type="number" value="10" min="0.5" step="0.5" />
+            <input id="routeKm" type="number" value="15" min="0.5" step="0.5" />
           </div>
           <div>
             <label>Altimetría (preferencia)</label>
@@ -80,7 +77,7 @@
             </select>
           </div>
         </div>
-        <p class="muted" style="font-size:12px;margin-top:4px">La superficie es un objetivo: si no es posible (p. ej., ruta muy corta en zona urbana), te avisaremos.</p>
+        <p class="muted" style="font-size:12px;margin-top:4px">Intentamos lograr ±10% de la distancia objetivo y priorizar la superficie elegida cuando sea razonable.</p>
       </details>
 
       <h2 style="margin-top:16px">Tipo de ruta</h2>
@@ -89,10 +86,10 @@
         <label><input type="radio" name="mode" value="p2p" /> Punto a punto (origen ≠ destino)</label>
       </div>
 
-      <!-- Origen/destino -->
+      <!-- Loop -->
       <div id="loopBox" class="card" style="margin-top:10px">
         <h3 style="margin:0 0 6px 0">Circular</h3>
-        <label>Inicio (lat,lon) · normalmente tu ubicación</label>
+        <label>Inicio (lat,lon)</label>
         <input id="routeStartLoop" placeholder="40.4168,-3.7038" />
         <div class="row">
           <button id="btnPickStartLoop" class="ghost" style="flex:1">Elegir inicio en mapa</button>
@@ -100,27 +97,24 @@
         </div>
       </div>
 
+      <!-- P2P -->
       <div id="p2pBox" class="card" style="margin-top:10px;display:none">
         <h3 style="margin:0 0 6px 0">Punto a punto</h3>
-
-        <label>Origen</label>
         <div class="row">
-          <input id="startAddr" placeholder="Dirección origen o lat,lon" />
+          <input id="startAddr" placeholder="Dirección ORIGEN o lat,lon" />
           <button id="btnSearchStart" class="ghost" style="flex:0 0 120px">Buscar</button>
         </div>
         <div class="row">
-          <input id="routeStartP2P" placeholder="lat,lon origen" />
-          <button id="btnPickStart" class="ghost" style="flex:0 0 160px">Elegir origen en mapa</button>
+          <input id="routeStartP2P" placeholder="lat,lon ORIGEN" />
+          <button id="btnPickStart" class="ghost" style="flex:0 0 160px">Elegir ORIGEN en mapa</button>
         </div>
-
-        <label style="margin-top:8px">Destino</label>
         <div class="row">
-          <input id="endAddr" placeholder="Dirección destino o lat,lon" />
+          <input id="endAddr" placeholder="Dirección DESTINO o lat,lon" />
           <button id="btnSearchEnd" class="ghost" style="flex:0 0 120px">Buscar</button>
         </div>
         <div class="row">
-          <input id="routeEndP2P" placeholder="lat,lon destino" />
-          <button id="btnPickEnd" class="ghost" style="flex:0 0 160px">Elegir destino en mapa</button>
+          <input id="routeEndP2P" placeholder="lat,lon DESTINO" />
+          <button id="btnPickEnd" class="ghost" style="flex:0 0 160px">Elegir DESTINO en mapa</button>
         </div>
       </div>
 
@@ -134,7 +128,7 @@
       </button>
 
       <button id="btnExport" class="ghost" style="margin-top:6px">Exportar GPX (ruta destacada)</button>
-      <div id="surfaceNote" class="note" style="display:none"></div>
+      <div id="surfaceNote" class="note"></div>
 
       <p id="routeInfo" class="muted" style="font-size:13px"></p>
 
@@ -144,13 +138,13 @@
       </details>
     </div>
 
-    <!-- Mapa (Mapbox Outdoors) -->
+    <!-- Mapa -->
     <div class="card">
       <h2>Mapa</h2>
       <div id="map" class="map"></div>
       <div class="row" style="margin-top:8px">
         <div style="flex:1 1 60%">
-          <small class="muted">ⓘ Mapa: Mapbox Outdoors · Datos © OpenStreetMap contrib.</small>
+          <small class="muted">Mapa: Mapbox Outdoors · © Mapbox · Datos © OpenStreetMap</small>
         </div>
         <div style="flex:1 1 40%;text-align:right">
           <button id="btnClear" class="danger" style="width:auto">Limpiar rutas y marcadores</button>
@@ -160,7 +154,6 @@
   </div>
 
   <script>
-    // ===== Config fijas =====
     const API_BASE = "https://djz7dstg9k.execute-api.eu-west-1.amazonaws.com";
     const MAPBOX_TOKEN = "pk.eyJ1IjoiYXJvbWFuaGVycmVyYSIsImEiOiJjbWdkaXdlNHIxazFoMmxzODZhcGI3enhkIn0.qCuSZ6-OgwlucpyyWHH1XA";
     const $ = id => document.getElementById(id);
@@ -174,7 +167,6 @@
       cfg:{ defaultLatLon:'40.41680,-3.70380' }
     };
 
-    // ===== Helpers =====
     function setLatLonInputs(lat, lon) {
       const s = `${lat.toFixed(5)},${lon.toFixed(5)}`;
       $('defaultLatLon').value = s;
@@ -185,19 +177,16 @@
     function moveMapTo(lat, lon, zoom = 15) {
       if (!S.map) return;
       S.map.setView([lat, lon], Math.max(S.map.getZoom(), zoom), { animate: true });
-      if (!S.youMarker) {
-        S.youMarker = L.marker([lat, lon], { title: 'Tú aquí' }).addTo(S.map);
-      } else {
-        S.youMarker.setLatLng([lat, lon]);
-      }
+      if (!S.youMarker) S.youMarker = L.marker([lat, lon], { title: 'Tú aquí' }).addTo(S.map);
+      else S.youMarker.setLatLng([lat, lon]);
     }
     function putStartMarker(lat, lon){
       if (S.startMarker) S.map.removeLayer(S.startMarker);
-      S.startMarker = L.marker([lat,lon], { title:'Inicio', icon: L.icon({ iconUrl:"https://maps.gstatic.com/mapfiles/ms2/micons/blue-dot.png", iconSize:[32,32], iconAnchor:[16,32] })}).addTo(S.map).bindPopup('Inicio');
+      S.startMarker = L.marker([lat,lon], { title:'Inicio' }).addTo(S.map).bindPopup('Inicio');
     }
     function putEndMarker(lat, lon){
       if (S.endMarker) S.map.removeLayer(S.endMarker);
-      S.endMarker = L.marker([lat,lon], { title:'Fin', icon: L.icon({ iconUrl:"https://maps.gstatic.com/mapfiles/ms2/micons/red-dot.png", iconSize:[32,32], iconAnchor:[16,32] })}).addTo(S.map).bindPopup('Fin');
+      S.endMarker = L.marker([lat,lon], { title:'Fin' }).addTo(S.map).bindPopup('Fin');
     }
     function clearRoutes(){
       S.variantLayers.forEach(v => S.map.removeLayer(v.layer));
@@ -211,15 +200,12 @@
     }
     function clearMarkers(){ if (S.startMarker){ S.map.removeLayer(S.startMarker); S.startMarker=null; } if (S.endMarker){ S.map.removeLayer(S.endMarker); S.endMarker=null; } }
     function clearAll(){ clearRoutes(); clearMarkers(); }
-
-    // Distancia haversine (m)
     function hav(lat1, lon1, lat2, lon2){
       const R=6371000,toRad=d=>d*Math.PI/180;
       const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
       const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
       return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
     }
-    // Estimar longitud de una LineString GeoJSON (m)
     function estimateGeojsonDistance(geom){
       try{
         if (geom?.type!=='LineString' || !Array.isArray(geom.coordinates)) return null;
@@ -228,7 +214,6 @@
         return Math.round(d);
       }catch{ return null; }
     }
-
     function drawHighlight(geom){
       if (S.highlightLayer) S.map.removeLayer(S.highlightLayer);
       S.highlightLayer = L.geoJSON(geom, { style:{ color:'#3388ff', weight:6, opacity:0.9 } }).addTo(S.map);
@@ -251,16 +236,13 @@
       return { start:null, end:null };
     }
 
-    // ===== Mapa (Mapbox Outdoors) =====
     function initMap(){
       const center = S.cfg.defaultLatLon.split(',').map(Number);
       if (S.map) S.map.remove();
       S.map = L.map('map').setView(center, 13);
       const url = `https://api.mapbox.com/styles/v1/{id}/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`;
       L.tileLayer(url, {
-        id:'mapbox/outdoors-v12',
-        tileSize:512, zoomOffset:-1,
-        maxZoom:19,
+        id:'mapbox/outdoors-v12', tileSize:512, zoomOffset:-1, maxZoom:19,
         attribution:'© Mapbox © OpenStreetMap'
       }).addTo(S.map);
       setTimeout(()=> S.map.invalidateSize(), 150);
@@ -274,7 +256,6 @@
       });
     }
 
-    // ===== API =====
     async function fx(path, {method='GET', body=null, headers={}}={}){
       const url = API_BASE.replace(/\/+$/,'') + path;
       const h = {...headers};
@@ -285,7 +266,6 @@
       return { ok:r.ok, status:r.status, data };
     }
 
-    // Geocoder Mapbox
     async function geocodeMapbox(q){
       const m = q.trim().match(/^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$/);
       if (m){ return { lat: parseFloat(m[1]), lon: parseFloat(m[3]) }; }
@@ -297,7 +277,6 @@
       return { lat, lon };
     }
 
-    // ===== Geolocalización UI =====
     $('btnUseLoc').onclick = async () => {
       if (!('geolocation' in navigator)) return alert('Tu navegador no soporta geolocalización.');
       const getOnce = (opts)=> new Promise((res,rej)=> navigator.geolocation.getCurrentPosition(res,rej,opts));
@@ -321,7 +300,6 @@
       }
     };
 
-    // ===== Modo circular vs p2p =====
     function updateMode(){
       const mode = document.querySelector('input[name="mode"]:checked').value;
       $('loopBox').style.display = (mode==='loop') ? 'block' : 'none';
@@ -349,7 +327,6 @@
       catch{ alert('Destino no encontrado'); }
     };
 
-    // ===== Construcción de payload =====
     function buildPayload(seed){
       const km = parseFloat($('routeKm').value || '10');
       const hill = $('altPref').value;
@@ -379,23 +356,16 @@
       };
     }
 
-    // ===== Enviar a /routes/generate =====
     function enableSendToRun(enabled) {
       const b = document.getElementById('btnSendToRun');
-      if (!b) return;
-      b.disabled = !enabled;
-      b.style.opacity = enabled ? '1' : '.6';
-      b.style.cursor = enabled ? 'pointer' : 'not-allowed';
+      if (!b) return; b.disabled = !enabled; b.style.opacity = enabled ? '1' : '.6'; b.style.cursor = enabled ? 'pointer' : 'not-allowed';
     }
     function saveTargetRouteForRun(r) {
       if (!r || !r.geom) return;
       const dist = (typeof r.distance_m === 'number' ? r.distance_m : estimateGeojsonDistance(r.geom)) || 0;
       const target = {
-        route_id: r.route_id || null,
-        distance_m: dist,
-        geom: r.geom,
-        start_point: r.start_point || null,
-        end_point: r.end_point || null,
+        route_id: r.route_id || null, distance_m: dist, geom: r.geom,
+        start_point: r.start_point || null, end_point: r.end_point || null,
         saved_at: new Date().toISOString()
       };
       localStorage.setItem('runloop_target_route', JSON.stringify(target));
@@ -417,24 +387,16 @@
       if (!res.ok) throw new Error(res.data?.message || 'Error generando ruta');
 
       const geom = res.data.geom || res.data.geojson || null;
-      const distance_m =
-        (typeof res.data.distance_m === 'number' ? res.data.distance_m : null) ??
-        (geom ? estimateGeojsonDistance(geom) : null);
-
+      const distance_m = (typeof res.data.distance_m === 'number' ? res.data.distance_m : (geom ? estimateGeojsonDistance(geom) : null));
       let startPoint = res.data.start_point, endPoint = res.data.end_point;
       if ((!startPoint || !endPoint) && geom){
         const d = deriveEndpointsFromGeom(geom);
         startPoint = startPoint || d.start; endPoint = endPoint || d.end;
       }
-
-      // Nota de superficie (si viene del backend)
+      // Notas
       if (res.data.surface_note){
-        const n = $('surfaceNote');
-        n.style.display = 'block';
-        n.textContent = res.data.surface_note;
-      } else {
-        $('surfaceNote').style.display = 'none';
-      }
+        const n = $('surfaceNote'); n.style.display = 'block'; n.textContent = res.data.surface_note;
+      } else { $('surfaceNote').style.display = 'none'; }
 
       return { route_id: res.data.route_id, geom, start_point: startPoint, end_point: endPoint, distance_m };
     }
@@ -486,7 +448,6 @@
 
     $('btnClear').onclick = () => { clearAll(); };
 
-    // Init
     (function init(){
       $('defaultLatLon').value = S.cfg.defaultLatLon;
       $('routeStartLoop').value = S.cfg.defaultLatLon;
