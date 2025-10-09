@@ -6,8 +6,10 @@
   <title>Runloop – Salir a correr</title>
   <style>
     body{font-family:system-ui;background:#0b0c10;color:#e8f0fe;margin:0;padding:16px}
-    h1{margin-top:0}
-    .card{background:#11131a;border:1px solid #1b2131;border-radius:10px;padding:12px;max-width:640px}
+    header{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+    a.btn{display:inline-block;text-decoration:none}
+    .btn{padding:10px 12px;border-radius:8px;border:1px solid #215ab6;background:#3b82f6;color:#fff;font-weight:600}
+    .card{background:#11131a;border:1px solid #1b2131;border-radius:10px;padding:12px;max-width:680px}
     label{font-size:13px;color:#9fb3c8;display:block;margin-top:8px}
     input,button{width:100%;padding:10px;margin-top:6px;border-radius:8px;border:1px solid #243247;background:#0f1320;color:#e8f0fe}
     button{cursor:pointer;background:#25a244;border-color:#1f6f34;font-weight:600}
@@ -19,13 +21,17 @@
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>🏃 Salir a correr</h1>
-    <label>API Base URL</label>
-    <input id="apiBase" placeholder="https://xxx.execute-api.eu-west-1.amazonaws.com" />
+  <header>
+    <a href="index.html" class="btn">⬅️ Volver al generador</a>
+    <h1 style="margin:0">🏃 Salir a correr</h1>
+  </header>
 
-    <div class="row">
-      <div><label>Distancia total</label><div class="stat"><span id="dist">0.00</span> km</div></div>
+  <div class="card">
+    <label>API Base URL (fija)</label>
+    <input id="apiBase" disabled />
+
+    <div class="row" style="margin-top:6px">
+      <div><label>Distancia</label><div class="stat"><span id="dist">0.00</span> km</div></div>
       <div><label>Velocidad</label><div class="stat"><span id="speed">0.0</span> km/h</div></div>
       <div><label>Tiempo</label><div class="stat"><span id="time">00:00</span></div></div>
     </div>
@@ -40,36 +46,43 @@
       <button id="btnStop"  style="background:#e55353;border-color:#9c2f2f">■ Stop</button>
     </div>
 
-    <p class="muted">Consejo: mantén la pantalla encendida. La precisión depende del GPS del dispositivo.</p>
+    <p class="muted">La precisión depende del GPS del dispositivo.</p>
   </div>
 
   <script>
+    // ===== Config fija =====
+    const API_BASE = "https://djz7dstg9k.execute-api.eu-west-1.amazonaws.com"; // <- TU API
     const $ = id => document.getElementById(id);
     const state = {
-      apiBase: '', runId: null, watchingId: null,
-      active: false, lastPoint: null, // {lat,lon,alt,ts}
+      runId: null, watchingId: null,
+      active: false, lastPoint: null,
       distMeters: 0, gain: 0,
       t0: null, pauseAccum: 0, pausedAt: null,
-      batch: [] // puntos pendientes de enviar
+      batch: []
     };
+    $('apiBase').value = API_BASE;
 
-    function apiUrl(p){ return state.apiBase.replace(/\/$/,'') + p; }
-    function fmtTime(ms){
-      const s = Math.floor(ms/1000), m = Math.floor(s/60), r = s%60;
-      return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`;
-    }
+    function apiUrl(p){ return API_BASE.replace(/\/+$/,'') + p; }
+    function fmtTime(ms){ const s=Math.floor(ms/1000), m=Math.floor(s/60), r=s%60; return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`; }
     function hav(lat1, lon1, lat2, lon2){
-      const R=6371000, toRad=d=>d*Math.PI/180;
+      const R=6371000,toRad=d=>d*Math.PI/180;
       const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
       const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
       return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
     }
 
+    async function fx(path, {method='GET', body=null}={}){
+      const h = {}; let reqBody;
+      if (body!==null && body!==undefined){ h['Content-Type']='application/json'; reqBody=JSON.stringify(body); }
+      const r = await fetch(apiUrl(path), {method, headers:h, body:reqBody});
+      const txt = await r.text(); let data=null; try{ data=JSON.parse(txt);}catch{ data=txt; }
+      return { ok:r.ok, status:r.status, data };
+    }
+
     async function startRun(){
-      const r = await fetch(apiUrl('/runs/start'), {method:'POST'});
-      const j = await r.json();
-      if (!r.ok) throw new Error(j?.message||'Error start');
-      state.runId = j.run_id;
+      const r = await fx('/runs/start', {method:'POST'});
+      if (!r.ok) throw new Error(r.data?.message||'Error start');
+      state.runId = r.data.run_id;
       state.t0 = Date.now();
       state.pauseAccum = 0;
       $('dist').textContent = '0.00';
@@ -82,31 +95,26 @@
       if (!state.runId || state.batch.length===0) return;
       const payload = { points: state.batch.slice(0) };
       state.batch = [];
-      await fetch(apiUrl(`/runs/${state.runId}/track`), {
-        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
-      }).catch(()=>{ /* si falla, se pierden puntos en MVP */ });
+      await fx(`/runs/${state.runId}/track`, {method:'POST', body:payload}).catch(()=>{});
     }
     async function finishRun(){
-      const r = await fetch(apiUrl(`/runs/${state.runId}/finish`), {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ dist_m: state.distMeters, gain_m: state.gain, duration_s: Math.round((Date.now()-state.t0-state.pauseAccum)/1000) })
+      const r = await fx(`/runs/${state.runId}/finish`, {
+        method:'POST',
+        body:{ dist_m: state.distMeters, gain_m: state.gain, duration_s: Math.round((Date.now()-state.t0-state.pauseAccum)/1000) }
       });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j?.message||'Error finish');
-      return j;
+      if (!r.ok) throw new Error(r.data?.message||'Error finish');
+      return r.data;
     }
 
     function onPos(p){
       if (!state.active) return;
       const ts=Date.now();
       const lat=p.coords.latitude, lon=p.coords.longitude;
-      // velocidad del dispositivo (m/s) a km/h si está disponible
       const speedKmh = (Number.isFinite(p.coords.speed)? Math.max(0,p.coords.speed)*3.6 : NaN);
-      let alt = (Number.isFinite(p.coords.altitude)? p.coords.altitude : undefined);
+      const alt = (Number.isFinite(p.coords.altitude)? p.coords.altitude : undefined);
 
       if (state.lastPoint){
         const d = hav(state.lastPoint.lat, state.lastPoint.lon, lat, lon);
-        // descarta saltos raros
         if (d < 100) {
           state.distMeters += d;
           if (alt!==undefined && state.lastPoint.alt!==undefined){
@@ -120,17 +128,13 @@
       $('dist').textContent = (state.distMeters/1000).toFixed(2);
       if (Number.isFinite(speedKmh)) $('speed').textContent = speedKmh.toFixed(1);
       if (alt!==undefined) $('alt').textContent = Math.round(alt);
+      $('time').textContent = fmtTime(Date.now()-state.t0-state.pauseAccum);
 
-      const elapsed = Date.now()-state.t0-state.pauseAccum;
-      $('time').textContent = fmtTime(elapsed);
-
-      // añade al lote
       state.batch.push({ ts, lat, lon, speed_kmh: Number.isFinite(speedKmh)? +speedKmh.toFixed(1) : null, alt: alt ?? null });
-      if (state.batch.length >= 5) sendBatch(); // envía cada 5 puntos
+      if (state.batch.length >= 5) sendBatch();
     }
 
-    $('btnPlay').onclick = async () => {
-      state.apiBase = $('apiBase').value.trim();
+    document.getElementById('btnPlay').onclick = async () => {
       if (!state.runId) await startRun();
       state.active = true;
       if (state.pausedAt) { state.pauseAccum += (Date.now()-state.pausedAt); state.pausedAt=null; }
@@ -140,12 +144,12 @@
         });
       }
     };
-    $('btnPause').onclick = () => {
+    document.getElementById('btnPause').onclick = () => {
       state.active = false;
       state.pausedAt = Date.now();
       sendBatch();
     };
-    $('btnStop').onclick = async () => {
+    document.getElementById('btnStop').onclick = async () => {
       state.active = false;
       sendBatch();
       if (state.watchingId){ navigator.geolocation.clearWatch(state.watchingId); state.watchingId=null; }
