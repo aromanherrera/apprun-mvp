@@ -60,10 +60,6 @@
       <div><label>Velocidad</label><div class="stat"><span id="speed">0.0</span> km/h</div></div>
       <div><label>Tiempo</label><div class="stat"><span id="time">00:00</span></div></div>
     </div>
-    <div class="row">
-      <div><label>Desnivel +</label><div class="stat"><span id="gain">0</span> m</div></div>
-      <div><label>Última altitud</label><div class="stat"><span id="alt">–</span> m</div></div>
-    </div>
 
     <div class="controls">
       <button id="btnPlay">▶︎ Play</button>
@@ -87,7 +83,11 @@
       distMeters: 0, gain: 0,
       t0: null, pauseAccum: 0, pausedAt: null,
       batch: [],
-      goal: null // { route_id, distance_m, geom? }
+      goal: null, // { route_id, distance_m }
+      // buffers para velocidad “tipo Strava”
+      windowSec: 10,
+      pathBuffer: [] /* [{ts,lat,lon,alt}] */,
+      emaSpeed: null, emaAlpha: 0.25
     };
     $('apiBase').value = API_BASE;
 
@@ -100,7 +100,7 @@
           if (g && g.distance_m && Number.isFinite(g.distance_m)) {
             state.goal = g;
             const km = (g.distance_m/1000).toFixed(2);
-            $('goalDist').textContent = `${km} km (ruta ${g.route_id||''})`;
+            $('goalDist').textContent = `${km} km ${g.route_id ? `(${g.route_id})` : ''}`;
             $('goalRemain').textContent = `${km} km`;
             $('goalProg').max = g.distance_m;
             $('goalProg').value = 0;
@@ -136,11 +136,11 @@
       state.runId = r.data.run_id;
       state.t0 = Date.now();
       state.pauseAccum = 0;
+      state.pathBuffer = [];
+      state.emaSpeed = null;
       $('dist').textContent = '0.00';
       $('speed').textContent = '0.0';
       $('time').textContent = '00:00';
-      $('gain').textContent = '0';
-      $('alt').textContent = '–';
     }
 
     async function sendBatch(){
@@ -165,16 +165,6 @@
       return r.data;
     }
 
-    function humanGeoError(err){
-      if(!err) return 'Error desconocido';
-      const map = {
-        1: 'Permiso denegado. En Safari pulsa aA → Ajustes del sitio web → Localización → Permitir.',
-        2: 'Posición no disponible. Activa el GPS o sal al exterior.',
-        3: 'Tiempo de espera agotado. Inténtalo de nuevo.'
-      };
-      return map[err.code] || (err.message || 'Error de geolocalización');
-    }
-
     function updateGoalProgressUI(){
       if (!state.goal?.distance_m) return;
       const done = state.distMeters;
@@ -185,33 +175,62 @@
       $('goalProg').value = done;
     }
 
+    // Velocidad tipo Strava: distancia/tiempo en ventana + EMA
+    function updateSpeedFromWindow(){
+      const now = Date.now();
+      // limpia puntos viejos
+      const cutoff = now - state.windowSec*1000;
+      while (state.pathBuffer.length && state.pathBuffer[0].ts < cutoff) {
+        state.pathBuffer.shift();
+      }
+      if (state.pathBuffer.length < 2) return null;
+
+      // distancia total y duración en ventana
+      let d=0;
+      for (let i=1;i<state.pathBuffer.length;i++){
+        const a = state.pathBuffer[i-1], b = state.pathBuffer[i];
+        d += hav(a.lat,a.lon,b.lat,b.lon);
+      }
+      const dt = (state.pathBuffer[state.pathBuffer.length-1].ts - state.pathBuffer[0].ts)/1000; // s
+      if (dt <= 0) return null;
+
+      const instSpeed = (d/1000) / (dt/3600); // km/h
+      // EMA para estabilizar
+      state.emaSpeed = (state.emaSpeed==null) ? instSpeed : (state.emaSpeed*(1-state.emaAlpha) + instSpeed*state.emaAlpha);
+      return state.emaSpeed;
+    }
+
     function onPos(p){
       if (!state.active) return;
       const ts=Date.now();
       const lat=p.coords.latitude, lon=p.coords.longitude;
-      const speedKmh = (Number.isFinite(p.coords.speed)? Math.max(0,p.coords.speed)*3.6 : NaN);
       const alt = (Number.isFinite(p.coords.altitude)? p.coords.altitude : undefined);
 
+      // distancia incremental
       if (state.lastPoint){
         const d = hav(state.lastPoint.lat, state.lastPoint.lon, lat, lon);
         if (d < 100) {
           state.distMeters += d;
           if (alt!==undefined && state.lastPoint.alt!==undefined){
             const delta = alt - state.lastPoint.alt;
-            if (delta>0) state.gain += delta;
+            if (delta>1) state.gain += delta; // umbral 1 m para evitar ruido
           }
         }
       }
       state.lastPoint = { lat, lon, alt, ts };
 
+      // buffer ventana para velocidad
+      state.pathBuffer.push({ ts, lat, lon, alt });
+
+      // pintar métricas
       $('dist').textContent = (state.distMeters/1000).toFixed(2);
-      if (Number.isFinite(speedKmh)) $('speed').textContent = speedKmh.toFixed(1);
-      if (alt!==undefined) $('alt').textContent = Math.round(alt);
+      const sp = updateSpeedFromWindow();
+      if (Number.isFinite(sp)) $('speed').textContent = sp.toFixed(1);
       $('time').textContent = fmtTime(Date.now()-state.t0-state.pauseAccum);
 
       updateGoalProgressUI();
 
-      state.batch.push({ ts, lat, lon, speed_kmh: Number.isFinite(speedKmh)? +speedKmh.toFixed(1) : null, alt: alt ?? null });
+      state.batch.push({ ts, lat, lon, speed_kmh: Number.isFinite(sp)? +sp.toFixed(1) : null, alt: alt ?? null });
       if (state.batch.length >= 5) sendBatch();
     }
 
@@ -222,10 +241,18 @@
         navigator.geolocation.getCurrentPosition(resolve, reject, opts);
       });
     }
+    function humanGeoError(err){
+      if(!err) return 'Error desconocido';
+      const map = {
+        1: 'Permiso denegado. En Safari pulsa aA → Ajustes del sitio web → Localización → Permitir.',
+        2: 'Posición no disponible. Activa el GPS o sal al exterior.',
+        3: 'Tiempo de espera agotado. Inténtalo de nuevo.'
+      };
+      return map[err.code] || (err.message || 'Error de geolocalización');
+    }
 
     document.getElementById('btnPlay').onclick = async () => {
       try {
-        // Perfil flexible (mejor Safari)
         let fix;
         try {
           fix = await requestLocationOnce({ enableHighAccuracy:false, timeout:30000, maximumAge:15000 });
@@ -269,10 +296,14 @@
         try{
           const sum = await finishRun();
           const goalTxt = state.goal?.distance_m ? `\nObjetivo: ${(state.goal.distance_m/1000).toFixed(2)} km` : '';
-          alert(`Guardado ✅\nDist: ${(sum.dist_m/1000).toFixed(2)} km\nTiempo: ${fmtTime(sum.duration_s*1000)}\nDesnivel+: ${Math.round(sum.gain_m)} m${goalTxt}`);
+          alert(`Guardado ✅
+Dist: ${(sum.dist_m/1000).toFixed(2)} km
+Tiempo: ${fmtTime(sum.duration_s*1000)}
+Desnivel+: ${Math.round(sum.gain_m)} m${goalTxt}`);
         }catch(e){ alert('Error al guardar: '+e.message); }
       }
       state.runId = null; state.lastPoint=null; state.distMeters=0; state.gain=0;
+      state.pathBuffer=[]; state.emaSpeed=null;
       updateGoalProgressUI();
     };
 
