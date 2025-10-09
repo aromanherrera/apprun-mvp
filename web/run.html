@@ -5,19 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Runloop – Salir a correr</title>
   <style>
-    body{font-family:system-ui;background:#0b0c10;color:#e8f0fe;margin:0;padding:16px}
+    :root{color-scheme:dark}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:#0b0c10;color:#e8f0fe;margin:0;padding:16px}
     header{display:flex;gap:12px;align-items:center;margin-bottom:12px}
     a.btn{display:inline-block;text-decoration:none}
     .btn{padding:10px 12px;border-radius:8px;border:1px solid #215ab6;background:#3b82f6;color:#fff;font-weight:600}
-    .card{background:#11131a;border:1px solid #1b2131;border-radius:10px;padding:12px;max-width:680px}
+    .card{background:#11131a;border:1px solid #1b2131;border-radius:12px;padding:12px;max-width:720px;margin:0 auto}
     label{font-size:13px;color:#9fb3c8;display:block;margin-top:8px}
-    input,button{width:100%;padding:10px;margin-top:6px;border-radius:8px;border:1px solid #243247;background:#0f1320;color:#e8f0fe}
+    input,button{width:100%;padding:10px;margin-top:6px;border-radius:10px;border:1px solid #243247;background:#0f1320;color:#e8f0fe}
     button{cursor:pointer;background:#25a244;border-color:#1f6f34;font-weight:600}
-    .row{display:flex;gap:10px}
-    .row>div{flex:1}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .row>div{flex:1 1 180px}
     .stat{font-size:28px}
     .muted{opacity:.7}
-    .controls button{width:33%}
+    .controls{display:flex;gap:10px;margin-top:12px}
+    .controls button{flex:1}
   </style>
 </head>
 <body>
@@ -40,22 +42,25 @@
       <div><label>Última altitud</label><div class="stat"><span id="alt">–</span> m</div></div>
     </div>
 
-    <div class="controls row" style="margin-top:12px">
+    <div class="controls">
       <button id="btnPlay">▶︎ Play</button>
       <button id="btnPause" style="background:#f0ad4e;border-color:#b37e2e">⏸️ Pause</button>
       <button id="btnStop"  style="background:#e55353;border-color:#9c2f2f">■ Stop</button>
     </div>
 
-    <p class="muted">La precisión depende del GPS del dispositivo.</p>
+    <p class="muted" style="margin-top:10px">
+      Si Safari muestra “Permiso denegado”, toca el icono <b>aA</b> en la barra → <i>Ajustes del sitio web</i> → <i>Localización</i> → <b>Permitir</b>.
+    </p>
   </div>
 
   <script>
     // ===== Config fija =====
-    const API_BASE = "https://djz7dstg9k.execute-api.eu-west-1.amazonaws.com"; // <- TU API
+    const API_BASE = "https://djz7dstg9k.execute-api.eu-west-1.amazonaws.com";
     const $ = id => document.getElementById(id);
+
     const state = {
       runId: null, watchingId: null,
-      active: false, lastPoint: null,
+      active: false, lastPoint: null,   // {lat, lon, alt, ts}
       distMeters: 0, gain: 0,
       t0: null, pauseAccum: 0, pausedAt: null,
       batch: []
@@ -75,92 +80,3 @@
       const h = {}; let reqBody;
       if (body!==null && body!==undefined){ h['Content-Type']='application/json'; reqBody=JSON.stringify(body); }
       const r = await fetch(apiUrl(path), {method, headers:h, body:reqBody});
-      const txt = await r.text(); let data=null; try{ data=JSON.parse(txt);}catch{ data=txt; }
-      return { ok:r.ok, status:r.status, data };
-    }
-
-    async function startRun(){
-      const r = await fx('/runs/start', {method:'POST'});
-      if (!r.ok) throw new Error(r.data?.message||'Error start');
-      state.runId = r.data.run_id;
-      state.t0 = Date.now();
-      state.pauseAccum = 0;
-      $('dist').textContent = '0.00';
-      $('speed').textContent = '0.0';
-      $('time').textContent = '00:00';
-      $('gain').textContent = '0';
-      $('alt').textContent = '–';
-    }
-    async function sendBatch(){
-      if (!state.runId || state.batch.length===0) return;
-      const payload = { points: state.batch.slice(0) };
-      state.batch = [];
-      await fx(`/runs/${state.runId}/track`, {method:'POST', body:payload}).catch(()=>{});
-    }
-    async function finishRun(){
-      const r = await fx(`/runs/${state.runId}/finish`, {
-        method:'POST',
-        body:{ dist_m: state.distMeters, gain_m: state.gain, duration_s: Math.round((Date.now()-state.t0-state.pauseAccum)/1000) }
-      });
-      if (!r.ok) throw new Error(r.data?.message||'Error finish');
-      return r.data;
-    }
-
-    function onPos(p){
-      if (!state.active) return;
-      const ts=Date.now();
-      const lat=p.coords.latitude, lon=p.coords.longitude;
-      const speedKmh = (Number.isFinite(p.coords.speed)? Math.max(0,p.coords.speed)*3.6 : NaN);
-      const alt = (Number.isFinite(p.coords.altitude)? p.coords.altitude : undefined);
-
-      if (state.lastPoint){
-        const d = hav(state.lastPoint.lat, state.lastPoint.lon, lat, lon);
-        if (d < 100) {
-          state.distMeters += d;
-          if (alt!==undefined && state.lastPoint.alt!==undefined){
-            const delta = alt - state.lastPoint.alt;
-            if (delta>0) state.gain += delta;
-          }
-        }
-      }
-      state.lastPoint = { lat, lon, alt, ts };
-
-      $('dist').textContent = (state.distMeters/1000).toFixed(2);
-      if (Number.isFinite(speedKmh)) $('speed').textContent = speedKmh.toFixed(1);
-      if (alt!==undefined) $('alt').textContent = Math.round(alt);
-      $('time').textContent = fmtTime(Date.now()-state.t0-state.pauseAccum);
-
-      state.batch.push({ ts, lat, lon, speed_kmh: Number.isFinite(speedKmh)? +speedKmh.toFixed(1) : null, alt: alt ?? null });
-      if (state.batch.length >= 5) sendBatch();
-    }
-
-    document.getElementById('btnPlay').onclick = async () => {
-      if (!state.runId) await startRun();
-      state.active = true;
-      if (state.pausedAt) { state.pauseAccum += (Date.now()-state.pausedAt); state.pausedAt=null; }
-      if (!state.watchingId){
-        state.watchingId = navigator.geolocation.watchPosition(onPos, err => alert('GPS error: ' + err.message), {
-          enableHighAccuracy:true, maximumAge:1000, timeout:15000
-        });
-      }
-    };
-    document.getElementById('btnPause').onclick = () => {
-      state.active = false;
-      state.pausedAt = Date.now();
-      sendBatch();
-    };
-    document.getElementById('btnStop').onclick = async () => {
-      state.active = false;
-      sendBatch();
-      if (state.watchingId){ navigator.geolocation.clearWatch(state.watchingId); state.watchingId=null; }
-      if (state.runId){
-        try{
-          const sum = await finishRun();
-          alert(`Guardado ✅\nDist: ${(sum.dist_m/1000).toFixed(2)} km\nTiempo: ${fmtTime(sum.duration_s*1000)}\nDesnivel+: ${Math.round(sum.gain_m)} m`);
-        }catch(e){ alert('Error al guardar: '+e.message); }
-      }
-      state.runId = null; state.lastPoint=null; state.distMeters=0; state.gain=0;
-    };
-  </script>
-</body>
-</html>
