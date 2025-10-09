@@ -10,7 +10,7 @@
     header{display:flex;gap:12px;align-items:center;margin-bottom:12px}
     a.btn{display:inline-block;text-decoration:none}
     .btn{padding:10px 12px;border-radius:8px;border:1px solid #215ab6;background:#3b82f6;color:#fff;font-weight:600}
-    .card{background:#11131a;border:1px solid #1b2131;border-radius:12px;padding:12px;max-width:720px;margin:0 auto}
+    .card{background:#11131a;border:1px solid #1b2131;border-radius:12px;padding:12px;max-width:760px;margin:0 auto}
     label{font-size:13px;color:#9fb3c8;display:block;margin-top:8px}
     input,button{width:100%;padding:10px;margin-top:6px;border-radius:10px;border:1px solid #243247;background:#0f1320;color:#e8f0fe}
     button{cursor:pointer;background:#25a244;border-color:#1f6f34;font-weight:600}
@@ -20,6 +20,9 @@
     .muted{opacity:.7}
     .controls{display:flex;gap:10px;margin-top:12px}
     .controls button{flex:1}
+    progress{width:100%;height:14px;border-radius:8px}
+    .pill{display:inline-block;padding:4px 8px;border-radius:999px;border:1px solid #243247;background:#0f1320;font-size:12px}
+    .danger{background:#e55353;border-color:#9c2f2f}
   </style>
 </head>
 <body>
@@ -32,7 +35,27 @@
     <label>API Base URL (fija)</label>
     <input id="apiBase" disabled />
 
-    <div class="row" style="margin-top:6px">
+    <div id="goalBox" style="margin-top:6px">
+      <div class="row" style="align-items:flex-end">
+        <div>
+          <label>Ruta objetivo</label>
+          <div><span id="goalDist" class="pill">Sin objetivo</span></div>
+        </div>
+        <div>
+          <label>Restante</label>
+          <div class="stat"><span id="goalRemain">—</span></div>
+        </div>
+        <div>
+          <label>Progreso</label>
+          <progress id="goalProg" max="1" value="0"></progress>
+        </div>
+      </div>
+      <div class="row">
+        <button id="btnClearGoal" class="danger" style="flex:0 0 180px">Quitar objetivo</button>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:12px">
       <div><label>Distancia</label><div class="stat"><span id="dist">0.00</span> km</div></div>
       <div><label>Velocidad</label><div class="stat"><span id="speed">0.0</span> km/h</div></div>
       <div><label>Tiempo</label><div class="stat"><span id="time">00:00</span></div></div>
@@ -49,7 +72,7 @@
     </div>
 
     <p class="muted" style="margin-top:10px">
-      Si Safari muestra “Permiso denegado”, toca el icono <b>aA</b> en la barra → <i>Ajustes del sitio web</i> → <i>Localización</i> → <b>Permitir</b>.
+      Si Safari muestra “Permiso denegado”, toca <b>aA</b> → <i>Ajustes del sitio web</i> → <i>Localización</i> → <b>Permitir</b>.
     </p>
   </div>
 
@@ -60,13 +83,33 @@
 
     const state = {
       runId: null, watchingId: null,
-      active: false, lastPoint: null,   // {lat, lon, alt, ts}
+      active: false, lastPoint: null,
       distMeters: 0, gain: 0,
       t0: null, pauseAccum: 0, pausedAt: null,
-      batch: []
+      batch: [],
+      goal: null // { route_id, distance_m, geom? }
     };
     $('apiBase').value = API_BASE;
 
+    // Carga objetivo si existe
+    (function loadGoal(){
+      try{
+        const raw = localStorage.getItem('runloop_target_route');
+        if (raw) {
+          const g = JSON.parse(raw);
+          if (g && g.distance_m && Number.isFinite(g.distance_m)) {
+            state.goal = g;
+            const km = (g.distance_m/1000).toFixed(2);
+            $('goalDist').textContent = `${km} km (ruta ${g.route_id||''})`;
+            $('goalRemain').textContent = `${km} km`;
+            $('goalProg').max = g.distance_m;
+            $('goalProg').value = 0;
+          }
+        }
+      }catch{}
+    })();
+
+    // Utils
     function apiUrl(p){ return API_BASE.replace(/\/+$/,'') + p; }
     function fmtTime(ms){ const s=Math.floor(ms/1000), m=Math.floor(s/60), r=s%60; return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`; }
     function hav(lat1, lon1, lat2, lon2){
@@ -85,7 +128,10 @@
     }
 
     async function startRun(){
-      const r = await fx('/runs/start', {method:'POST'});
+      const r = await fx('/runs/start', {method:'POST', body:{
+        goal_route_id: state.goal?.route_id || null,
+        goal_distance_m: state.goal?.distance_m || null
+      }});
       if (!r.ok) throw new Error(r.data?.message||'Error start');
       state.runId = r.data.run_id;
       state.t0 = Date.now();
@@ -96,29 +142,47 @@
       $('gain').textContent = '0';
       $('alt').textContent = '–';
     }
+
     async function sendBatch(){
       if (!state.runId || state.batch.length===0) return;
       const payload = { points: state.batch.slice(0) };
       state.batch = [];
       await fx(`/runs/${state.runId}/track`, {method:'POST', body:payload}).catch(()=>{});
     }
+
     async function finishRun(){
       const r = await fx(`/runs/${state.runId}/finish`, {
         method:'POST',
-        body:{ dist_m: state.distMeters, gain_m: state.gain, duration_s: Math.round((Date.now()-state.t0-state.pauseAccum)/1000) }
+        body:{
+          dist_m: state.distMeters,
+          gain_m: state.gain,
+          duration_s: Math.round((Date.now()-state.t0-state.pauseAccum)/1000),
+          goal_distance_m: state.goal?.distance_m || null,
+          goal_route_id: state.goal?.route_id || null
+        }
       });
       if (!r.ok) throw new Error(r.data?.message||'Error finish');
       return r.data;
     }
 
     function humanGeoError(err){
-      if (!err) return 'Error desconocido';
+      if(!err) return 'Error desconocido';
       const map = {
         1: 'Permiso denegado. En Safari pulsa aA → Ajustes del sitio web → Localización → Permitir.',
         2: 'Posición no disponible. Activa el GPS o sal al exterior.',
         3: 'Tiempo de espera agotado. Inténtalo de nuevo.'
       };
       return map[err.code] || (err.message || 'Error de geolocalización');
+    }
+
+    function updateGoalProgressUI(){
+      if (!state.goal?.distance_m) return;
+      const done = state.distMeters;
+      const total = state.goal.distance_m;
+      const remain = Math.max(0, total - done);
+      $('goalRemain').textContent = `${(remain/1000).toFixed(2)} km`;
+      $('goalProg').max = total;
+      $('goalProg').value = done;
     }
 
     function onPos(p){
@@ -130,7 +194,7 @@
 
       if (state.lastPoint){
         const d = hav(state.lastPoint.lat, state.lastPoint.lon, lat, lon);
-        if (d < 100) { // filtra saltos irrealistas
+        if (d < 100) {
           state.distMeters += d;
           if (alt!==undefined && state.lastPoint.alt!==undefined){
             const delta = alt - state.lastPoint.alt;
@@ -145,43 +209,49 @@
       if (alt!==undefined) $('alt').textContent = Math.round(alt);
       $('time').textContent = fmtTime(Date.now()-state.t0-state.pauseAccum);
 
+      updateGoalProgressUI();
+
       state.batch.push({ ts, lat, lon, speed_kmh: Number.isFinite(speedKmh)? +speedKmh.toFixed(1) : null, alt: alt ?? null });
       if (state.batch.length >= 5) sendBatch();
     }
 
-    // Pide un primer fix (dispara el diálogo de permiso) antes de arrancar el watchPosition
-    function requestLocationOnce(){
-      return new Promise((resolve, reject) => {
-        if (!('geolocation' in navigator)) return reject(new Error('Tu navegador no soporta geolocalización.'));
-        navigator.geolocation.getCurrentPosition(
-          pos => resolve(pos),
-          err => reject(err),
-          { enableHighAccuracy:true, timeout:15000, maximumAge:0 }
-        );
+    // Primer fix para pedir permiso y luego watch
+    function requestLocationOnce(opts){
+      return new Promise((resolve, reject)=>{
+        if(!('geolocation' in navigator)) return reject(new Error('Geolocalización no soportada'));
+        navigator.geolocation.getCurrentPosition(resolve, reject, opts);
       });
     }
 
     document.getElementById('btnPlay').onclick = async () => {
       try {
-        const firstFix = await requestLocationOnce(); // fuerza permiso si está en "Preguntar"
+        // Perfil flexible (mejor Safari)
+        let fix;
+        try {
+          fix = await requestLocationOnce({ enableHighAccuracy:false, timeout:30000, maximumAge:15000 });
+        } catch (e1) {
+          if (e1.code === 1) throw e1;
+          fix = await requestLocationOnce({ enableHighAccuracy:true, timeout:30000, maximumAge:0 });
+        }
+
         if (!state.runId) await startRun();
 
         state.active = true;
         if (state.pausedAt) { state.pauseAccum += (Date.now()-state.pausedAt); state.pausedAt=null; }
 
-        // Aplica el primer punto
-        onPos(firstFix);
+        onPos(fix);
 
-        // Inicia seguimiento continuo si no existe
         if (!state.watchingId){
+          const watchOpts = { enableHighAccuracy:false, maximumAge:5000, timeout:30000 };
           state.watchingId = navigator.geolocation.watchPosition(
             onPos,
             err => alert('GPS error: ' + humanGeoError(err)),
-            { enableHighAccuracy:true, maximumAge:1000, timeout:15000 }
+            watchOpts
           );
         }
       } catch (e) {
         alert('GPS error: ' + humanGeoError(e));
+        console.warn('Geo fail detail:', e);
       }
     };
 
@@ -198,10 +268,22 @@
       if (state.runId){
         try{
           const sum = await finishRun();
-          alert(`Guardado ✅\nDist: ${(sum.dist_m/1000).toFixed(2)} km\nTiempo: ${fmtTime(sum.duration_s*1000)}\nDesnivel+: ${Math.round(sum.gain_m)} m`);
+          const goalTxt = state.goal?.distance_m ? `\nObjetivo: ${(state.goal.distance_m/1000).toFixed(2)} km` : '';
+          alert(`Guardado ✅\nDist: ${(sum.dist_m/1000).toFixed(2)} km\nTiempo: ${fmtTime(sum.duration_s*1000)}\nDesnivel+: ${Math.round(sum.gain_m)} m${goalTxt}`);
         }catch(e){ alert('Error al guardar: '+e.message); }
       }
       state.runId = null; state.lastPoint=null; state.distMeters=0; state.gain=0;
+      updateGoalProgressUI();
+    };
+
+    document.getElementById('btnClearGoal').onclick = () => {
+      localStorage.removeItem('runloop_target_route');
+      state.goal = null;
+      $('goalDist').textContent = 'Sin objetivo';
+      $('goalRemain').textContent = '—';
+      $('goalProg').value = 0;
+      $('goalProg').max = 1;
+      alert('Objetivo eliminado.');
     };
   </script>
 </body>
