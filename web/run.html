@@ -80,3 +80,129 @@
       const h = {}; let reqBody;
       if (body!==null && body!==undefined){ h['Content-Type']='application/json'; reqBody=JSON.stringify(body); }
       const r = await fetch(apiUrl(path), {method, headers:h, body:reqBody});
+      const txt = await r.text(); let data=null; try{ data=JSON.parse(txt);}catch{ data=txt; }
+      return { ok:r.ok, status:r.status, data };
+    }
+
+    async function startRun(){
+      const r = await fx('/runs/start', {method:'POST'});
+      if (!r.ok) throw new Error(r.data?.message||'Error start');
+      state.runId = r.data.run_id;
+      state.t0 = Date.now();
+      state.pauseAccum = 0;
+      $('dist').textContent = '0.00';
+      $('speed').textContent = '0.0';
+      $('time').textContent = '00:00';
+      $('gain').textContent = '0';
+      $('alt').textContent = '–';
+    }
+    async function sendBatch(){
+      if (!state.runId || state.batch.length===0) return;
+      const payload = { points: state.batch.slice(0) };
+      state.batch = [];
+      await fx(`/runs/${state.runId}/track`, {method:'POST', body:payload}).catch(()=>{});
+    }
+    async function finishRun(){
+      const r = await fx(`/runs/${state.runId}/finish`, {
+        method:'POST',
+        body:{ dist_m: state.distMeters, gain_m: state.gain, duration_s: Math.round((Date.now()-state.t0-state.pauseAccum)/1000) }
+      });
+      if (!r.ok) throw new Error(r.data?.message||'Error finish');
+      return r.data;
+    }
+
+    function humanGeoError(err){
+      if (!err) return 'Error desconocido';
+      const map = {
+        1: 'Permiso denegado. En Safari pulsa aA → Ajustes del sitio web → Localización → Permitir.',
+        2: 'Posición no disponible. Activa el GPS o sal al exterior.',
+        3: 'Tiempo de espera agotado. Inténtalo de nuevo.'
+      };
+      return map[err.code] || (err.message || 'Error de geolocalización');
+    }
+
+    function onPos(p){
+      if (!state.active) return;
+      const ts=Date.now();
+      const lat=p.coords.latitude, lon=p.coords.longitude;
+      const speedKmh = (Number.isFinite(p.coords.speed)? Math.max(0,p.coords.speed)*3.6 : NaN);
+      const alt = (Number.isFinite(p.coords.altitude)? p.coords.altitude : undefined);
+
+      if (state.lastPoint){
+        const d = hav(state.lastPoint.lat, state.lastPoint.lon, lat, lon);
+        if (d < 100) { // filtra saltos irrealistas
+          state.distMeters += d;
+          if (alt!==undefined && state.lastPoint.alt!==undefined){
+            const delta = alt - state.lastPoint.alt;
+            if (delta>0) state.gain += delta;
+          }
+        }
+      }
+      state.lastPoint = { lat, lon, alt, ts };
+
+      $('dist').textContent = (state.distMeters/1000).toFixed(2);
+      if (Number.isFinite(speedKmh)) $('speed').textContent = speedKmh.toFixed(1);
+      if (alt!==undefined) $('alt').textContent = Math.round(alt);
+      $('time').textContent = fmtTime(Date.now()-state.t0-state.pauseAccum);
+
+      state.batch.push({ ts, lat, lon, speed_kmh: Number.isFinite(speedKmh)? +speedKmh.toFixed(1) : null, alt: alt ?? null });
+      if (state.batch.length >= 5) sendBatch();
+    }
+
+    // Pide un primer fix (dispara el diálogo de permiso) antes de arrancar el watchPosition
+    function requestLocationOnce(){
+      return new Promise((resolve, reject) => {
+        if (!('geolocation' in navigator)) return reject(new Error('Tu navegador no soporta geolocalización.'));
+        navigator.geolocation.getCurrentPosition(
+          pos => resolve(pos),
+          err => reject(err),
+          { enableHighAccuracy:true, timeout:15000, maximumAge:0 }
+        );
+      });
+    }
+
+    document.getElementById('btnPlay').onclick = async () => {
+      try {
+        const firstFix = await requestLocationOnce(); // fuerza permiso si está en "Preguntar"
+        if (!state.runId) await startRun();
+
+        state.active = true;
+        if (state.pausedAt) { state.pauseAccum += (Date.now()-state.pausedAt); state.pausedAt=null; }
+
+        // Aplica el primer punto
+        onPos(firstFix);
+
+        // Inicia seguimiento continuo si no existe
+        if (!state.watchingId){
+          state.watchingId = navigator.geolocation.watchPosition(
+            onPos,
+            err => alert('GPS error: ' + humanGeoError(err)),
+            { enableHighAccuracy:true, maximumAge:1000, timeout:15000 }
+          );
+        }
+      } catch (e) {
+        alert('GPS error: ' + humanGeoError(e));
+      }
+    };
+
+    document.getElementById('btnPause').onclick = () => {
+      state.active = false;
+      state.pausedAt = Date.now();
+      sendBatch();
+    };
+
+    document.getElementById('btnStop').onclick = async () => {
+      state.active = false;
+      await sendBatch();
+      if (state.watchingId){ navigator.geolocation.clearWatch(state.watchingId); state.watchingId=null; }
+      if (state.runId){
+        try{
+          const sum = await finishRun();
+          alert(`Guardado ✅\nDist: ${(sum.dist_m/1000).toFixed(2)} km\nTiempo: ${fmtTime(sum.duration_s*1000)}\nDesnivel+: ${Math.round(sum.gain_m)} m`);
+        }catch(e){ alert('Error al guardar: '+e.message); }
+      }
+      state.runId = null; state.lastPoint=null; state.distMeters=0; state.gain=0;
+    };
+  </script>
+</body>
+</html>
