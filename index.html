@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MVP Running – Web sin login</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <style>
+    body{font-family:system-ui;background:#0b0c10;color:#e8f0fe;margin:0}
+    header{padding:16px;border-bottom:1px solid #1b1f2a;background:#0d1017}
+    h1{margin:0;font-size:20px}
+    .wrap{display:grid;grid-template-columns:400px 1fr;gap:16px;padding:16px}
+    @media(max-width:900px){.wrap{grid-template-columns:1fr}}
+    .card{background:#11131a;border:1px solid #1b2131;border-radius:10px;padding:12px}
+    label{font-size:13px;color:#9fb3c8;display:block;margin-top:8px}
+    input,select,button{width:100%;padding:8px;margin-top:4px;border-radius:8px;border:1px solid #243247;background:#0f1320;color:#e8f0fe}
+    button{cursor:pointer;background:#25a244;border-color:#1f6f34;font-weight:600;margin-top:10px}
+    .map{height:520px;border-radius:10px;overflow:hidden;margin-top:10px}
+    .events-list > div{padding:8px;border:1px solid #243247;border-radius:8px;margin-top:8px}
+    .muted{opacity:.7}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🏃 MVP Running – Generar rutas (5 variantes) y eventos</h1>
+    <p class="muted" style="font-size:13px">Sin login ni API key</p>
+  </header>
+
+  <div class="wrap">
+    <div class="card">
+      <h2>Configuración</h2>
+      <label>API Base URL (API Gateway)</label>
+      <input id="apiBase" placeholder="https://xxx.execute-api.eu-west-1.amazonaws.com" />
+      <label>Lat/Lon por defecto</label>
+      <input id="defaultLatLon" placeholder="40.4168,-3.7038" />
+      <button id="btnSaveCfg">Guardar configuración</button>
+      <button id="btnUseLoc">Usar mi ubicación</button>
+    </div>
+
+    <div class="card">
+      <h2>Mapa</h2>
+      <div id="map" class="map"></div>
+    </div>
+
+    <div class="card">
+      <h2>Generar rutas</h2>
+      <label>Inicio (lat,lon)</label>
+      <input id="routeStart" placeholder="40.4168,-3.7038" />
+      <label>Distancia objetivo (km)</label>
+      <input id="routeKm" type="number" value="10" />
+      <div style="display:flex;gap:8px">
+        <button id="btnGen1" style="flex:1">Generar 1 ruta</button>
+        <button id="btnGen5" style="flex:1">Generar 5 rutas</button>
+      </div>
+      <button id="btnExport">Exportar GPX (ruta destacada)</button>
+      <p id="routeInfo" class="muted" style="font-size:13px"></p>
+      <p class="muted" style="font-size:12px;margin-top:6px">Consejo: haz clic en cualquier ruta gris para destacarla.</p>
+    </div>
+
+    <div class="card">
+      <h2>Crear evento</h2>
+      <label>Fecha/hora</label>
+      <input id="evWhen" type="datetime-local" />
+      <label>Distancia (km)</label>
+      <input id="evKm" type="number" value="10" />
+      <label>Ritmo (seg/km)</label>
+      <input id="evPace" type="number" value="330" />
+      <label>Punto de encuentro (lat,lon)</label>
+      <input id="evMeet" placeholder="40.4168,-3.7038" />
+      <button id="btnCreateEv">Publicar salida</button>
+    </div>
+
+    <div class="card">
+      <h2>Próximos eventos</h2>
+      <label>Días desde</label>
+      <input id="qFromDays" type="number" value="0" />
+      <label>Días hasta</label>
+      <input id="qToDays" type="number" value="7" />
+      <button id="btnList">Listar</button>
+      <div id="events" class="events-list"></div>
+    </div>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const S = {
+      map: null,
+      baseLayer: null,
+      variantLayers: [],   // [{layer, route_id, geom, start_point, end_point}]
+      highlightLayer: null,
+      startMarker: null,
+      endMarker: null,
+      highlightedRoute: null, // { route_id, geom, start_point, end_point }
+      cfg: { apiBase: '', defaultLatLon: '40.4168,-3.7038' }
+    };
+
+    function loadCfg(){ try{ Object.assign(S.cfg, JSON.parse(localStorage.getItem('cfg')||'{}')); }catch{} }
+    function saveCfg(){ localStorage.setItem('cfg', JSON.stringify(S.cfg)); }
+
+    function initMap(){
+      const center = S.cfg.defaultLatLon.split(',').map(Number);
+      if (S.map) S.map.remove();
+      S.map = L.map('map').setView(center, 13);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(S.map);
+      clearAllRoutes();
+    }
+
+    function apiUrl(p){ return S.cfg.apiBase.replace(/\/$/,'') + p; }
+
+    function clearMarkers(){
+      if (S.startMarker) { S.map.removeLayer(S.startMarker); S.startMarker = null; }
+      if (S.endMarker)   { S.map.removeLayer(S.endMarker);   S.endMarker   = null; }
+    }
+
+    function putMarkers(start, end){
+      clearMarkers();
+      if (start){
+        S.startMarker = L.marker([start.lat, start.lon], {
+          title: "Inicio",
+          icon: L.icon({ iconUrl: "https://maps.gstatic.com/mapfiles/ms2/micons/blue-dot.png", iconSize:[32,32], iconAnchor:[16,32] })
+        }).addTo(S.map).bindPopup("Inicio");
+      }
+      if (end){
+        S.endMarker = L.marker([end.lat, end.lon], {
+          title: "Fin",
+          icon: L.icon({ iconUrl: "https://maps.gstatic.com/mapfiles/ms2/micons/red-dot.png", iconSize:[32,32], iconAnchor:[16,32] })
+        }).addTo(S.map).bindPopup("Final");
+      }
+    }
+
+    function clearAllRoutes(){
+      // limpia todas las capas de variantes y destacado
+      S.variantLayers.forEach(v => S.map.removeLayer(v.layer));
+      S.variantLayers = [];
+      if (S.highlightLayer) { S.map.removeLayer(S.highlightLayer); S.highlightLayer = null; }
+      S.highlightedRoute = null;
+      clearMarkers();
+      $('routeInfo').textContent = '';
+    }
+
+    function drawHighlight(geom){
+      if (S.highlightLayer) S.map.removeLayer(S.highlightLayer);
+      S.highlightLayer = L.geoJSON(geom, { style: { color: '#3388ff', weight: 6, opacity: 0.9 } }).addTo(S.map);
+      const b = S.highlightLayer.getBounds();
+      if (b.isValid()) S.map.fitBounds(b, { padding: [30,30] });
+    }
+
+    function drawVariant(geom, onClick){
+      const layer = L.geoJSON(geom, { style: { color: '#888', weight: 3, opacity: 0.6 } }).addTo(S.map);
+      layer.on('click', onClick);
+      return layer;
+    }
+
+    function deriveEndpointsFromGeom(geom){
+      try{
+        const coords = (geom?.coordinates)||[];
+        if (coords.length >= 2){
+          const [sLon, sLat] = coords[0];
+          const [eLon, eLat] = coords[coords.length-1];
+          return { start:{ lat:sLat, lon:sLon }, end:{ lat:eLat, lon:eLon } };
+        }
+      }catch{}
+      return { start:null, end:null };
+    }
+
+    async function generateOne(seed){
+      const start = $('routeStart').value.split(',').map(Number);
+      const km = parseFloat($('routeKm').value || '10');
+      const res = await fetch(apiUrl('/routes/generate'), {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({
+          start:{ lat:start[0], lon:start[1] },
+          distance_m: km*1000,
+          seed: seed,               // <- semilla para ruta distinta
+          hill_pref:'any',
+          surface_pref:'any'
+        })
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j?.message || 'Error generando ruta');
+      // La Lambda devuelve route_id, start_point, end_point y geom
+      const geom = j.geom || null;
+      let startPoint = j.start_point, endPoint = j.end_point;
+      if ((!startPoint || !endPoint) && geom){
+        const d = deriveEndpointsFromGeom(geom);
+        startPoint = startPoint || d.start;
+        endPoint   = endPoint   || d.end;
+      }
+      return { route_id: j.route_id, geom, start_point: startPoint, end_point: endPoint };
+    }
+
+    async function onGenerate1(){
+      clearAllRoutes();
+      try{
+        const r = await generateOne(Math.floor(Math.random()*100000));
+        // destacar la única ruta
+        S.highlightedRoute = r;
+        drawHighlight(r.geom);
+        putMarkers(r.start_point, r.end_point);
+        $('routeInfo').textContent = `Ruta ${r.route_id} – destacada`;
+      }catch(e){
+        alert('Error: ' + e.message);
+      }
+    }
+
+    async function onGenerate5(){
+      clearAllRoutes();
+      const seeds = [1,2,3,4,5].map(s => s + Math.floor(Math.random()*10000));
+      try{
+        const results = await Promise.all(seeds.map(s => generateOne(s)));
+        // Elige la primera como destacada
+        const highlighted = results[0];
+        S.highlightedRoute = highlighted;
+        drawHighlight(highlighted.geom);
+        putMarkers(highlighted.start_point, highlighted.end_point);
+        $('routeInfo').textContent = `Ruta ${highlighted.route_id} destacada (azul). Haz clic en otra para destacar.`;
+
+        // Dibuja las demás como variantes grises y hazlas clicables
+        results.slice(1).forEach(r => {
+          const layer = drawVariant(r.geom, () => {
+            // al hacer clic, esa pasa a ser la destacada
+            S.highlightedRoute = r;
+            drawHighlight(r.geom);
+            putMarkers(r.start_point, r.end_point);
+            $('routeInfo').textContent = `Ruta ${r.route_id} destacada (azul).`;
+          });
+          S.variantLayers.push({ layer, ...r });
+        });
+      }catch(e){
+        alert('Error generando variantes: ' + e.message);
+      }
+    }
+
+    async function onExport(){
+      if (!S.highlightedRoute?.route_id) return alert('No hay ruta destacada. Genera primero.');
+      const r = await fetch(apiUrl(`/routes/${S.highlightedRoute.route_id}/export`), { method:'POST' });
+      const j = await r.json();
+      if (j.url) window.open(j.url, '_blank');
+      else alert('No se pudo obtener el GPX');
+    }
+
+    async function onCreate(){
+      const when = $('evWhen').value;
+      const start_ts = new Date(when).toISOString();
+      const body = {
+        start_ts,
+        target_distance_m: +$('evKm').value * 1000,
+        target_pace_skm: +$('evPace').value,
+        meet_point: { type:'Point', coordinates: $('evMeet').value.split(',').map(Number).reverse() },
+        description: 'Salida creada desde MVP',
+        max_attendees: 20
+      };
+      const r = await fetch(apiUrl('/events'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      const j = await r.json();
+      if (!r.ok) alert('Error al crear evento: ' + JSON.stringify(j)); else alert('Evento creado');
+    }
+
+    async function onList(){
+      const from = new Date(Date.now() + $('qFromDays').value * 86400000).toISOString();
+      const to   = new Date(Date.now() + $('qToDays').value * 86400000).toISOString();
+      const r = await fetch(apiUrl(`/events?from=${from}&to=${to}`));
+      const j = await r.json();
+      if (!r.ok) { alert('Error al listar: ' + JSON.stringify(j)); return; }
+      $('events').innerHTML = j.map(e => `
+        <div>
+          <b>${new Date(e.start_ts).toLocaleString()}</b><br/>
+          ${(e.target_distance_m/1000).toFixed(1)} km @ ${(e.target_pace_skm/60).toFixed(1)} min/km
+        </div>
+      `).join('');
+    }
+
+    $('btnSaveCfg').onclick = () => {
+      S.cfg.apiBase = $('apiBase').value.trim();
+      S.cfg.defaultLatLon = $('defaultLatLon').value.trim();
+      saveCfg(); initMap();
+      $('routeStart').value = S.cfg.defaultLatLon;
+      $('evMeet').value = S.cfg.defaultLatLon;
+    };
+    $('btnUseLoc').onclick = () => {
+      navigator.geolocation.getCurrentPosition(p => {
+        const s = `${p.coords.latitude.toFixed(5)},${p.coords.longitude.toFixed(5)}`;
+        $('defaultLatLon').value = s;
+        $('routeStart').value = s;
+        $('evMeet').value = s;
+        S.cfg.defaultLatLon = s;
+        saveCfg(); initMap();
+      }, () => alert('No se pudo obtener ubicación'));
+    };
+
+    $('btnGen1').onclick  = onGenerate1;
+    $('btnGen5').onclick  = onGenerate5;
+    $('btnExport').onclick = onExport;
+    $('btnCreateEv').onclick = onCreate;
+    $('btnList').onclick = onList;
+
+    // init
+    loadCfg();
+    $('apiBase').value = S.cfg.apiBase;
+    $('defaultLatLon').value = S.cfg.defaultLatLon;
+    initMap();
+    $('routeStart').value = S.cfg.defaultLatLon;
+    $('evMeet').value = S.cfg.defaultLatLon;
+  </script>
+</body>
+</html>
