@@ -27,11 +27,12 @@
     .ok{color:#46d369}.err{color:#ff6b6b}
     pre{white-space:pre-wrap;background:#0f1320;border:1px solid #243247;padding:8px;border-radius:8px;max-height:240px;overflow:auto}
     .badge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid #243247;background:#0f1320;font-size:12px;margin-left:8px}
+    .note{font-size:13px;padding:8px;border:1px dashed #3b82f6;border-radius:8px;background:#0f1320;margin-top:8px}
   </style>
 </head>
 <body>
   <header>
-    <h1>🏃 Runloop – Generar rutas</h1>
+    <h1>🏃 Runloop – Generación de rutas</h1>
     <div class="row" style="margin-top:8px">
       <div class="badge">API: <code>https://djz7dstg9k.execute-api.eu-west-1.amazonaws.com</code></div>
       <div class="badge">Mapbox: <code>pk…WHH1XA</code></div>
@@ -41,7 +42,7 @@
   </header>
 
   <div class="wrap">
-    <!-- Config y ubicación -->
+    <!-- Panel izquierdo -->
     <div class="card">
       <h2>Ubicación & Preferencias</h2>
 
@@ -56,7 +57,7 @@
         </div>
       </div>
 
-      <details style="margin-top:6px">
+      <details style="margin-top:6px" open>
         <summary>Preferencias de la ruta</summary>
         <div class="row" style="margin-top:6px">
           <div>
@@ -64,7 +65,7 @@
             <input id="routeKm" type="number" value="10" min="0.5" step="0.5" />
           </div>
           <div>
-            <label>Altimetría</label>
+            <label>Altimetría (preferencia)</label>
             <select id="altPref">
               <option value="flat">Más llana</option>
               <option value="mixed" selected>Mixta</option>
@@ -74,11 +75,12 @@
           <div>
             <label>Superficie</label>
             <select id="surfacePref">
-              <option value="paved">Asfalto/alquitranado</option>
-              <option value="unpaved" selected>Tierra / caminos</option>
+              <option value="paved">Mayormente asfalto</option>
+              <option value="unpaved" selected>Mayormente tierra</option>
             </select>
           </div>
         </div>
+        <p class="muted" style="font-size:12px;margin-top:4px">La superficie es un objetivo: si no es posible (p. ej., ruta muy corta en zona urbana), te avisaremos.</p>
       </details>
 
       <h2 style="margin-top:16px">Tipo de ruta</h2>
@@ -126,10 +128,14 @@
         <button id="btnGen1" style="flex:1">Generar 1 ruta</button>
         <button id="btnGen5" style="flex:1">Generar 5 rutas</button>
       </div>
+
       <button id="btnSendToRun" class="link-btn" style="margin-top:6px" disabled>
-      ▶️ Usar esta ruta en “Salir a correr”
+        ▶️ Usar esta ruta en “Salir a correr”
       </button>
-      <button id="btnExport" class="link-btn" style="margin-top:6px">Exportar GPX (ruta destacada)</button>
+
+      <button id="btnExport" class="ghost" style="margin-top:6px">Exportar GPX (ruta destacada)</button>
+      <div id="surfaceNote" class="note" style="display:none"></div>
+
       <p id="routeInfo" class="muted" style="font-size:13px"></p>
 
       <details style="margin-top:8px">
@@ -138,13 +144,13 @@
       </details>
     </div>
 
-    <!-- Mapa -->
+    <!-- Mapa (Mapbox Outdoors) -->
     <div class="card">
       <h2>Mapa</h2>
       <div id="map" class="map"></div>
       <div class="row" style="margin-top:8px">
         <div style="flex:1 1 60%">
-          <small class="muted">ⓘ Tiles © OpenStreetMap · Geocoder & rutas: Mapbox</small>
+          <small class="muted">ⓘ Mapa: Mapbox Outdoors · Datos © OpenStreetMap contrib.</small>
         </div>
         <div style="flex:1 1 40%;text-align:right">
           <button id="btnClear" class="danger" style="width:auto">Limpiar rutas y marcadores</button>
@@ -168,7 +174,7 @@
       cfg:{ defaultLatLon:'40.41680,-3.70380' }
     };
 
-    // Helpers UI / Mapa
+    // ===== Helpers =====
     function setLatLonInputs(lat, lon) {
       const s = `${lat.toFixed(5)},${lon.toFixed(5)}`;
       $('defaultLatLon').value = s;
@@ -200,9 +206,29 @@
       S.highlightedRoute = null;
       $('routeInfo').textContent = '';
       $('debug').textContent = '';
+      $('surfaceNote').style.display = 'none';
+      enableSendToRun(false);
     }
     function clearMarkers(){ if (S.startMarker){ S.map.removeLayer(S.startMarker); S.startMarker=null; } if (S.endMarker){ S.map.removeLayer(S.endMarker); S.endMarker=null; } }
     function clearAll(){ clearRoutes(); clearMarkers(); }
+
+    // Distancia haversine (m)
+    function hav(lat1, lon1, lat2, lon2){
+      const R=6371000,toRad=d=>d*Math.PI/180;
+      const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+      const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+      return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+    }
+    // Estimar longitud de una LineString GeoJSON (m)
+    function estimateGeojsonDistance(geom){
+      try{
+        if (geom?.type!=='LineString' || !Array.isArray(geom.coordinates)) return null;
+        let d=0; const c=geom.coordinates;
+        for (let i=1;i<c.length;i++){ const [lon1,lat1]=c[i-1], [lon2,lat2]=c[i]; d += hav(lat1,lon1,lat2,lon2); }
+        return Math.round(d);
+      }catch{ return null; }
+    }
+
     function drawHighlight(geom){
       if (S.highlightLayer) S.map.removeLayer(S.highlightLayer);
       S.highlightLayer = L.geoJSON(geom, { style:{ color:'#3388ff', weight:6, opacity:0.9 } }).addTo(S.map);
@@ -225,12 +251,18 @@
       return { start:null, end:null };
     }
 
-    // Mapa
+    // ===== Mapa (Mapbox Outdoors) =====
     function initMap(){
       const center = S.cfg.defaultLatLon.split(',').map(Number);
       if (S.map) S.map.remove();
       S.map = L.map('map').setView(center, 13);
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19, attribution:'© OpenStreetMap'}).addTo(S.map);
+      const url = `https://api.mapbox.com/styles/v1/{id}/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`;
+      L.tileLayer(url, {
+        id:'mapbox/outdoors-v12',
+        tileSize:512, zoomOffset:-1,
+        maxZoom:19,
+        attribution:'© Mapbox © OpenStreetMap'
+      }).addTo(S.map);
       setTimeout(()=> S.map.invalidateSize(), 150);
       S.map.on('click', (ev) => {
         if (!S._pickMode) return;
@@ -242,7 +274,7 @@
       });
     }
 
-    // Llamadas API
+    // ===== API =====
     async function fx(path, {method='GET', body=null, headers={}}={}){
       const url = API_BASE.replace(/\/+$/,'') + path;
       const h = {...headers};
@@ -253,7 +285,7 @@
       return { ok:r.ok, status:r.status, data };
     }
 
-    // Geocoder (Mapbox)
+    // Geocoder Mapbox
     async function geocodeMapbox(q){
       const m = q.trim().match(/^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$/);
       if (m){ return { lat: parseFloat(m[1]), lon: parseFloat(m[3]) }; }
@@ -265,7 +297,7 @@
       return { lat, lon };
     }
 
-    // Geolocalización
+    // ===== Geolocalización UI =====
     $('btnUseLoc').onclick = async () => {
       if (!('geolocation' in navigator)) return alert('Tu navegador no soporta geolocalización.');
       const getOnce = (opts)=> new Promise((res,rej)=> navigator.geolocation.getCurrentPosition(res,rej,opts));
@@ -289,7 +321,7 @@
       }
     };
 
-    // Modo
+    // ===== Modo circular vs p2p =====
     function updateMode(){
       const mode = document.querySelector('input[name="mode"]:checked').value;
       $('loopBox').style.display = (mode==='loop') ? 'block' : 'none';
@@ -317,7 +349,7 @@
       catch{ alert('Destino no encontrado'); }
     };
 
-    // Construcción de payload para /routes/generate
+    // ===== Construcción de payload =====
     function buildPayload(seed){
       const km = parseFloat($('routeKm').value || '10');
       const hill = $('altPref').value;
@@ -347,6 +379,37 @@
       };
     }
 
+    // ===== Enviar a /routes/generate =====
+    function enableSendToRun(enabled) {
+      const b = document.getElementById('btnSendToRun');
+      if (!b) return;
+      b.disabled = !enabled;
+      b.style.opacity = enabled ? '1' : '.6';
+      b.style.cursor = enabled ? 'pointer' : 'not-allowed';
+    }
+    function saveTargetRouteForRun(r) {
+      if (!r || !r.geom) return;
+      const dist = (typeof r.distance_m === 'number' ? r.distance_m : estimateGeojsonDistance(r.geom)) || 0;
+      const target = {
+        route_id: r.route_id || null,
+        distance_m: dist,
+        geom: r.geom,
+        start_point: r.start_point || null,
+        end_point: r.end_point || null,
+        saved_at: new Date().toISOString()
+      };
+      localStorage.setItem('runloop_target_route', JSON.stringify(target));
+    }
+    (function initSendToRunButton() {
+      const btn = document.getElementById('btnSendToRun');
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        if (!S.highlightedRoute) { alert('Primero genera y selecciona una ruta.'); return; }
+        saveTargetRouteForRun(S.highlightedRoute);
+        window.location.href = 'run.html';
+      });
+    })();
+
     async function generateOne(seed){
       const payload = buildPayload(seed);
       const res = await fx('/routes/generate', { method:'POST', body: payload });
@@ -354,12 +417,26 @@
       if (!res.ok) throw new Error(res.data?.message || 'Error generando ruta');
 
       const geom = res.data.geom || res.data.geojson || null;
+      const distance_m =
+        (typeof res.data.distance_m === 'number' ? res.data.distance_m : null) ??
+        (geom ? estimateGeojsonDistance(geom) : null);
+
       let startPoint = res.data.start_point, endPoint = res.data.end_point;
       if ((!startPoint || !endPoint) && geom){
         const d = deriveEndpointsFromGeom(geom);
         startPoint = startPoint || d.start; endPoint = endPoint || d.end;
       }
-      return { route_id: res.data.route_id, geom, start_point: startPoint, end_point: endPoint };
+
+      // Nota de superficie (si viene del backend)
+      if (res.data.surface_note){
+        const n = $('surfaceNote');
+        n.style.display = 'block';
+        n.textContent = res.data.surface_note;
+      } else {
+        $('surfaceNote').style.display = 'none';
+      }
+
+      return { route_id: res.data.route_id, geom, start_point: startPoint, end_point: endPoint, distance_m };
     }
 
     async function onGenerate1(){
@@ -370,7 +447,8 @@
         drawHighlight(r.geom);
         if (r.start_point) putStartMarker(r.start_point.lat, r.start_point.lon);
         if (r.end_point)   putEndMarker(r.end_point.lat,   r.end_point.lon);
-        $('routeInfo').textContent = `Ruta ${r.route_id} – destacada`;
+        $('routeInfo').textContent = `Ruta ${r.route_id} – ${(r.distance_m/1000).toFixed(2)} km – destacada`;
+        enableSendToRun(true);
       }catch(e){ alert('Error: ' + e.message); }
     }
     async function onGenerate5(){
@@ -381,19 +459,19 @@
         const highlighted = results[0];
         S.highlightedRoute = highlighted;
         drawHighlight(highlighted.geom);
-        enableSendToRun(true);
         if (highlighted.start_point) putStartMarker(highlighted.start_point.lat, highlighted.start_point.lon);
         if (highlighted.end_point)   putEndMarker(highlighted.end_point.lat,   highlighted.end_point.lon);
-        $('routeInfo').textContent = `Ruta ${highlighted.route_id} (azul). Haz clic en otra para destacar.`;
+        $('routeInfo').textContent = `Ruta ${highlighted.route_id} (azul) – ${(highlighted.distance_m/1000).toFixed(2)} km. Haz clic en otra para destacar.`;
+        enableSendToRun(true);
 
         results.slice(1).forEach(r => {
           const layer = drawVariant(r.geom, () => {
             S.highlightedRoute = r;
             drawHighlight(r.geom);
-            enableSendToRun(true);
             if (r.start_point) putStartMarker(r.start_point.lat, r.start_point.lon);
             if (r.end_point)   putEndMarker(r.end_point.lat,   r.end_point.lon);
-            $('routeInfo').textContent = `Ruta ${r.route_id} destacada.`;
+            $('routeInfo').textContent = `Ruta ${r.route_id} destacada – ${(r.distance_m/1000).toFixed(2)} km`;
+            enableSendToRun(true);
           });
           S.variantLayers.push({ layer, ...r });
         });
@@ -418,49 +496,8 @@
       $('btnGen1').onclick = onGenerate1;
       $('btnGen5').onclick = onGenerate5;
       $('btnExport').onclick = onExport;
+      enableSendToRun(false);
     })();
-
-    function enableSendToRun(enabled) {
-    const b = document.getElementById('btnSendToRun');
-    if (!b) return;
-    b.disabled = !enabled;
-    b.style.opacity = enabled ? '1' : '.6';
-    b.style.cursor = enabled ? 'pointer' : 'not-allowed';
-  }
-
-  function saveTargetRouteForRun(r) {
-    if (!r || !r.geom) return;
-    // Guardamos lo esencial para el run: distancia objetivo y la polilínea
-    const target = {
-      route_id: r.route_id,
-      distance_m: r.geom?.coordinates?.length ? r.distance_m ?? null : r.distance_m ?? null,
-      geom: r.geom, // GeoJSON LineString
-      start_point: r.start_point || null,
-      end_point: r.end_point || null,
-      saved_at: new Date().toISOString()
-    };
-    localStorage.setItem('runloop_target_route', JSON.stringify(target));
-  }
-
-  // Hookea el botón
-  (function initSendToRunButton() {
-    const btn = document.getElementById('btnSendToRun');
-    if (!btn) return;
-    btn.addEventListener('click', () => {
-      if (!S.highlightedRoute) {
-        alert('Primero genera y selecciona una ruta.');
-        return;
-      }
-      saveTargetRouteForRun(S.highlightedRoute);
-      // abre run.html en la misma pestaña
-      window.location.href = 'run.html';
-    });
-  })();
-
-  // Activa el botón cuando haya ruta destacada
-  // Llama a enableSendToRun(true) donde ya destacas una ruta:
-  // — Dentro de onGenerate1() y onGenerate5() después de dibujar la ruta:
-  //   enableSendToRun(true);
   </script>
 </body>
 </html>
