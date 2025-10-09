@@ -3,189 +3,207 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Runloop – Generar rutas</title>
+  <title>Runloop – Generar rutas (Mapbox)</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
   <style>
-    body{font-family:system-ui;background:#0b0c10;color:#e8f0fe;margin:0}
+    :root{color-scheme:dark}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:#0b0c10;color:#e8f0fe;margin:0}
     header{padding:16px;border-bottom:1px solid #1b1f2a;background:#0d1017}
     h1{margin:0;font-size:20px}
     .wrap{display:grid;grid-template-columns:420px 1fr;gap:16px;padding:16px}
-    @media(max-width:900px){.wrap{grid-template-columns:1fr}}
-    .card{background:#11131a;border:1px solid #1b2131;border-radius:10px;padding:12px}
+    @media(max-width:1000px){.wrap{grid-template-columns:1fr}}
+    .card{background:#11131a;border:1px solid #1b2131;border-radius:12px;padding:12px}
     label{font-size:13px;color:#9fb3c8;display:block;margin-top:8px}
-    input,select,button,textarea{width:100%;padding:8px;margin-top:4px;border-radius:8px;border:1px solid #243247;background:#0f1320;color:#e8f0fe}
-    button{cursor:pointer;background:#25a244;border-color:#1f6f34;font-weight:600;margin-top:10px}
-    .map{height:560px;border-radius:10px;overflow:hidden;margin-top:10px}
+    input,select,button,textarea{width:100%;padding:10px;margin-top:6px;border-radius:10px;border:1px solid #243247;background:#0f1320;color:#e8f0fe}
+    button{cursor:pointer;background:#25a244;border-color:#1f6f34;font-weight:600}
     .muted{opacity:.75}
-    .row{display:flex;gap:8px}
-    .ok{color:#46d369}.err{color:#ff6b6b}
-    pre{white-space:pre-wrap;background:#0f1320;border:1px solid #243247;padding:8px;border-radius:8px;max-height:220px;overflow:auto}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    .row>div{flex:1 1 160px}
+    .map{height:600px;border-radius:12px;overflow:hidden;margin-top:10px}
     .link-btn{background:#3b82f6;border-color:#215ab6}
+    .danger{background:#e55353;border-color:#9c2f2f}
+    .ghost{background:#0f1320;border-color:#243247}
+    .ok{color:#46d369}.err{color:#ff6b6b}
+    pre{white-space:pre-wrap;background:#0f1320;border:1px solid #243247;padding:8px;border-radius:8px;max-height:240px;overflow:auto}
+    .badge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid #243247;background:#0f1320;font-size:12px;margin-left:8px}
   </style>
 </head>
 <body>
   <header>
-    <h1>🏃 Runloop – Generación de rutas</h1>
-    <p class="muted" style="font-size:13px">API fija en API Gateway</p>
-    <div class="row">
-      <a href="run.html" style="flex:1;text-align:center;text-decoration:none">
-        <button class="link-btn" style="width:100%">▶️ Ir a “Salir a correr”</button>
-      </a>
+    <h1>🏃 Runloop – Generar rutas</h1>
+    <div class="row" style="margin-top:8px">
+      <div class="badge">API: <code>https://djz7dstg9k.execute-api.eu-west-1.amazonaws.com</code></div>
+      <div class="badge">Mapbox: <code>pk…WHH1XA</code></div>
+      <a href="run.html" style="text-decoration:none;margin-left:auto"><button class="link-btn">▶️ Ir a “Salir a correr”</button></a>
     </div>
+    <p class="muted" style="font-size:13px;margin-top:6px">Circular o punto a punto · Geocodificación y ruteo con Mapbox</p>
   </header>
 
   <div class="wrap">
-    <!-- Config mínima -->
+    <!-- Config y ubicación -->
     <div class="card">
-      <h2>Conexión</h2>
-      <label>API Base URL (Fija)</label>
-      <input id="apiBase" disabled />
-      <button id="btnTestApi" class="link-btn">Probar API</button>
-      <details style="margin-top:10px">
-        <summary>Resultado de la prueba</summary>
-        <div id="testOut" class="muted" style="font-size:13px"></div>
-      </details>
+      <h2>Ubicación & Preferencias</h2>
 
-      <h2>Ubicación</h2>
       <div class="row">
-        <div style="flex:1">
+        <div style="flex:1 1 220px">
           <label>Lat/Lon por defecto</label>
           <input id="defaultLatLon" placeholder="40.4168,-3.7038" />
         </div>
-        <div style="flex:1">
+        <div style="flex:1 1 180px">
           <label>&nbsp;</label>
           <button id="btnUseLoc">📍 Usar mi ubicación</button>
         </div>
       </div>
-      <button id="btnSaveCfg">Guardar</button>
+
+      <details style="margin-top:6px">
+        <summary>Preferencias de la ruta</summary>
+        <div class="row" style="margin-top:6px">
+          <div>
+            <label>Distancia (km)</label>
+            <input id="routeKm" type="number" value="10" min="0.5" step="0.5" />
+          </div>
+          <div>
+            <label>Altimetría</label>
+            <select id="altPref">
+              <option value="flat">Más llana</option>
+              <option value="mixed" selected>Mixta</option>
+              <option value="hilly">Con pendiente</option>
+            </select>
+          </div>
+          <div>
+            <label>Superficie</label>
+            <select id="surfacePref">
+              <option value="paved">Asfalto/alquitranado</option>
+              <option value="unpaved" selected>Tierra / caminos</option>
+            </select>
+          </div>
+        </div>
+      </details>
+
+      <h2 style="margin-top:16px">Tipo de ruta</h2>
+      <div>
+        <label><input type="radio" name="mode" value="loop" checked /> Circular (origen = destino)</label><br>
+        <label><input type="radio" name="mode" value="p2p" /> Punto a punto (origen ≠ destino)</label>
+      </div>
+
+      <!-- Origen/destino -->
+      <div id="loopBox" class="card" style="margin-top:10px">
+        <h3 style="margin:0 0 6px 0">Circular</h3>
+        <label>Inicio (lat,lon) · normalmente tu ubicación</label>
+        <input id="routeStartLoop" placeholder="40.4168,-3.7038" />
+        <div class="row">
+          <button id="btnPickStartLoop" class="ghost" style="flex:1">Elegir inicio en mapa</button>
+          <button id="btnCopyFromDefaultLoop" class="ghost" style="flex:1">Usar Lat/Lon por defecto</button>
+        </div>
+      </div>
+
+      <div id="p2pBox" class="card" style="margin-top:10px;display:none">
+        <h3 style="margin:0 0 6px 0">Punto a punto</h3>
+
+        <label>Origen</label>
+        <div class="row">
+          <input id="startAddr" placeholder="Dirección origen o lat,lon" />
+          <button id="btnSearchStart" class="ghost" style="flex:0 0 120px">Buscar</button>
+        </div>
+        <div class="row">
+          <input id="routeStartP2P" placeholder="lat,lon origen" />
+          <button id="btnPickStart" class="ghost" style="flex:0 0 160px">Elegir origen en mapa</button>
+        </div>
+
+        <label style="margin-top:8px">Destino</label>
+        <div class="row">
+          <input id="endAddr" placeholder="Dirección destino o lat,lon" />
+          <button id="btnSearchEnd" class="ghost" style="flex:0 0 120px">Buscar</button>
+        </div>
+        <div class="row">
+          <input id="routeEndP2P" placeholder="lat,lon destino" />
+          <button id="btnPickEnd" class="ghost" style="flex:0 0 160px">Elegir destino en mapa</button>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <button id="btnGen1" style="flex:1">Generar 1 ruta</button>
+        <button id="btnGen5" style="flex:1">Generar 5 rutas</button>
+      </div>
+      <button id="btnExport" class="link-btn" style="margin-top:6px">Exportar GPX (ruta destacada)</button>
+      <p id="routeInfo" class="muted" style="font-size:13px"></p>
+
+      <details style="margin-top:8px">
+        <summary>Depuración (última respuesta)</summary>
+        <pre id="debug"></pre>
+      </details>
     </div>
 
     <!-- Mapa -->
     <div class="card">
       <h2>Mapa</h2>
       <div id="map" class="map"></div>
-    </div>
-
-    <!-- Generar rutas -->
-    <div class="card">
-      <h2>Generar rutas</h2>
-      <label>Inicio (lat,lon)</label>
-      <input id="routeStart" placeholder="40.4168,-3.7038" />
-
-      <div class="row">
-        <div style="flex:1">
-          <label>Distancia (km)</label>
-          <input id="routeKm" type="number" value="10" />
+      <div class="row" style="margin-top:8px">
+        <div style="flex:1 1 60%">
+          <small class="muted">ⓘ Tiles © OpenStreetMap · Geocoder & rutas: Mapbox</small>
         </div>
-        <div style="flex:1">
-          <label>Altimetría</label>
-          <select id="altPref">
-            <option value="flat">Más llana</option>
-            <option value="mixed" selected>Mixta</option>
-            <option value="hilly">Con pendiente</option>
-          </select>
+        <div style="flex:1 1 40%;text-align:right">
+          <button id="btnClear" class="danger" style="width:auto">Limpiar rutas y marcadores</button>
         </div>
       </div>
-
-      <label>Superficie</label>
-      <select id="surfacePref">
-        <option value="paved">Asfalto/alquitranado</option>
-        <option value="unpaved" selected>Tierra / caminos</option>
-      </select>
-
-      <div class="row">
-        <button id="btnGen1" style="flex:1">Generar 1 ruta</button>
-        <button id="btnGen5" style="flex:1">Generar 5 rutas</button>
-      </div>
-      <button id="btnExport">Exportar GPX (ruta destacada)</button>
-      <p id="routeInfo" class="muted" style="font-size:13px"></p>
-      <details>
-        <summary>Depuración (última respuesta)</summary>
-        <pre id="debug"></pre>
-      </details>
     </div>
-
-    <!-- Eventos ocultos -->
-    <!-- … -->
   </div>
 
   <script>
-    // ===== Config fija =====
-    const API_BASE = "https://djz7dstg9k.execute-api.eu-west-1.amazonaws.com"; // <- TU API
+    // ===== Config fijas =====
+    const API_BASE = "https://djz7dstg9k.execute-api.eu-west-1.amazonaws.com";
+    const MAPBOX_TOKEN = "pk.eyJ1IjoiYXJvbWFuaGVycmVyYSIsImEiOiJjbWdkaXdlNHIxazFoMmxzODZhcGI3enhkIn0.qCuSZ6-OgwlucpyyWHH1XA";
     const $ = id => document.getElementById(id);
+
     const S = {
       map:null, youMarker:null,
-      variantLayers:[], highlightLayer:null,
       startMarker:null, endMarker:null,
+      variantLayers:[], highlightLayer:null,
       highlightedRoute:null,
-      cfg:{ defaultLatLon:'40.4168,-3.7038' }
+      _watchId:null, _pickMode:null,
+      cfg:{ defaultLatLon:'40.41680,-3.70380' }
     };
 
-    function initMap(){
-      const center = S.cfg.defaultLatLon.split(',').map(Number);
-      if (S.map) S.map.remove();
-      S.map = L.map('map').setView(center, 13);
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(S.map);
-      if (S.youMarker) S.map.removeLayer(S.youMarker);
-      S.youMarker = L.marker([center[0], center[1]], {title:'Tú aquí'}).addTo(S.map);
-      clearAllRoutes();
+    // Helpers UI / Mapa
+    function setLatLonInputs(lat, lon) {
+      const s = `${lat.toFixed(5)},${lon.toFixed(5)}`;
+      $('defaultLatLon').value = s;
+      $('routeStartLoop').value = s;
+      if (!$('routeStartP2P').value) $('routeStartP2P').value = s;
+      S.cfg.defaultLatLon = s;
     }
-
-    async function fx(path, {method='GET', body=null, headers={}, timeoutMs=15000}={}){
-      const url = API_BASE.replace(/\/+$/,'') + path;
-      const h = {...headers};
-      const ctrl = new AbortController();
-      const t = setTimeout(()=>ctrl.abort(), timeoutMs);
-      let reqBody = undefined;
-      if (body !== null && body !== undefined){
-        h['Content-Type'] = h['Content-Type'] || 'application/json';
-        reqBody = (typeof body === 'string') ? body : JSON.stringify(body);
-      }
-      try{
-        const r = await fetch(url, {method, headers:h, body:reqBody, signal:ctrl.signal});
-        const txt = await r.text();
-        let data = null; try{ data = JSON.parse(txt); } catch { data = txt; }
-        clearTimeout(t);
-        return { ok:r.ok, status:r.status, data };
-      }catch(e){
-        clearTimeout(t);
-        return { ok:false, status:0, data:{ message:String(e) } };
+    function moveMapTo(lat, lon, zoom = 15) {
+      if (!S.map) return;
+      S.map.setView([lat, lon], Math.max(S.map.getZoom(), zoom), { animate: true });
+      if (!S.youMarker) {
+        S.youMarker = L.marker([lat, lon], { title: 'Tú aquí' }).addTo(S.map);
+      } else {
+        S.youMarker.setLatLng([lat, lon]);
       }
     }
-
-    function clearMarkers(){
-      if (S.startMarker) { S.map.removeLayer(S.startMarker); S.startMarker=null; }
-      if (S.endMarker)   { S.map.removeLayer(S.endMarker);   S.endMarker=null; }
+    function putStartMarker(lat, lon){
+      if (S.startMarker) S.map.removeLayer(S.startMarker);
+      S.startMarker = L.marker([lat,lon], { title:'Inicio', icon: L.icon({ iconUrl:"https://maps.gstatic.com/mapfiles/ms2/micons/blue-dot.png", iconSize:[32,32], iconAnchor:[16,32] })}).addTo(S.map).bindPopup('Inicio');
     }
-    function putMarkers(start, end){
-      clearMarkers();
-      if (start){
-        S.startMarker = L.marker([start.lat, start.lon], {
-          title: "Inicio",
-          icon: L.icon({ iconUrl: "https://maps.gstatic.com/mapfiles/ms2/micons/blue-dot.png", iconSize:[32,32], iconAnchor:[16,32] })
-        }).addTo(S.map).bindPopup("Inicio");
-      }
-      if (end){
-        S.endMarker = L.marker([end.lat, end.lon], {
-          title: "Fin",
-          icon: L.icon({ iconUrl: "https://maps.gstatic.com/mapfiles/ms2/micons/red-dot.png", iconSize:[32,32], iconAnchor:[16,32] })
-        }).addTo(S.map).bindPopup("Final");
-      }
+    function putEndMarker(lat, lon){
+      if (S.endMarker) S.map.removeLayer(S.endMarker);
+      S.endMarker = L.marker([lat,lon], { title:'Fin', icon: L.icon({ iconUrl:"https://maps.gstatic.com/mapfiles/ms2/micons/red-dot.png", iconSize:[32,32], iconAnchor:[16,32] })}).addTo(S.map).bindPopup('Fin');
     }
-    function clearAllRoutes(){
+    function clearRoutes(){
       S.variantLayers.forEach(v => S.map.removeLayer(v.layer));
       S.variantLayers = [];
-      if (S.highlightLayer) { S.map.removeLayer(S.highlightLayer); S.highlightLayer=null; }
-      S.highlightedRoute=null;
-      clearMarkers();
-      $('routeInfo').textContent='';
+      if (S.highlightLayer){ S.map.removeLayer(S.highlightLayer); S.highlightLayer=null; }
+      S.highlightedRoute = null;
+      $('routeInfo').textContent = '';
+      $('debug').textContent = '';
     }
+    function clearMarkers(){ if (S.startMarker){ S.map.removeLayer(S.startMarker); S.startMarker=null; } if (S.endMarker){ S.map.removeLayer(S.endMarker); S.endMarker=null; } }
+    function clearAll(){ clearRoutes(); clearMarkers(); }
     function drawHighlight(geom){
       if (S.highlightLayer) S.map.removeLayer(S.highlightLayer);
       S.highlightLayer = L.geoJSON(geom, { style:{ color:'#3388ff', weight:6, opacity:0.9 } }).addTo(S.map);
-      const b = S.highlightLayer.getBounds();
-      if (b.isValid()) S.map.fitBounds(b, { padding: [30,30] });
+      const b = S.highlightLayer.getBounds(); if (b.isValid()) S.map.fitBounds(b, { padding:[30,30] });
     }
     function drawVariant(geom, onClick){
       const layer = L.geoJSON(geom, { style:{ color:'#888', weight:3, opacity:0.6 } }).addTo(S.map);
@@ -204,61 +222,172 @@
       return { start:null, end:null };
     }
 
-    async function generateOne(seed){
-      const start = $('routeStart').value.split(',').map(Number);
+    // Mapa
+    function initMap(){
+      const center = S.cfg.defaultLatLon.split(',').map(Number);
+      if (S.map) S.map.remove();
+      S.map = L.map('map').setView(center, 13);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19, attribution:'© OpenStreetMap'}).addTo(S.map);
+      setTimeout(()=> S.map.invalidateSize(), 150);
+      S.map.on('click', (ev) => {
+        if (!S._pickMode) return;
+        const lat = ev.latlng.lat, lon = ev.latlng.lng;
+        if (S._pickMode === 'startLoop'){ $('routeStartLoop').value = `${lat.toFixed(5)},${lon.toFixed(5)}`; putStartMarker(lat, lon); }
+        else if (S._pickMode === 'start'){ $('routeStartP2P').value = `${lat.toFixed(5)},${lon.toFixed(5)}`; putStartMarker(lat, lon); }
+        else if (S._pickMode === 'end'){ $('routeEndP2P').value = `${lat.toFixed(5)},${lon.toFixed(5)}`; putEndMarker(lat, lon); }
+        S._pickMode = null;
+      });
+    }
+
+    // Llamadas API
+    async function fx(path, {method='GET', body=null, headers={}}={}){
+      const url = API_BASE.replace(/\/+$/,'') + path;
+      const h = {...headers};
+      let reqBody;
+      if (body !== null && body !== undefined){ h['Content-Type']='application/json'; reqBody = JSON.stringify(body); }
+      const r = await fetch(url, {method, headers:h, body:reqBody});
+      const txt = await r.text(); let data=null; try{ data = JSON.parse(txt); }catch{ data = txt; }
+      return { ok:r.ok, status:r.status, data };
+    }
+
+    // Geocoder (Mapbox)
+    async function geocodeMapbox(q){
+      const m = q.trim().match(/^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$/);
+      if (m){ return { lat: parseFloat(m[1]), lon: parseFloat(m[3]) }; }
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?access_token=${MAPBOX_TOKEN}&limit=1&language=es`;
+      const res = await fetch(url);
+      const js = await res.json();
+      if (!js.features || js.features.length===0) throw new Error('No encontrado');
+      const [lon,lat] = js.features[0].center;
+      return { lat, lon };
+    }
+
+    // Geolocalización
+    $('btnUseLoc').onclick = async () => {
+      if (!('geolocation' in navigator)) return alert('Tu navegador no soporta geolocalización.');
+      const getOnce = (opts)=> new Promise((res,rej)=> navigator.geolocation.getCurrentPosition(res,rej,opts));
+      try{
+        let pos;
+        try { pos = await getOnce({ enableHighAccuracy:true, timeout:25000, maximumAge:0 }); }
+        catch { pos = await getOnce({ enableHighAccuracy:false, timeout:25000, maximumAge:10000 }); }
+        const { latitude: lat, longitude: lon } = pos.coords;
+        setLatLonInputs(lat, lon);
+        moveMapTo(lat, lon, 15);
+        if (!S._watchId){
+          S._watchId = navigator.geolocation.watchPosition(
+            p => moveMapTo(p.coords.latitude, p.coords.longitude, 15),
+            err => console.warn('watchPosition error', err),
+            { enableHighAccuracy:true, maximumAge:2000, timeout:30000 }
+          );
+        }
+      }catch(err){
+        const msg = ({1:'Permiso denegado (actívalo en el navegador).',2:'Posición no disponible.',3:'Tiempo agotado.'}[err.code]) || ('No se pudo obtener ubicación: '+err.message);
+        alert(msg);
+      }
+    };
+
+    // Modo
+    function updateMode(){
+      const mode = document.querySelector('input[name="mode"]:checked').value;
+      $('loopBox').style.display = (mode==='loop') ? 'block' : 'none';
+      $('p2pBox').style.display = (mode==='p2p') ? 'block' : 'none';
+    }
+    document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener('change', updateMode));
+
+    $('btnPickStartLoop').onclick = ()=>{ S._pickMode = 'startLoop'; alert('Haz clic en el mapa para INICIO (circular).'); };
+    $('btnCopyFromDefaultLoop').onclick = ()=>{
+      $('routeStartLoop').value = $('defaultLatLon').value.trim();
+      const [lat,lon] = $('routeStartLoop').value.split(',').map(Number);
+      if (Number.isFinite(lat)&&Number.isFinite(lon)){ putStartMarker(lat,lon); moveMapTo(lat,lon,15); }
+    };
+    $('btnPickStart').onclick = ()=>{ S._pickMode = 'start'; alert('Haz clic en el mapa para ORIGEN.'); };
+    $('btnPickEnd').onclick   = ()=>{ S._pickMode = 'end';   alert('Haz clic en el mapa para DESTINO.'); };
+
+    $('btnSearchStart').onclick = async ()=>{
+      const q = $('startAddr').value.trim(); if(!q) return;
+      try{ const p = await geocodeMapbox(q); $('routeStartP2P').value = `${p.lat.toFixed(5)},${p.lon.toFixed(5)}`; putStartMarker(p.lat,p.lon); moveMapTo(p.lat,p.lon,15); }
+      catch{ alert('Origen no encontrado'); }
+    };
+    $('btnSearchEnd').onclick = async ()=>{
+      const q = $('endAddr').value.trim(); if(!q) return;
+      try{ const p = await geocodeMapbox(q); $('routeEndP2P').value = `${p.lat.toFixed(5)},${p.lon.toFixed(5)}`; putEndMarker(p.lat,p.lon); moveMapTo(p.lat,p.lon,15); }
+      catch{ alert('Destino no encontrado'); }
+    };
+
+    // Construcción de payload para /routes/generate
+    function buildPayload(seed){
       const km = parseFloat($('routeKm').value || '10');
       const hill = $('altPref').value;
       const surf = $('surfacePref').value;
+      const mode = document.querySelector('input[name="mode"]:checked').value;
 
-      const res = await fx('/routes/generate', {
-        method:'POST',
-        body:{
-          start:{ lat:start[0], lon:start[1] },
-          distance_m: km*1000,
-          hill_pref: hill,
-          surface_pref: surf,
-          seed
-        }
-      });
+      let start, end, round_trip=false;
+      if (mode === 'loop'){
+        const s = $('routeStartLoop').value.trim();
+        const [lat,lon] = s.split(',').map(Number);
+        start = { lat, lon }; round_trip = true;
+      } else {
+        const s = $('routeStartP2P').value.trim();
+        const e = $('routeEndP2P').value.trim();
+        const [sLat,sLon] = s.split(',').map(Number);
+        const [eLat,eLon] = e.split(',').map(Number);
+        start = { lat:sLat, lon:sLon }; end = { lat:eLat, lon:eLon };
+      }
+
+      return {
+        start, ...(end ? { end } : {}),
+        distance_m: Math.max(500, km*1000),
+        hill_pref: hill,
+        surface_pref: surf,
+        round_trip,
+        seed
+      };
+    }
+
+    async function generateOne(seed){
+      const payload = buildPayload(seed);
+      const res = await fx('/routes/generate', { method:'POST', body: payload });
       $('debug').textContent = JSON.stringify(res.data, null, 2);
       if (!res.ok) throw new Error(res.data?.message || 'Error generando ruta');
 
-      const geom = res.data.geom || null;
+      const geom = res.data.geom || res.data.geojson || null;
       let startPoint = res.data.start_point, endPoint = res.data.end_point;
       if ((!startPoint || !endPoint) && geom){
         const d = deriveEndpointsFromGeom(geom);
-        startPoint = startPoint || d.start;
-        endPoint   = endPoint   || d.end;
+        startPoint = startPoint || d.start; endPoint = endPoint || d.end;
       }
       return { route_id: res.data.route_id, geom, start_point: startPoint, end_point: endPoint };
     }
 
     async function onGenerate1(){
-      clearAllRoutes();
+      clearRoutes();
       try{
         const r = await generateOne(Math.floor(Math.random()*100000));
         S.highlightedRoute = r;
         drawHighlight(r.geom);
-        putMarkers(r.start_point, r.end_point);
+        if (r.start_point) putStartMarker(r.start_point.lat, r.start_point.lon);
+        if (r.end_point)   putEndMarker(r.end_point.lat,   r.end_point.lon);
         $('routeInfo').textContent = `Ruta ${r.route_id} – destacada`;
       }catch(e){ alert('Error: ' + e.message); }
     }
     async function onGenerate5(){
-      clearAllRoutes();
+      clearRoutes();
       const seeds = [1,2,3,4,5].map(s => s + Math.floor(Math.random()*10000));
       try{
         const results = await Promise.all(seeds.map(s => generateOne(s)));
         const highlighted = results[0];
         S.highlightedRoute = highlighted;
         drawHighlight(highlighted.geom);
-        putMarkers(highlighted.start_point, highlighted.end_point);
+        if (highlighted.start_point) putStartMarker(highlighted.start_point.lat, highlighted.start_point.lon);
+        if (highlighted.end_point)   putEndMarker(highlighted.end_point.lat,   highlighted.end_point.lon);
         $('routeInfo').textContent = `Ruta ${highlighted.route_id} (azul). Haz clic en otra para destacar.`;
 
         results.slice(1).forEach(r => {
           const layer = drawVariant(r.geom, () => {
             S.highlightedRoute = r;
             drawHighlight(r.geom);
-            putMarkers(r.start_point, r.end_point);
+            if (r.start_point) putStartMarker(r.start_point.lat, r.start_point.lon);
+            if (r.end_point)   putEndMarker(r.end_point.lat,   r.end_point.lon);
             $('routeInfo').textContent = `Ruta ${r.route_id} destacada.`;
           });
           S.variantLayers.push({ layer, ...r });
@@ -272,48 +401,19 @@
       if (r.data?.url) window.open(r.data.url, '_blank'); else alert('No se pudo obtener el GPX');
     }
 
-    // Test API (POST gen -> si falla lo muestra)
-    $('btnTestApi').onclick = async () => {
-      const out = [];
-      out.push(`Base: ${API_BASE}`);
-      const start = $('defaultLatLon').value || '40.4168,-3.7038';
-      const [lat,lon] = start.split(',').map(Number);
-      const res = await fx('/routes/generate', {
-        method:'POST',
-        body:{ start:{lat,lon}, distance_m: 2000, seed: 1 }
-      });
-      out.push(`POST /routes/generate → ${res.status}`);
-      if (!res.ok) out.push(JSON.stringify(res.data));
-      else out.push(`route_id: ${res.data.route_id}`);
-      $('testOut').innerHTML = out.map(x=>`<div>${x}</div>`).join('');
-    };
+    $('btnClear').onclick = () => { clearAll(); };
 
-    // Ubicación / guardar cfg local solo para latlon
-    $('btnUseLoc').onclick = () => {
-      navigator.geolocation.getCurrentPosition(p => {
-        const s = `${p.coords.latitude.toFixed(5)},${p.coords.longitude.toFixed(5)}`;
-        $('defaultLatLon').value = s;
-        $('routeStart').value = s;
-        initMap();
-      }, () => alert('No se pudo obtener ubicación'), { enableHighAccuracy:true, timeout:10000 });
-      navigator.geolocation.watchPosition(p => {
-        const lat=p.coords.latitude, lon=p.coords.longitude;
-        if (S.youMarker) S.youMarker.setLatLng([lat,lon]);
-      }, null, { enableHighAccuracy:true });
-    };
-    $('btnSaveCfg').onclick = () => {
+    // Init
+    (function init(){
+      $('defaultLatLon').value = S.cfg.defaultLatLon;
+      $('routeStartLoop').value = S.cfg.defaultLatLon;
       initMap();
-      $('routeStart').value = $('defaultLatLon').value.trim();
-    };
-
-    // init
-    $('apiBase').value = API_BASE;
-    $('defaultLatLon').value = S.cfg.defaultLatLon;
-    initMap();
-    $('routeStart').value = S.cfg.defaultLatLon;
-    $('btnGen1').onclick  = onGenerate1;
-    $('btnGen5').onclick  = onGenerate5;
-    $('btnExport').onclick = onExport;
+      updateMode();
+      (async ()=>{ try{ if ('permissions' in navigator && navigator.permissions.query){ const st = await navigator.permissions.query({ name:'geolocation' }); if (st.state==='granted') $('btnUseLoc').click(); } }catch{} })();
+      $('btnGen1').onclick = onGenerate1;
+      $('btnGen5').onclick = onGenerate5;
+      $('btnExport').onclick = onExport;
+    })();
   </script>
 </body>
 </html>
