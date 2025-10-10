@@ -3,439 +3,512 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Runloop – Salir a correr</title>
+  <title>Runloop – Generar rutas (ES)</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
   <style>
     :root{color-scheme:dark}
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:#0b0c10;color:#e8f0fe;margin:0;padding:16px}
-    header{display:flex;gap:12px;align-items:center;margin-bottom:12px}
-    a.btn{display:inline-block;text-decoration:none}
-    .btn{padding:10px 12px;border-radius:8px;border:1px solid #215ab6;background:#3b82f6;color:#fff;font-weight:600}
-    .card{background:#11131a;border:1px solid #1b2131;border-radius:12px;padding:12px;max-width:860px;margin:0 auto}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:#0b0c10;color:#e8f0fe;margin:0}
+    header{padding:16px;border-bottom:1px solid #1b1f2a;background:#0d1017}
+    h1{margin:0;font-size:20px}
+    .wrap{display:grid;grid-template-columns:420px 1fr;gap:16px;padding:16px}
+    @media(max-width:1000px){.wrap{grid-template-columns:1fr}}
+    .card{background:#11131a;border:1px solid #1b2131;border-radius:12px;padding:12px}
     label{font-size:13px;color:#9fb3c8;display:block;margin-top:8px}
-    input,button{width:100%;padding:10px;margin-top:6px;border-radius:10px;border:1px solid #243247;background:#0f1320;color:#e8f0fe}
+    input,select,button,textarea{width:100%;padding:10px;margin-top:6px;border-radius:10px;border:1px solid #243247;background:#0f1320;color:#e8f0fe}
     button{cursor:pointer;background:#25a244;border-color:#1f6f34;font-weight:600}
-    .row{display:flex;gap:10px;flex-wrap:wrap}
-    .row>div{flex:1 1 180px}
-    .stat{font-size:28px}
-    .muted{opacity:.7}
-    .controls{display:flex;gap:10px;margin-top:12px}
-    .controls button{flex:1}
-    progress{width:100%;height:14px;border-radius:8px}
-    .pill{display:inline-block;padding:4px 8px;border-radius:999px;border:1px solid #243247;background:#0f1320;font-size:12px}
+    .muted{opacity:.75}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    .row>div{flex:1 1 160px}
+    .map{height:600px;border-radius:12px;overflow:hidden;margin-top:10px}
+    .link-btn{background:#3b82f6;border-color:#215ab6}
     .danger{background:#e55353;border-color:#9c2f2f}
-    small code{background:#0f1320;border:1px solid #243247;padding:2px 6px;border-radius:6px}
+    .ghost{background:#0f1320;border-color:#243247}
+    pre{white-space:pre-wrap;background:#0f1320;border:1px solid #243247;padding:8px;border-radius:8px;max-height:240px;overflow:auto}
+    .badge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid #243247;background:#0f1320;font-size:12px;margin-left:8px}
+    .note{font-size:13px;padding:8px;border:1px dashed #3b82f6;border-radius:8px;background:#0f1320;margin-top:8px;display:none}
+    .suggest{position:relative}
+    .suggest ul{position:absolute;z-index:5000;background:#0f1320;border:1px solid #243247;border-radius:8px;margin-top:4px;list-style:none;padding:6px;width:100%;max-height:240px;overflow:auto}
+    .suggest li{padding:6px;border-radius:6px;cursor:pointer}
+    .suggest li:hover{background:#13213a}
   </style>
 </head>
 <body>
   <header>
-    <a href="index.html" class="btn">⬅️ Volver al generador</a>
-    <h1 style="margin:0">🏃 Salir a correr</h1>
+    <h1>🏃 Runloop – Generación de rutas</h1>
+    <div class="row" style="margin-top:8px">
+      <div class="badge">API: <code>https://djz7dstg9k.execute-api.eu-west-1.amazonaws.com</code></div>
+      <a href="run.html" style="text-decoration:none;margin-left:auto"><button class="link-btn">▶️ Ir a “Salir a correr”</button></a>
+    </div>
+    <p class="muted" style="font-size:13px;margin-top:6px">Circular o punto a punto · Superficie (asfalto/tierra) · Mapbox Outdoors</p>
   </header>
 
-  <div class="card">
-    <label>API Base URL (fija)</label>
-    <input id="apiBase" disabled />
+  <div class="wrap">
+    <div class="card">
+      <h2>Ubicación & Preferencias</h2>
 
-    <div id="goalBox" style="margin-top:6px">
-      <div class="row" style="align-items:flex-end">
-        <div>
-          <label>Ruta objetivo</label>
-          <div><span id="goalDist" class="pill">Sin objetivo</span></div>
-        </div>
-        <div>
-          <label>Restante</label>
-          <div class="stat"><span id="goalRemain">—</span></div>
-        </div>
-        <div>
-          <label>Progreso</label>
-          <progress id="goalProg" max="1" value="0"></progress>
-        </div>
-      </div>
       <div class="row">
-        <button id="btnClearGoal" class="danger" style="flex:0 0 180px">Quitar objetivo</button>
+        <div style="flex:1 1 220px">
+          <label>Lat/Lon por defecto</label>
+          <input id="defaultLatLon" placeholder="38.95483,-5.86168" />
+        </div>
+        <div style="flex:1 1 180px">
+          <label>&nbsp;</label>
+          <button id="btnUseLoc">📍 Usar mi ubicación</button>
+        </div>
+      </div>
+
+      <details style="margin-top:6px" open>
+        <summary>Preferencias de la ruta</summary>
+        <div class="row" style="margin-top:6px">
+          <div>
+            <label>Distancia (km)</label>
+            <input id="routeKm" type="number" value="15" min="0.5" step="0.5" />
+          </div>
+          <div>
+            <label>Altimetría (preferencia)</label>
+            <select id="altPref">
+              <option value="flat">Más llana</option>
+              <option value="mixed" selected>Mixta</option>
+              <option value="hilly">Con pendiente</option>
+            </select>
+          </div>
+          <div>
+            <label>Superficie</label>
+            <select id="surfacePref">
+              <option value="paved" selected>Siempre asfalto</option>
+              <option value="unpaved">Mayormente tierra</option>
+            </select>
+          </div>
+        </div>
+        <p class="muted" style="font-size:12px;margin-top:4px">Buscamos ±10% del objetivo y cumplimos la superficie elegida (si existe razonablemente).</p>
+      </details>
+
+      <h2 style="margin-top:16px">Tipo de ruta</h2>
+      <div>
+        <label><input type="radio" name="mode" value="loop" checked /> Circular (origen = destino)</label><br>
+        <label><input type="radio" name="mode" value="p2p" /> Punto a punto (origen ≠ destino)</label>
+      </div>
+
+      <!-- Loop -->
+      <div id="loopBox" class="card" style="margin-top:10px">
+        <h3 style="margin:0 0 6px 0">Circular</h3>
+        <label>Inicio (lat,lon)</label>
+        <input id="routeStartLoop" placeholder="38.95483,-5.86168" />
+        <div class="row">
+          <button id="btnPickStartLoop" class="ghost" style="flex:1">Elegir inicio en mapa</button>
+          <button id="btnCopyFromDefaultLoop" class="ghost" style="flex:1">Usar Lat/Lon por defecto</button>
+        </div>
+      </div>
+
+      <!-- P2P -->
+      <div id="p2pBox" class="card" style="margin-top:10px;display:none">
+        <h3 style="margin:0 0 6px 0">Punto a punto</h3>
+
+        <div class="row suggest">
+          <div style="flex:1">
+            <label>Dirección ORIGEN (España) o lat,lon</label>
+            <input id="startAddr" placeholder="Calle, ciudad... (ES) o 38.95,-5.86" autocomplete="off" />
+            <ul id="startSug" style="display:none"></ul>
+          </div>
+          <button id="btnSearchStart" class="ghost" style="flex:0 0 120px;align-self:end">Buscar</button>
+        </div>
+
+        <div class="row">
+          <input id="routeStartP2P" placeholder="lat,lon ORIGEN" />
+          <button id="btnPickStart" class="ghost" style="flex:0 0 160px">Elegir ORIGEN en mapa</button>
+        </div>
+
+        <div class="row suggest">
+          <div style="flex:1">
+            <label>Dirección DESTINO (España) o lat,lon</label>
+            <input id="endAddr" placeholder="Calle, ciudad... (ES) o 38.97,-5.84" autocomplete="off" />
+            <ul id="endSug" style="display:none"></ul>
+          </div>
+          <button id="btnSearchEnd" class="ghost" style="flex:0 0 120px;align-self:end">Buscar</button>
+        </div>
+
+        <div class="row">
+          <input id="routeEndP2P" placeholder="lat,lon DESTINO" />
+          <button id="btnPickEnd" class="ghost" style="flex:0 0 160px">Elegir DESTINO en mapa</button>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <button id="btnGen1" style="flex:1">Generar 1 ruta</button>
+        <button id="btnGen5" style="flex:1">Generar 5 rutas</button>
+      </div>
+
+      <button id="btnSendToRun" class="link-btn" style="margin-top:6px" disabled>
+        ▶️ Usar esta ruta en “Salir a correr”
+      </button>
+
+      <button id="btnExport" class="ghost" style="margin-top:6px">Exportar GPX (ruta destacada)</button>
+      <div id="surfaceNote" class="note"></div>
+
+      <p id="routeInfo" class="muted" style="font-size:13px"></p>
+
+      <details style="margin-top:8px">
+        <summary>Depuración (última respuesta)</summary>
+        <pre id="debug"></pre>
+      </details>
+    </div>
+
+    <!-- Mapa -->
+    <div class="card">
+      <h2>Mapa</h2>
+      <div id="map" class="map"></div>
+      <div class="row" style="margin-top:8px">
+        <div style="flex:1 1 60%">
+          <small class="muted">Mapa: Mapbox Outdoors · © Mapbox · Datos © OpenStreetMap</small>
+        </div>
+        <div style="flex:1 1 40%;text-align:right">
+          <button id="btnClear" class="danger" style="width:auto">Limpiar rutas y marcadores</button>
+        </div>
       </div>
     </div>
-
-    <div class="row" style="margin-top:12px;align-items:flex-end">
-      <div><label>Distancia</label><div class="stat"><span id="dist">0.00</span> km</div></div>
-      <div><label>Velocidad</label><div class="stat"><span id="speed">0.0</span> km/h</div></div>
-      <div><label>Ritmo</label><div class="stat"><span id="pace">—</span> /km</div></div>
-      <div><label>Tiempo</label><div class="stat"><span id="time">00:00</span></div></div>
-    </div>
-
-    <div class="row" style="margin-top:4px">
-      <div><small class="muted">GPS: <span id="gpsState">parado</span></small></div>
-      <div><small class="muted">Precisión: ±<span id="acc">—</span> m</small></div>
-      <div><small class="muted">Último fix: <span id="lastFix">—</span>s</small></div>
-      <div><small class="muted">Muestras/5min: <span id="samples">0</span></small></div>
-    </div>
-
-    <div class="controls">
-      <button id="btnPlay">▶︎ Play</button>
-      <button id="btnPause" style="background:#f0ad4e;border-color:#b37e2e">⏸️ Pause</button>
-      <button id="btnStop"  style="background:#e55353;border-color:#9c2f2f">■ Stop</button>
-    </div>
-
-    <p class="muted" style="margin-top:10px">
-      Si Safari muestra “Permiso denegado”, toca <b>aA</b> → <i>Ajustes del sitio web</i> → <i>Localización</i> → <b>Permitir</b>.
-    </p>
   </div>
 
   <script>
-    // ===== Config =====
+    // === Config ===
     const API_BASE = "https://djz7dstg9k.execute-api.eu-west-1.amazonaws.com";
+    const MAPBOX_TOKEN = "pk.eyJ1IjoiYXJvbWFuaGVycmVyYSIsImEiOiJjbWdkaXdlNHIxazFoMmxzODZhcGI3enhkIn0.qCuSZ6-OgwlucpyyWHH1XA";
+    const DEFAULT_LAT = 38.95483, DEFAULT_LON = -5.86168; // Tus coordenadas
+
     const $ = id => document.getElementById(id);
-
-    // Filtros / estabilidad
-    const MAX_ACCURACY_M   = 50;
-    const MAX_JUMP_M       = 80;
-    const MAX_SPEED_MS     = 7.5;     // ~27 km/h
-    const SPEED_WINDOW_S   = 8;
-    const SPEED_EMA_ALPHA  = 0.30;
-    const ROUTE_SNAP_M     = 50;      // pegarse a ruta objetivo
-
-    const state = {
-      runId:null, watchingId:null, tickerId:null,
-      active:false, lastPoint:null,
-      distMeters:0, gain:0,
-      t0:null, pauseAccum:0, pausedAt:null,
-      batch:[],
-      goal:null,
-      pathBuffer:[], progressBuffer:[],
-      emaSpeed:null, lastFixTs:null, sampleCountWindow:[],
-      routeModel:null
+    const S = {
+      map:null, youMarker:null,
+      startMarker:null, endMarker:null,
+      variantLayers:[], highlightLayer:null,
+      highlightedRoute:null,
+      _watchId:null, _pickMode:null,
+      cfg:{ defaultLatLon:null },
     };
-    $('apiBase').value = API_BASE;
 
-    // Utils
-    function apiUrl(p){ return API_BASE.replace(/\/+$/,'') + p; }
-    function fmtTime(ms){ const s=Math.floor(ms/1000), m=Math.floor(s/60), r=s%60; return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`; }
-    function toRad(d){ return d*Math.PI/180; }
-    function hav(lat1, lon1, lat2, lon2){
-      const R=6371000;
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);           // ← FIX aquí
-      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-      return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+    // === Geocoding ES (sugerencias) ===
+    let _debTimer=null;
+    function debounce(fn, ms=250){ return (...args)=>{ clearTimeout(_debTimer); _debTimer=setTimeout(()=>fn(...args), ms); }; }
+    async function geocodeMapbox(q, proximity){
+      const m = q.trim().match(/^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$/);
+      if (m){ return { lat: parseFloat(m[1]), lon: parseFloat(m[3]), label:`${parseFloat(m[1]).toFixed(5)}, ${parseFloat(m[3]).toFixed(5)}` }; }
+      const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json`);
+      url.searchParams.set('access_token', MAPBOX_TOKEN);
+      url.searchParams.set('autocomplete','true');
+      url.searchParams.set('country','ES');
+      url.searchParams.set('language','es');
+      url.searchParams.set('types','address,street,place,locality,neighborhood,poi');
+      if (proximity) url.searchParams.set('proximity', `${proximity.lon},${proximity.lat}`);
+      const r = await fetch(url);
+      const js = await r.json();
+      return (js.features||[]).map(f => ({
+        lat: f.center[1], lon: f.center[0],
+        label: f.place_name
+      }));
     }
-    function kmhToPace(kmh){
-      if (!Number.isFinite(kmh) || kmh<=0) return '—';
-      const minTotal = 60 / kmh;
-      const min = Math.floor(minTotal);
-      const sec = Math.round((minTotal - min) * 60);
-      return `${min}:${String(sec).padStart(2,'0')}`;
+    function bindSuggest(inputEl, listEl, targetEl, markerSetter){
+      async function onType(){
+        const q = inputEl.value.trim();
+        if (!q){ listEl.style.display='none'; listEl.innerHTML=''; return; }
+        try{
+          const prox = currentCenter();
+          const res = await geocodeMapbox(q, prox);
+          const arr = Array.isArray(res) ? res : [res];
+          if (!arr.length){ listEl.style.display='none'; listEl.innerHTML=''; return; }
+          listEl.innerHTML = arr.slice(0,10).map(x => `<li data-lat="${x.lat}" data-lon="${x.lon}">${x.label}</li>`).join('');
+          listEl.style.display='block';
+        }catch(e){
+          listEl.style.display='none'; listEl.innerHTML='';
+        }
+      }
+      inputEl.addEventListener('input', debounce(onType, 250));
+      listEl.addEventListener('click', (ev)=>{
+        const li = ev.target.closest('li'); if (!li) return;
+        const lat = parseFloat(li.getAttribute('data-lat'));
+        const lon = parseFloat(li.getAttribute('data-lon'));
+        targetEl.value = `${lat.toFixed(5)},${lon.toFixed(5)}`;
+        markerSetter(lat,lon);
+        moveMapTo(lat,lon,15);
+        listEl.style.display='none';
+        inputEl.blur();
+      });
     }
 
-    // Carga objetivo + modelo de ruta
-    (function loadGoal(){
+    // === Map & helpers ===
+    function setLatLonInputs(lat, lon) {
+      const s = `${lat.toFixed(5)},${lon.toFixed(5)}`;
+      $('defaultLatLon').value = s;
+      $('routeStartLoop').value = s;
+      if (!$('routeStartP2P').value) $('routeStartP2P').value = s;
+      S.cfg.defaultLatLon = s;
+      try{ localStorage.setItem('runloop_default_latlon', s); }catch{}
+    }
+    function currentCenter(){
+      const s = S.cfg.defaultLatLon || `${DEFAULT_LAT},${DEFAULT_LON}`;
+      const [lat,lon] = s.split(',').map(Number);
+      return {lat,lon};
+    }
+    function moveMapTo(lat, lon, zoom = 15) {
+      if (!S.map) return;
+      S.map.setView([lat, lon], Math.max(S.map.getZoom(), zoom), { animate: true });
+      if (!S.youMarker) S.youMarker = L.marker([lat, lon], { title: 'Tú aquí' }).addTo(S.map);
+      else S.youMarker.setLatLng([lat, lon]);
+    }
+    function putStartMarker(lat, lon){
+      if (S.startMarker) S.map.removeLayer(S.startMarker);
+      S.startMarker = L.marker([lat,lon], { title:'Inicio' }).addTo(S.map).bindPopup('Inicio');
+    }
+    function putEndMarker(lat, lon){
+      if (S.endMarker) S.map.removeLayer(S.endMarker);
+      S.endMarker = L.marker([lat,lon], { title:'Fin' }).addTo(S.map).bindPopup('Fin');
+    }
+    function clearRoutes(){
+      S.variantLayers.forEach(v => S.map.removeLayer(v.layer));
+      S.variantLayers = [];
+      if (S.highlightLayer){ S.map.removeLayer(S.highlightLayer); S.highlightLayer=null; }
+      S.highlightedRoute = null;
+      $('routeInfo').textContent = '';
+      $('debug').textContent = '';
+      $('surfaceNote').style.display = 'none';
+      enableSendToRun(false);
+    }
+    function clearMarkers(){ if (S.startMarker){ S.map.removeLayer(S.startMarker); S.startMarker=null; } if (S.endMarker){ S.map.removeLayer(S.endMarker); S.endMarker=null; } }
+    function clearAll(){ clearRoutes(); clearMarkers(); }
+
+    function drawHighlight(geom){
+      if (S.highlightLayer) S.map.removeLayer(S.highlightLayer);
+      S.highlightLayer = L.geoJSON(geom, { style:{ color:'#3388ff', weight:6, opacity:0.9 } }).addTo(S.map);
+      const b = S.highlightLayer.getBounds(); if (b.isValid()) S.map.fitBounds(b, { padding:[30,30] });
+    }
+    function drawVariant(geom, onClick){
+      const layer = L.geoJSON(geom, { style:{ color:'#888', weight:3, opacity:0.6 } }).addTo(S.map);
+      layer.on('click', onClick);
+      return layer;
+    }
+    function deriveEndpointsFromGeom(geom){
       try{
-        const raw = localStorage.getItem('runloop_target_route');
-        if (raw) {
-          const g = JSON.parse(raw);
-          if (g && Number.isFinite(g.distance_m)) {
-            state.goal = g;
-            const km = (g.distance_m/1000).toFixed(2);
-            $('goalDist').textContent = `${km} km ${g.route_id ? `(${g.route_id})` : ''}`;
-            $('goalRemain').textContent = `${km} km`;
-            $('goalProg').max = g.distance_m;
-            $('goalProg').value = 0;
-
-            if (g.geom?.type === 'LineString' && Array.isArray(g.geom.coordinates)) {
-              state.routeModel = buildRouteModel(g.geom.coordinates);
-            }
-          }
+        const coords = (geom?.coordinates)||[];
+        if (coords.length >= 2){
+          const [sLon, sLat] = coords[0];
+          const [eLon, eLat] = coords[coords.length-1];
+          return { start:{ lat:sLat, lon:sLon }, end:{ lat:eLat, lon:eLon } };
         }
       }catch{}
-    })();
-
-    function buildRouteModel(coords){
-      const pts = [];
-      let cum = 0;
-      for (let i=0;i<coords.length;i++){
-        const [lon,lat] = coords[i];
-        if (pts.length===0){ pts.push({lat,lon,cum:0}); continue; }
-        const prev = pts[pts.length-1];
-        const d = hav(prev.lat, prev.lon, lat, lon);
-        if (d >= 15 || i===coords.length-1){
-          cum += d;
-          pts.push({lat,lon,cum});
-        }
-      }
-      return { pts, total: pts.length ? pts[pts.length-1].cum : 0 };
+      return { start:null, end:null };
     }
 
-    function projectPointSegment(lat, lon, A, B){
-      const ax=A.lat, ay=A.lon, bx=B.lat, by=B.lon, px=lat, py=lon;
-      const ABx = bx-ax, ABy = by-ay;
-      const APx = px-ax, APy = py-ay;
-      const ab2 = ABx*ABx + ABy*ABy || 1e-12;
-      let t = (APx*ABx + APy*ABy) / ab2; t = Math.max(0, Math.min(1, t));
-      const fx = ax + ABx*t, fy = ay + ABy*t;
-      const perp = hav(px,py,fx,fy);
-      return { t, foot: { lat: fx, lon: fy }, perp };
+    function initMap(){
+      // carga de default desde localStorage o constantes
+      const saved = (localStorage.getItem('runloop_default_latlon')||`${DEFAULT_LAT},${DEFAULT_LON}`).split(',').map(Number);
+      S.cfg.defaultLatLon = `${saved[0]},${saved[1]}`;
+      $('defaultLatLon').value = S.cfg.defaultLatLon;
+      $('routeStartLoop').value = S.cfg.defaultLatLon;
+
+      if (S.map) S.map.remove();
+      S.map = L.map('map').setView(saved, 13);
+      const url = `https://api.mapbox.com/styles/v1/{id}/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`;
+      L.tileLayer(url, {
+        id:'mapbox/outdoors-v12', tileSize:512, zoomOffset:-1, maxZoom:19,
+        attribution:'© Mapbox © OpenStreetMap'
+      }).addTo(S.map);
+      setTimeout(()=> S.map.invalidateSize(), 150);
+      S.map.on('click', (ev) => {
+        if (!S._pickMode) return;
+        const lat = ev.latlng.lat, lon = ev.latlng.lng;
+        if (S._pickMode === 'startLoop'){ $('routeStartLoop').value = `${lat.toFixed(5)},${lon.toFixed(5)}`; putStartMarker(lat, lon); }
+        else if (S._pickMode === 'start'){ $('routeStartP2P').value = `${lat.toFixed(5)},${lon.toFixed(5)}`; putStartMarker(lat, lon); }
+        else if (S._pickMode === 'end'){ $('routeEndP2P').value = `${lat.toFixed(5)},${lon.toFixed(5)}`; putEndMarker(lat, lon); }
+        S._pickMode = null;
+      });
     }
 
-    function projectOnRoute(lat, lon){
-      const rm = state.routeModel;
-      if (!rm || rm.pts.length<2) return null;
-      let best = { dist: Infinity, cum: 0, foot: null };
-      for (let i=1;i<rm.pts.length;i++){
-        const a = rm.pts[i-1], b = rm.pts[i];
-        const pr = projectPointSegment(lat, lon, a, b);
-        if (pr.perp < best.dist){
-          best = { dist: pr.perp, cum: a.cum + pr.t * hav(a.lat,a.lon,b.lat,b.lon), foot: pr.foot };
-        }
-      }
-      return best;
-    }
-
-    function updateGoalProgressUI(){
-      if (!state.goal?.distance_m) return;
-      const done = state.distMeters;
-      const total = state.goal.distance_m;
-      const remain = Math.max(0, total - done);
-      $('goalRemain').textContent = `${(remain/1000).toFixed(2)} km`;
-      $('goalProg').max = total;
-      $('goalProg').value = done;
-    }
-
-    // Velocidad por regresión en ventana + EMA
-    function regressionSpeedKmH(){
-      const now = Date.now();
-      const cutoff = now - SPEED_WINDOW_S*1000;
-      while (state.progressBuffer.length && state.progressBuffer[0].ts < cutoff) state.progressBuffer.shift();
-      if (state.progressBuffer.length < 2) return null;
-
-      const t0 = state.progressBuffer[0].ts/1000;
-      let sumT=0,sumD=0,sumTT=0,sumTD=0,n=0;
-      for (const p of state.progressBuffer){
-        const tt = p.ts/1000 - t0;
-        const dd = p.dist/1000;
-        sumT+=tt; sumD+=dd; sumTT+=tt*tt; sumTD+=tt*dd; n++;
-      }
-      const denom = n*sumTT - sumT*sumT;
-      if (denom<=0) return null;
-      const b = (n*sumTD - sumT*sumD) / denom; // km/s
-      const kmh = b * 3600;
-      state.emaSpeed = (state.emaSpeed==null) ? kmh : (state.emaSpeed*(1-SPEED_EMA_ALPHA) + kmh*SPEED_EMA_ALPHA);
-      return state.emaSpeed;
-    }
-
-    function acceptPoint(prev, cur){
-      if (!cur) return false;
-      if ((cur.acc??0) > MAX_ACCURACY_M) return false;
-      if (!prev) return true;
-      const dt = Math.max(0.001, (cur.ts - prev.ts)/1000);
-      if (dt <= 0) return false;
-      const dd = hav(prev.lat, prev.lon, cur.lat, cur.lon);
-      if (dd > MAX_JUMP_M) return false;
-      if (dd/dt > MAX_SPEED_MS) return false;
-      return true;
-    }
-
-    function pushProgress(dist){ state.progressBuffer.push({ ts: Date.now(), dist }); }
-
-    function useProgressDistance(cur){
-      const proj = projectOnRoute(cur.lat, cur.lon);
-      if (proj && proj.dist <= ROUTE_SNAP_M){
-        state.distMeters = Math.max(state.distMeters, proj.cum);
-        pushProgress(state.distMeters);
-        return true;
-      }
-      return false;
-    }
-
-    function addFilteredHaversine(prev, cur){
-      const dt = Math.max(0.001, (cur.ts - prev.ts)/1000);
-      let dd = hav(prev.lat, prev.lon, cur.lat, cur.lon);
-      dd = Math.min(dd, MAX_SPEED_MS * dt);
-      state.distMeters += dd;
-      pushProgress(state.distMeters);
-    }
-
-    function startTicker(){
-      if (state.tickerId) return;
-      const tick = () => {
-        const now = Date.now();
-        const elapsed = (state.t0 ? now - state.t0 - state.pauseAccum : 0);
-        $('time').textContent = fmtTime(elapsed);
-        $('lastFix').textContent = state.lastFixTs ? Math.round((now - state.lastFixTs)/1000) : '—';
-        updateGoalProgressUI();
-      };
-      tick();
-      state.tickerId = setInterval(tick, 1000);
-    }
-    function stopTicker(){ if (state.tickerId){ clearInterval(state.tickerId); state.tickerId=null; } }
-
-    function onPos(raw){
-      const ts = Date.now();
-      const lat = raw.coords.latitude;
-      const lon = raw.coords.longitude;
-      const alt = Number.isFinite(raw.coords.altitude) ? raw.coords.altitude : null;
-      const acc = Number.isFinite(raw.coords.accuracy) ? raw.coords.accuracy : null;
-      state.lastFixTs = ts;
-      $('gpsState').textContent = state.active ? 'grabando' : 'en pausa';
-      $('acc').textContent = acc!=null ? Math.round(acc) : '—';
-
-      const cur = { ts, lat, lon, alt, acc };
-      state.pathBuffer.push(cur);
-
-      if (state.active){
-        if (acceptPoint(state.lastPoint, cur)){
-          let usedProjection = false;
-          if (state.routeModel) usedProjection = useProgressDistance(cur);
-          if (!usedProjection){
-            if (state.lastPoint) addFilteredHaversine(state.lastPoint, cur);
-            else pushProgress(state.distMeters);
-          }
-          state.lastPoint = cur;
-
-          $('dist').textContent = (state.distMeters/1000).toFixed(2);
-          const sp = regressionSpeedKmH();
-          if (Number.isFinite(sp)) {
-            $('speed').textContent = sp.toFixed(1);
-            $('pace').textContent  = kmhToPace(sp);
-          }
-
-          state.batch.push({
-            ts, lat, lon,
-            speed_kmh: Number.isFinite(state.emaSpeed)? +state.emaSpeed.toFixed(2) : null,
-            acc: acc ?? null
-          });
-          if (state.batch.length >= 5) sendBatch();
-        }
-      }
-
-      state.sampleCountWindow.push(ts);
-      const cutoff = ts - 5*60*1000;
-      while (state.sampleCountWindow.length && state.sampleCountWindow[0] < cutoff) state.sampleCountWindow.shift();
-      $('samples').textContent = state.sampleCountWindow.length;
-    }
-
-    function onGeoError(err){
-      const map = {
-        1: 'Permiso denegado. En Safari pulsa aA → Ajustes del sitio web → Localización → Permitir.',
-        2: 'Posición no disponible. Activa el GPS o sal al exterior.',
-        3: 'Tiempo de espera agotado. Inténtalo de nuevo.'
-      };
-      alert('GPS error: ' + (map[err.code] || err.message || 'desconocido'));
-    }
-
-    // API
-    async function fx(path, {method='GET', body=null}={}){
-      const h = {}; let reqBody;
-      if (body!==null && body!==undefined){ h['Content-Type']='application/json'; reqBody=JSON.stringify(body); }
-      const r = await fetch(apiUrl(path), {method, headers:h, body:reqBody});
-      const txt = await r.text(); let data=null; try{ data=JSON.parse(txt);}catch{ data=txt; }
+    async function fx(path, {method='GET', body=null, headers={}}={}){
+      const url = API_BASE.replace(/\/+$/,'') + path;
+      const h = {...headers};
+      let reqBody;
+      if (body !== null && body !== undefined){ h['Content-Type']='application/json'; reqBody = JSON.stringify(body); }
+      const r = await fetch(url, {method, headers:h, body:reqBody});
+      const txt = await r.text(); let data=null; try{ data = JSON.parse(txt); }catch{ data = txt; }
       return { ok:r.ok, status:r.status, data };
     }
 
-    async function startRun(){
-      const r = await fx('/runs/start', {method:'POST', body:{
-        goal_route_id: state.goal?.route_id || null,
-        goal_distance_m: state.goal?.distance_m || null
-      }});
-      if (!r.ok) throw new Error(r.data?.message||'Error start');
-      state.runId = r.data.run_id;
-      state.t0 = Date.now();
-      state.pauseAccum = 0;
-      state.pathBuffer = [];
-      state.progressBuffer = [{ ts: Date.now(), dist: 0 }];
-      state.emaSpeed = null;
-      state.distMeters = 0;
-      $('dist').textContent = '0.00';
-      $('speed').textContent = '0.0';
-      $('pace').textContent  = '—';
-      $('time').textContent = '00:00';
-    }
-
-    async function sendBatch(){
-      if (!state.runId || state.batch.length===0) return;
-      const payload = { points: state.batch.slice(0) };
-      state.batch = [];
-      await fx(`/runs/${state.runId}/track`, {method:'POST', body:payload}).catch(()=>{});
-    }
-
-    async function finishRun(){
-      const r = await fx(`/runs/${state.runId}/finish`, {
-        method:'POST',
-        body:{
-          dist_m: state.distMeters,
-          gain_m: state.gain,
-          duration_s: Math.round((Date.now()-state.t0-state.pauseAccum)/1000),
-          goal_distance_m: state.goal?.distance_m || null,
-          goal_route_id: state.goal?.route_id || null
+    $('btnUseLoc').onclick = async () => {
+      if (!('geolocation' in navigator)) return alert('Tu navegador no soporta geolocalización.');
+      const getOnce = (opts)=> new Promise((res,rej)=> navigator.geolocation.getCurrentPosition(res,rej,opts));
+      try{
+        let pos;
+        try { pos = await getOnce({ enableHighAccuracy:true, timeout:25000, maximumAge:0 }); }
+        catch { pos = await getOnce({ enableHighAccuracy:false, timeout:25000, maximumAge:10000 }); }
+        const { latitude: lat, longitude: lon } = pos.coords;
+        setLatLonInputs(lat, lon);
+        moveMapTo(lat, lon, 15);
+        if (!S._watchId){
+          S._watchId = navigator.geolocation.watchPosition(
+            p => moveMapTo(p.coords.latitude, p.coords.longitude, 15),
+            err => console.warn('watchPosition error', err),
+            { enableHighAccuracy:true, maximumAge:2000, timeout:30000 }
+          );
         }
+      }catch(err){
+        const msg = ({1:'Permiso denegado (actívalo en el navegador).',2:'Posición no disponible.',3:'Tiempo agotado.'}[err.code]) || ('No se pudo obtener ubicación: '+err.message);
+        alert(msg);
+      }
+    };
+
+    function updateMode(){
+      const mode = document.querySelector('input[name="mode"]:checked').value;
+      $('loopBox').style.display = (mode==='loop') ? 'block' : 'none';
+      $('p2pBox').style.display = (mode==='p2p') ? 'block' : 'none';
+    }
+    document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener('change', updateMode));
+
+    $('btnPickStartLoop').onclick = ()=>{ S._pickMode = 'startLoop'; alert('Haz clic en el mapa para INICIO (circular).'); };
+    $('btnCopyFromDefaultLoop').onclick = ()=>{
+      $('routeStartLoop').value = $('defaultLatLon').value.trim();
+      const [lat,lon] = $('routeStartLoop').value.split(',').map(Number);
+      if (Number.isFinite(lat)&&Number.isFinite(lon)){ putStartMarker(lat,lon); moveMapTo(lat,lon,15); }
+    };
+    $('btnPickStart').onclick = ()=>{ S._pickMode = 'start'; alert('Haz clic en el mapa para ORIGEN.'); };
+    $('btnPickEnd').onclick   = ()=>{ S._pickMode = 'end';   alert('Haz clic en el mapa para DESTINO.'); };
+
+    // Bind autocompletado ES
+    bindSuggest($('startAddr'), $('startSug'), $('routeStartP2P'), putStartMarker);
+    bindSuggest($('endAddr'),   $('endSug'),   $('routeEndP2P'),   putEndMarker);
+
+    $('btnSearchStart').onclick = async ()=>{
+      const q = $('startAddr').value.trim(); if(!q) return;
+      try{ const p = await geocodeMapbox(q, currentCenter()); const pick = Array.isArray(p)? p[0]:p; $('routeStartP2P').value = `${pick.lat.toFixed(5)},${pick.lon.toFixed(5)}`; putStartMarker(pick.lat,pick.lon); moveMapTo(pick.lat,pick.lon,15); }
+      catch{ alert('Origen no encontrado'); }
+    };
+    $('btnSearchEnd').onclick = async ()=>{
+      const q = $('endAddr').value.trim(); if(!q) return;
+      try{ const p = await geocodeMapbox(q, currentCenter()); const pick = Array.isArray(p)? p[0]:p; $('routeEndP2P').value = `${pick.lat.toFixed(5)},${pick.lon.toFixed(5)}`; putEndMarker(pick.lat,pick.lon); moveMapTo(pick.lat,pick.lon,15); }
+      catch{ alert('Destino no encontrado'); }
+    };
+
+    function buildPayload(seed){
+      const km = parseFloat($('routeKm').value || '10');
+      const hill = $('altPref').value;
+      const surf = $('surfacePref').value;
+      const mode = document.querySelector('input[name="mode"]:checked').value;
+
+      let start, end, round_trip=false;
+      if (mode === 'loop'){
+        const s = $('routeStartLoop').value.trim();
+        const [lat,lon] = s.split(',').map(Number);
+        start = { lat, lon }; round_trip = true;
+      } else {
+        const s = $('routeStartP2P').value.trim();
+        const e = $('routeEndP2P').value.trim();
+        const [sLat,sLon] = s.split(',').map(Number);
+        const [eLat,eLon] = e.split(',').map(Number);
+        start = { lat:sLat, lon:sLon }; end = { lat:eLat, lon:eLon };
+      }
+
+      return {
+        start, ...(end ? { end } : {}),
+        distance_m: Math.max(500, km*1000),
+        hill_pref: hill,
+        surface_pref: surf,
+        round_trip,
+        seed
+      };
+    }
+
+    function enableSendToRun(enabled) {
+      const b = document.getElementById('btnSendToRun');
+      if (!b) return; b.disabled = !enabled; b.style.opacity = enabled ? '1' : '.6'; b.style.cursor = enabled ? 'pointer' : 'not-allowed';
+    }
+    function saveTargetRouteForRun(r) {
+      if (!r || !r.geom) return;
+      const dist = r.distance_m || 0;
+      const target = { route_id: r.route_id || null, distance_m: dist, geom: r.geom, start_point: r.start_point || null, end_point: r.end_point || null, saved_at: new Date().toISOString() };
+      localStorage.setItem('runloop_target_route', JSON.stringify(target));
+    }
+    (function initSendToRunButton() {
+      const btn = document.getElementById('btnSendToRun');
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        if (!S.highlightedRoute) { alert('Primero genera y selecciona una ruta.'); return; }
+        saveTargetRouteForRun(S.highlightedRoute);
+        window.location.href = 'run.html';
       });
-      if (!r.ok) throw new Error(r.data?.message||'Error finish');
-      return r.data;
+    })();
+
+    async function generateOne(seed){
+      const payload = buildPayload(seed);
+      const res = await fx('/routes/generate', { method:'POST', body: payload });
+      $('debug').textContent = JSON.stringify(res.data, null, 2);
+      if (!res.ok) throw new Error(res.data?.message || 'Error generando ruta');
+
+      const geom = res.data.geom || res.data.geojson || null;
+      const distance_m = (typeof res.data.distance_m === 'number' ? res.data.distance_m : null);
+      let startPoint = res.data.start_point, endPoint = res.data.end_point;
+      if ((!startPoint || !endPoint) && geom){
+        const d = deriveEndpointsFromGeom(geom);
+        startPoint = startPoint || d.start; endPoint = endPoint || d.end;
+      }
+      if (res.data.surface_note){
+        const n = $('surfaceNote'); n.style.display = 'block'; n.textContent = res.data.surface_note;
+      } else { $('surfaceNote').style.display = 'none'; }
+
+      return { route_id: res.data.route_id, geom, start_point: startPoint, end_point: endPoint, distance_m };
     }
 
-    // Botones
-    document.getElementById('btnPlay').onclick = async () => {
-      try {
-        const getOnce = (opts)=> new Promise((res,rej)=> navigator.geolocation.getCurrentPosition(res,rej,opts));
-        try { await getOnce({ enableHighAccuracy:true, timeout:12000, maximumAge:1000 }); }
-        catch { await getOnce({ enableHighAccuracy:false, timeout:12000, maximumAge:5000 }); }
+    async function onGenerate1(){
+      clearRoutes();
+      try{
+        const r = await generateOne(Math.floor(Math.random()*100000));
+        S.highlightedRoute = r;
+        drawHighlight(r.geom);
+        if (r.start_point) putStartMarker(r.start_point.lat, r.start_point.lon);
+        if (r.end_point)   putEndMarker(r.end_point.lat,   r.end_point.lon);
+        $('routeInfo').textContent = `Ruta ${r.route_id} – ${(r.distance_m/1000).toFixed(2)} km – destacada`;
+        enableSendToRun(true);
+      }catch(e){ alert('Error: ' + e.message); }
+    }
+    async function onGenerate5(){
+      clearRoutes();
+      const seeds = [1,2,3,4,5].map(s => s + Math.floor(Math.random()*10000));
+      try{
+        const results = await Promise.all(seeds.map(s => generateOne(s)));
+        const highlighted = results[0];
+        S.highlightedRoute = highlighted;
+        drawHighlight(highlighted.geom);
+        if (highlighted.start_point) putStartMarker(highlighted.start_point.lat, highlighted.start_point.lon);
+        if (highlighted.end_point)   putEndMarker(highlighted.end_point.lat,   highlighted.end_point.lon);
+        $('routeInfo').textContent = `Ruta ${highlighted.route_id} (azul) – ${(highlighted.distance_m/1000).toFixed(2)} km. Haz clic en otra para destacar.`;
+        enableSendToRun(true);
 
-        if (!state.runId) await startRun();
+        results.slice(1).forEach(r => {
+          const layer = drawVariant(r.geom, () => {
+            S.highlightedRoute = r;
+            drawHighlight(r.geom);
+            if (r.start_point) putStartMarker(r.start_point.lat, r.start_point.lon);
+            if (r.end_point)   putEndMarker(r.end_point.lat,   r.end_point.lon);
+            $('routeInfo').textContent = `Ruta ${r.route_id} destacada – ${(r.distance_m/1000).toFixed(2)} km`;
+            enableSendToRun(true);
+          });
+          S.variantLayers.push({ layer, ...r });
+        });
+      }catch(e){ alert('Error generando variantes: ' + e.message); }
+    }
 
-        state.active = true;
-        $('gpsState').textContent = 'grabando';
-        if (state.pausedAt) { state.pauseAccum += (Date.now()-state.pausedAt); state.pausedAt=null; }
+    async function onExport(){
+      if (!S.highlightedRoute?.route_id) return alert('No hay ruta destacada. Genera primero.');
+      const r = await fx(`/routes/${S.highlightedRoute.route_id}/export`, { method:'POST' });
+      if (r.data?.url) window.open(r.data.url, '_blank'); else alert('No se pudo obtener el GPX');
+    }
 
-        if (!state.tickerId) startTicker();
-        if (!state.watchingId){
-          const watchOpts = { enableHighAccuracy:true, maximumAge:1000, timeout:10000 };
-          state.watchingId = navigator.geolocation.watchPosition(onPos, onGeoError, watchOpts);
-        }
-      } catch (e) {
-        onGeoError(e);
-        console.warn('Geo fail detail:', e);
-      }
-    };
-
-    document.getElementById('btnPause').onclick = () => {
-      state.active = false;
-      $('gpsState').textContent = 'en pausa';
-      state.pausedAt = Date.now();
-      sendBatch();
-    };
-
-    document.getElementById('btnStop').onclick = async () => {
-      state.active = false;
-      $('gpsState').textContent = 'parado';
-      await sendBatch();
-      if (state.watchingId){ navigator.geolocation.clearWatch(state.watchingId); state.watchingId=null; }
-      stopTicker();
-      if (state.runId){
-        try{
-          const sum = await finishRun();
-          const goalTxt = state.goal?.distance_m ? `\nObjetivo: ${(state.goal.distance_m/1000).toFixed(2)} km` : '';
-          alert(`Guardado ✅
-Dist: ${(sum.dist_m/1000).toFixed(2)} km
-Tiempo: ${fmtTime(sum.duration_s*1000)}
-Desnivel+: ${Math.round(sum.gain_m)} m${goalTxt}`);
-        }catch(e){ alert('Error al guardar: '+e.message); }
-      }
-      state.runId = null; state.lastPoint=null; state.distMeters=0; state.gain=0;
-      state.pathBuffer=[]; state.progressBuffer=[]; state.emaSpeed=null; state.sampleCountWindow=[];
-      $('dist').textContent = '0.00'; $('speed').textContent = '0.0'; $('pace').textContent = '—'; $('time').textContent='00:00';
-      $('lastFix').textContent='—'; $('acc').textContent='—'; $('samples').textContent='0';
-      updateGoalProgressUI();
-    };
-
-    document.getElementById('btnClearGoal').onclick = () => {
-      localStorage.removeItem('runloop_target_route');
-      state.goal = null; state.routeModel=null;
-      $('goalDist').textContent = 'Sin objetivo';
-      $('goalRemain').textContent = '—';
-      $('goalProg').value = 0; $('goalProg').max = 1;
-      alert('Objetivo eliminado.');
-    };
+    $('btnClear').onclick = () => { clearAll(); };
 
     (function init(){
-      if (!('geolocation' in navigator)) alert('Tu navegador no soporta geolocalización.');
+      initMap();
+      updateMode();
+      $('btnGen1').onclick = onGenerate1;
+      $('btnGen5').onclick = onGenerate5;
+      $('btnExport').onclick = onExport;
+      // coloca por defecto tus coordenadas si no hay nada guardado
+      if (!localStorage.getItem('runloop_default_latlon')) setLatLonInputs(DEFAULT_LAT, DEFAULT_LON);
     })();
   </script>
 </body>
