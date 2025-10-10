@@ -82,43 +82,40 @@
   </div>
 
   <script>
-    // ===== Config fija =====
+    // ===== Config =====
     const API_BASE = "https://djz7dstg9k.execute-api.eu-west-1.amazonaws.com";
     const $ = id => document.getElementById(id);
 
-    // Parámetros de filtro/estabilidad
-    const MAX_ACCURACY_M   = 50;   // descartar puntos peores a 50 m
-    const MAX_JUMP_M       = 80;   // descartar saltos > 80 m
-    const MAX_SPEED_MS     = 7.5;  // ~27 km/h
-    const SPEED_WINDOW_S   = 8;    // ventana de 8 s
-    const SPEED_EMA_ALPHA  = 0.30; // suavizado
-    const ROUTE_SNAP_M     = 35;   // radio para pegarse a la ruta objetivo
+    // Filtros / estabilidad
+    const MAX_ACCURACY_M   = 50;
+    const MAX_JUMP_M       = 80;
+    const MAX_SPEED_MS     = 7.5;     // ~27 km/h
+    const SPEED_WINDOW_S   = 8;
+    const SPEED_EMA_ALPHA  = 0.30;
+    const ROUTE_SNAP_M     = 50;      // pegarse a ruta objetivo
 
     const state = {
-      runId: null, watchingId: null, tickerId: null,
-      active: false, lastPoint: null,
-      distMeters: 0, gain: 0,
-      t0: null, pauseAccum: 0, pausedAt: null,
-      batch: [],
-      goal: null, // { route_id, distance_m, geom? }
-      // buffers y métricas
-      pathBuffer: [],           // [{ts,lat,lon,alt,acc}]
-      progressBuffer: [],       // [{ts,dist}]
-      emaSpeed: null,
-      lastFixTs: null,
-      sampleCountWindow: [],
-      // modelo de ruta objetivo
-      routeModel: null          // { pts:[{lat,lon,cum}], total }
+      runId:null, watchingId:null, tickerId:null,
+      active:false, lastPoint:null,
+      distMeters:0, gain:0,
+      t0:null, pauseAccum:0, pausedAt:null,
+      batch:[],
+      goal:null,
+      pathBuffer:[], progressBuffer:[],
+      emaSpeed:null, lastFixTs:null, sampleCountWindow:[],
+      routeModel:null
     };
     $('apiBase').value = API_BASE;
 
-    // ===== Utilidades =====
+    // Utils
     function apiUrl(p){ return API_BASE.replace(/\/+$/,'') + p; }
     function fmtTime(ms){ const s=Math.floor(ms/1000), m=Math.floor(s/60), r=s%60; return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`; }
+    function toRad(d){ return d*Math.PI/180; }
     function hav(lat1, lon1, lat2, lon2){
-      const R=6371000,toRad=d=>d*Math.PI/180;
-      const dLat=toRad(lat2-lat1), dLon=toRad(lat2-lon2);
-      const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+      const R=6371000;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);           // ← FIX aquí
+      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
       return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
     }
     function kmhToPace(kmh){
@@ -129,7 +126,7 @@
       return `${min}:${String(sec).padStart(2,'0')}`;
     }
 
-    // ===== Carga objetivo y modelo de ruta =====
+    // Carga objetivo + modelo de ruta
     (function loadGoal(){
       try{
         const raw = localStorage.getItem('runloop_target_route');
@@ -152,7 +149,6 @@
     })();
 
     function buildRouteModel(coords){
-      // decima la ruta para eficiencia (cada ~15 m)
       const pts = [];
       let cum = 0;
       for (let i=0;i<coords.length;i++){
@@ -168,6 +164,17 @@
       return { pts, total: pts.length ? pts[pts.length-1].cum : 0 };
     }
 
+    function projectPointSegment(lat, lon, A, B){
+      const ax=A.lat, ay=A.lon, bx=B.lat, by=B.lon, px=lat, py=lon;
+      const ABx = bx-ax, ABy = by-ay;
+      const APx = px-ax, APy = py-ay;
+      const ab2 = ABx*ABx + ABy*ABy || 1e-12;
+      let t = (APx*ABx + APy*ABy) / ab2; t = Math.max(0, Math.min(1, t));
+      const fx = ax + ABx*t, fy = ay + ABy*t;
+      const perp = hav(px,py,fx,fy);
+      return { t, foot: { lat: fx, lon: fy }, perp };
+    }
+
     function projectOnRoute(lat, lon){
       const rm = state.routeModel;
       if (!rm || rm.pts.length<2) return null;
@@ -179,19 +186,7 @@
           best = { dist: pr.perp, cum: a.cum + pr.t * hav(a.lat,a.lon,b.lat,b.lon), foot: pr.foot };
         }
       }
-      return best; // { dist: m a la ruta, cum: progreso a lo largo, foot:{lat,lon} }
-    }
-
-    function projectPointSegment(lat, lon, A, B){
-      // proyección en segmento AB (geometría plana local — válido para distancias cortas)
-      const ax=A.lat, ay=A.lon, bx=B.lat, by=B.lon, px=lat, py=lon;
-      const ABx = bx-ax, ABy = by-ay;
-      const APx = px-ax, APy = py-ay;
-      const ab2 = ABx*ABx + ABy*ABy || 1e-12;
-      let t = (APx*ABx + APy*ABy) / ab2; t = Math.max(0, Math.min(1, t));
-      const fx = ax + ABx*t, fy = ay + ABy*t;
-      const perp = hav(px,py,fx,fy);
-      return { t, foot: { lat: fx, lon: fy }, perp };
+      return best;
     }
 
     function updateGoalProgressUI(){
@@ -204,31 +199,28 @@
       $('goalProg').value = done;
     }
 
-    // ===== Velocidad por regresión + EMA =====
+    // Velocidad por regresión en ventana + EMA
     function regressionSpeedKmH(){
       const now = Date.now();
       const cutoff = now - SPEED_WINDOW_S*1000;
       while (state.progressBuffer.length && state.progressBuffer[0].ts < cutoff) state.progressBuffer.shift();
       if (state.progressBuffer.length < 2) return null;
 
-      // regresión lineal d = a + b*t
-      // normalizamos t para estabilidad
       const t0 = state.progressBuffer[0].ts/1000;
       let sumT=0,sumD=0,sumTT=0,sumTD=0,n=0;
       for (const p of state.progressBuffer){
         const tt = p.ts/1000 - t0;
-        const dd = p.dist/1000; // km
+        const dd = p.dist/1000;
         sumT+=tt; sumD+=dd; sumTT+=tt*tt; sumTD+=tt*dd; n++;
       }
       const denom = n*sumTT - sumT*sumT;
       if (denom<=0) return null;
       const b = (n*sumTD - sumT*sumD) / denom; // km/s
-      const kmh = b * 3600; // km/h
+      const kmh = b * 3600;
       state.emaSpeed = (state.emaSpeed==null) ? kmh : (state.emaSpeed*(1-SPEED_EMA_ALPHA) + kmh*SPEED_EMA_ALPHA);
       return state.emaSpeed;
     }
 
-    // ===== Distancia con proyección a ruta (si hay) o Haversine filtrado =====
     function acceptPoint(prev, cur){
       if (!cur) return false;
       if ((cur.acc??0) > MAX_ACCURACY_M) return false;
@@ -241,13 +233,13 @@
       return true;
     }
 
+    function pushProgress(dist){ state.progressBuffer.push({ ts: Date.now(), dist }); }
+
     function useProgressDistance(cur){
-      // Si hay ruta objetivo, tomamos el progreso a lo largo de la polilínea (proyección)
       const proj = projectOnRoute(cur.lat, cur.lon);
       if (proj && proj.dist <= ROUTE_SNAP_M){
-        const newDist = Math.max(state.distMeters, proj.cum); // no retroceder
-        state.distMeters = newDist;
-        pushProgress(newDist);
+        state.distMeters = Math.max(state.distMeters, proj.cum);
+        pushProgress(state.distMeters);
         return true;
       }
       return false;
@@ -256,16 +248,11 @@
     function addFilteredHaversine(prev, cur){
       const dt = Math.max(0.001, (cur.ts - prev.ts)/1000);
       let dd = hav(prev.lat, prev.lon, cur.lat, cur.lon);
-      dd = Math.min(dd, MAX_SPEED_MS * dt); // cap anti-teletransporte
+      dd = Math.min(dd, MAX_SPEED_MS * dt);
       state.distMeters += dd;
       pushProgress(state.distMeters);
     }
 
-    function pushProgress(dist){
-      state.progressBuffer.push({ ts: Date.now(), dist });
-    }
-
-    // ===== UI tiempo (1 Hz) =====
     function startTicker(){
       if (state.tickerId) return;
       const tick = () => {
@@ -280,7 +267,6 @@
     }
     function stopTicker(){ if (state.tickerId){ clearInterval(state.tickerId); state.tickerId=null; } }
 
-    // ===== GPS callbacks =====
     function onPos(raw){
       const ts = Date.now();
       const lat = raw.coords.latitude;
@@ -296,21 +282,14 @@
 
       if (state.active){
         if (acceptPoint(state.lastPoint, cur)){
-          // 1) Preferimos progreso por ruta objetivo (proyección)
           let usedProjection = false;
-          if (state.routeModel){
-            usedProjection = useProgressDistance(cur);
-          }
-
-          // 2) Si no hay ruta o estamos lejos de ella, sumamos Haversine filtrado
+          if (state.routeModel) usedProjection = useProgressDistance(cur);
           if (!usedProjection){
             if (state.lastPoint) addFilteredHaversine(state.lastPoint, cur);
             else pushProgress(state.distMeters);
           }
-
           state.lastPoint = cur;
 
-          // Actualiza métricas
           $('dist').textContent = (state.distMeters/1000).toFixed(2);
           const sp = regressionSpeedKmH();
           if (Number.isFinite(sp)) {
@@ -318,7 +297,6 @@
             $('pace').textContent  = kmhToPace(sp);
           }
 
-          // Envía batch
           state.batch.push({
             ts, lat, lon,
             speed_kmh: Number.isFinite(state.emaSpeed)? +state.emaSpeed.toFixed(2) : null,
@@ -328,7 +306,6 @@
         }
       }
 
-      // contador de muestras /5min
       state.sampleCountWindow.push(ts);
       const cutoff = ts - 5*60*1000;
       while (state.sampleCountWindow.length && state.sampleCountWindow[0] < cutoff) state.sampleCountWindow.shift();
@@ -344,7 +321,7 @@
       alert('GPS error: ' + (map[err.code] || err.message || 'desconocido'));
     }
 
-    // ===== API runs =====
+    // API
     async function fx(path, {method='GET', body=null}={}){
       const h = {}; let reqBody;
       if (body!==null && body!==undefined){ h['Content-Type']='application/json'; reqBody=JSON.stringify(body); }
@@ -394,7 +371,7 @@
       return r.data;
     }
 
-    // ===== Botones =====
+    // Botones
     document.getElementById('btnPlay').onclick = async () => {
       try {
         const getOnce = (opts)=> new Promise((res,rej)=> navigator.geolocation.getCurrentPosition(res,rej,opts));
@@ -407,8 +384,7 @@
         $('gpsState').textContent = 'grabando';
         if (state.pausedAt) { state.pauseAccum += (Date.now()-state.pausedAt); state.pausedAt=null; }
 
-        startTicker();
-
+        if (!state.tickerId) startTicker();
         if (!state.watchingId){
           const watchOpts = { enableHighAccuracy:true, maximumAge:1000, timeout:10000 };
           state.watchingId = navigator.geolocation.watchPosition(onPos, onGeoError, watchOpts);
@@ -442,7 +418,6 @@ Tiempo: ${fmtTime(sum.duration_s*1000)}
 Desnivel+: ${Math.round(sum.gain_m)} m${goalTxt}`);
         }catch(e){ alert('Error al guardar: '+e.message); }
       }
-      // reset
       state.runId = null; state.lastPoint=null; state.distMeters=0; state.gain=0;
       state.pathBuffer=[]; state.progressBuffer=[]; state.emaSpeed=null; state.sampleCountWindow=[];
       $('dist').textContent = '0.00'; $('speed').textContent = '0.0'; $('pace').textContent = '—'; $('time').textContent='00:00';
