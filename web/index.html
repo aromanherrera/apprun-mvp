@@ -1,278 +1,125 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Runloop – Generar rutas (ES)</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Runloop – Generación de rutas</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
   <style>
     :root{color-scheme:dark}
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:#0b0c10;color:#e8f0fe;margin:0}
-    header{padding:16px;border-bottom:1px solid #1b1f2a;background:#0d1017}
+    body{margin:0;background:#0b0c10;color:#e8f0fe;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif}
+    header{padding:16px;border-bottom:1px solid #1b2131;background:#0d1017}
     h1{margin:0;font-size:20px}
     .wrap{display:grid;grid-template-columns:420px 1fr;gap:16px;padding:16px}
     @media(max-width:1000px){.wrap{grid-template-columns:1fr}}
     .card{background:#11131a;border:1px solid #1b2131;border-radius:12px;padding:12px}
     label{font-size:13px;color:#9fb3c8;display:block;margin-top:8px}
-    input,select,button,textarea{width:100%;padding:10px;margin-top:6px;border-radius:10px;border:1px solid #243247;background:#0f1320;color:#e8f0fe}
+    input,select,button{width:100%;padding:10px;margin-top:6px;border-radius:10px;border:1px solid #243247;background:#0f1320;color:#e8f0fe}
     button{cursor:pointer;background:#25a244;border-color:#1f6f34;font-weight:600}
-    .muted{opacity:.75}
     .row{display:flex;gap:8px;flex-wrap:wrap}
     .row>div{flex:1 1 160px}
     .map{height:600px;border-radius:12px;overflow:hidden;margin-top:10px}
-    .link-btn{background:#3b82f6;border-color:#215ab6}
-    .danger{background:#e55353;border-color:#9c2f2f}
-    .ghost{background:#0f1320;border-color:#243247}
-    pre{white-space:pre-wrap;background:#0f1320;border:1px solid #243247;padding:8px;border-radius:8px;max-height:240px;overflow:auto}
-    .badge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid #243247;background:#0f1320;font-size:12px;margin-left:8px}
     .note{font-size:13px;padding:8px;border:1px dashed #3b82f6;border-radius:8px;background:#0f1320;margin-top:8px;display:none}
-    .suggest{position:relative}
-    .suggest ul{position:absolute;z-index:5000;background:#0f1320;border:1px solid #243247;border-radius:8px;margin-top:4px;list-style:none;padding:6px;width:100%;max-height:240px;overflow:auto}
-    .suggest li{padding:6px;border-radius:6px;cursor:pointer}
-    .suggest li:hover{background:#13213a}
+    .btn-blue{background:#3b82f6;border-color:#215ab6}
+    .danger{background:#e55353;border-color:#9c2f2f}
+    pre{white-space:pre-wrap;background:#0f1320;border:1px solid #243247;padding:8px;border-radius:8px;max-height:240px;overflow:auto}
   </style>
 </head>
 <body>
   <header>
     <h1>🏃 Runloop – Generación de rutas</h1>
     <div class="row" style="margin-top:8px">
-      <div class="badge">API: <code>https://djz7dstg9k.execute-api.eu-west-1.amazonaws.com</code></div>
-      <a href="run.html" style="text-decoration:none;margin-left:auto"><button class="link-btn">▶️ Ir a “Salir a correr”</button></a>
+      <div style="flex:1 1 60%"><small>API: <code>https://djz7dstg9k.execute-api.eu-west-1.amazonaws.com</code></small></div>
+      <div style="flex:1 1 40%;text-align:right">
+        <a href="run.html" style="text-decoration:none"><button class="btn-blue">▶️ Ir a “Salir a correr”</button></a>
+      </div>
     </div>
-    <p class="muted" style="font-size:13px;margin-top:6px">Circular o punto a punto · Superficie (asfalto/tierra) · Mapbox Outdoors</p>
   </header>
 
   <div class="wrap">
     <div class="card">
-      <h2>Ubicación & Preferencias</h2>
-
+      <h2>Preferencias</h2>
       <div class="row">
-        <div style="flex:1 1 220px">
-          <label>Lat/Lon por defecto</label>
-          <input id="defaultLatLon" placeholder="38.95483,-5.86168" />
+        <div>
+          <label>Lat,lon inicio (por defecto)</label>
+          <input id="latlon" value="38.95483,-5.86168"/>
         </div>
-        <div style="flex:1 1 180px">
-          <label>&nbsp;</label>
-          <button id="btnUseLoc">📍 Usar mi ubicación</button>
+        <div>
+          <label>Distancia objetivo (km)</label>
+          <input id="km" type="number" value="15" min="0.5" step="0.5"/>
         </div>
-      </div>
-
-      <details style="margin-top:6px" open>
-        <summary>Preferencias de la ruta</summary>
-        <div class="row" style="margin-top:6px">
-          <div>
-            <label>Distancia (km)</label>
-            <input id="routeKm" type="number" value="15" min="0.5" step="0.5" />
-          </div>
-          <div>
-            <label>Altimetría (preferencia)</label>
-            <select id="altPref">
-              <option value="flat">Más llana</option>
-              <option value="mixed" selected>Mixta</option>
-              <option value="hilly">Con pendiente</option>
-            </select>
-          </div>
-          <div>
-            <label>Superficie</label>
-            <select id="surfacePref">
-              <option value="paved" selected>Siempre asfalto</option>
-              <option value="unpaved">Mayormente tierra</option>
-            </select>
-          </div>
-        </div>
-        <p class="muted" style="font-size:12px;margin-top:4px">Buscamos ±10% del objetivo y cumplimos la superficie elegida (si existe razonablemente).</p>
-      </details>
-
-      <h2 style="margin-top:16px">Tipo de ruta</h2>
-      <div>
-        <label><input type="radio" name="mode" value="loop" checked /> Circular (origen = destino)</label><br>
-        <label><input type="radio" name="mode" value="p2p" /> Punto a punto (origen ≠ destino)</label>
-      </div>
-
-      <!-- Loop -->
-      <div id="loopBox" class="card" style="margin-top:10px">
-        <h3 style="margin:0 0 6px 0">Circular</h3>
-        <label>Inicio (lat,lon)</label>
-        <input id="routeStartLoop" placeholder="38.95483,-5.86168" />
-        <div class="row">
-          <button id="btnPickStartLoop" class="ghost" style="flex:1">Elegir inicio en mapa</button>
-          <button id="btnCopyFromDefaultLoop" class="ghost" style="flex:1">Usar Lat/Lon por defecto</button>
+        <div>
+          <label>Superficie</label>
+          <select id="surface">
+            <option value="paved" selected>Siempre asfalto</option>
+            <option value="unpaved">Mayormente tierra</option>
+          </select>
         </div>
       </div>
 
-      <!-- P2P -->
-      <div id="p2pBox" class="card" style="margin-top:10px;display:none">
-        <h3 style="margin:0 0 6px 0">Punto a punto</h3>
-
-        <div class="row suggest">
-          <div style="flex:1">
-            <label>Dirección ORIGEN (España) o lat,lon</label>
-            <input id="startAddr" placeholder="Calle, ciudad... (ES) o 38.95,-5.86" autocomplete="off" />
-            <ul id="startSug" style="display:none"></ul>
-          </div>
-          <button id="btnSearchStart" class="ghost" style="flex:0 0 120px;align-self:end">Buscar</button>
-        </div>
-
-        <div class="row">
-          <input id="routeStartP2P" placeholder="lat,lon ORIGEN" />
-          <button id="btnPickStart" class="ghost" style="flex:0 0 160px">Elegir ORIGEN en mapa</button>
-        </div>
-
-        <div class="row suggest">
-          <div style="flex:1">
-            <label>Dirección DESTINO (España) o lat,lon</label>
-            <input id="endAddr" placeholder="Calle, ciudad... (ES) o 38.97,-5.84" autocomplete="off" />
-            <ul id="endSug" style="display:none"></ul>
-          </div>
-          <button id="btnSearchEnd" class="ghost" style="flex:0 0 120px;align-self:end">Buscar</button>
-        </div>
-
-        <div class="row">
-          <input id="routeEndP2P" placeholder="lat,lon DESTINO" />
-          <button id="btnPickEnd" class="ghost" style="flex:0 0 160px">Elegir DESTINO en mapa</button>
-        </div>
+      <div class="row" style="margin-top:8px">
+        <button id="btn1" style="flex:1">Generar 1 ruta</button>
+        <button id="btn5" style="flex:1">Generar 5 rutas</button>
       </div>
 
-      <div class="row" style="margin-top:10px">
-        <button id="btnGen1" style="flex:1">Generar 1 ruta</button>
-        <button id="btnGen5" style="flex:1">Generar 5 rutas</button>
-      </div>
-
-      <button id="btnSendToRun" class="link-btn" style="margin-top:6px" disabled>
-        ▶️ Usar esta ruta en “Salir a correr”
-      </button>
-
-      <button id="btnExport" class="ghost" style="margin-top:6px">Exportar GPX (ruta destacada)</button>
-      <div id="surfaceNote" class="note"></div>
-
-      <p id="routeInfo" class="muted" style="font-size:13px"></p>
+      <button id="btnToRun" class="btn-blue" style="margin-top:8px" disabled>Usar ruta destacada en “Salir a correr”</button>
+      <button id="btnExport" style="margin-top:8px">Exportar GPX (destacada)</button>
+      <div id="note" class="note"></div>
 
       <details style="margin-top:8px">
-        <summary>Depuración (última respuesta)</summary>
-        <pre id="debug"></pre>
+        <summary>Depuración</summary>
+        <pre id="dbg"></pre>
       </details>
     </div>
 
-    <!-- Mapa -->
     <div class="card">
       <h2>Mapa</h2>
       <div id="map" class="map"></div>
       <div class="row" style="margin-top:8px">
-        <div style="flex:1 1 60%">
-          <small class="muted">Mapa: Mapbox Outdoors · © Mapbox · Datos © OpenStreetMap</small>
-        </div>
-        <div style="flex:1 1 40%;text-align:right">
-          <button id="btnClear" class="danger" style="width:auto">Limpiar rutas y marcadores</button>
-        </div>
+        <button id="btnClear" class="danger" style="width:auto">Limpiar</button>
       </div>
     </div>
   </div>
 
   <script>
-    // === Config ===
     const API_BASE = "https://djz7dstg9k.execute-api.eu-west-1.amazonaws.com";
     const MAPBOX_TOKEN = "pk.eyJ1IjoiYXJvbWFuaGVycmVyYSIsImEiOiJjbWdkaXdlNHIxazFoMmxzODZhcGI3enhkIn0.qCuSZ6-OgwlucpyyWHH1XA";
-    const DEFAULT_LAT = 38.95483, DEFAULT_LON = -5.86168; // Tus coordenadas
-
     const $ = id => document.getElementById(id);
-    const S = {
-      map:null, youMarker:null,
-      startMarker:null, endMarker:null,
-      variantLayers:[], highlightLayer:null,
-      highlightedRoute:null,
-      _watchId:null, _pickMode:null,
-      cfg:{ defaultLatLon:null },
-    };
 
-    // === Geocoding ES (sugerencias) ===
-    let _debTimer=null;
-    function debounce(fn, ms=250){ return (...args)=>{ clearTimeout(_debTimer); _debTimer=setTimeout(()=>fn(...args), ms); }; }
-    async function geocodeMapbox(q, proximity){
-      const m = q.trim().match(/^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$/);
-      if (m){ return { lat: parseFloat(m[1]), lon: parseFloat(m[3]), label:`${parseFloat(m[1]).toFixed(5)}, ${parseFloat(m[3]).toFixed(5)}` }; }
-      const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json`);
-      url.searchParams.set('access_token', MAPBOX_TOKEN);
-      url.searchParams.set('autocomplete','true');
-      url.searchParams.set('country','ES');
-      url.searchParams.set('language','es');
-      url.searchParams.set('types','address,street,place,locality,neighborhood,poi');
-      if (proximity) url.searchParams.set('proximity', `${proximity.lon},${proximity.lat}`);
-      const r = await fetch(url);
-      const js = await r.json();
-      return (js.features||[]).map(f => ({
-        lat: f.center[1], lon: f.center[0],
-        label: f.place_name
-      }));
-    }
-    function bindSuggest(inputEl, listEl, targetEl, markerSetter){
-      async function onType(){
-        const q = inputEl.value.trim();
-        if (!q){ listEl.style.display='none'; listEl.innerHTML=''; return; }
-        try{
-          const prox = currentCenter();
-          const res = await geocodeMapbox(q, prox);
-          const arr = Array.isArray(res) ? res : [res];
-          if (!arr.length){ listEl.style.display='none'; listEl.innerHTML=''; return; }
-          listEl.innerHTML = arr.slice(0,10).map(x => `<li data-lat="${x.lat}" data-lon="${x.lon}">${x.label}</li>`).join('');
-          listEl.style.display='block';
-        }catch(e){
-          listEl.style.display='none'; listEl.innerHTML='';
-        }
-      }
-      inputEl.addEventListener('input', debounce(onType, 250));
-      listEl.addEventListener('click', (ev)=>{
-        const li = ev.target.closest('li'); if (!li) return;
-        const lat = parseFloat(li.getAttribute('data-lat'));
-        const lon = parseFloat(li.getAttribute('data-lon'));
-        targetEl.value = `${lat.toFixed(5)},${lon.toFixed(5)}`;
-        markerSetter(lat,lon);
-        moveMapTo(lat,lon,15);
-        listEl.style.display='none';
-        inputEl.blur();
-      });
-    }
+    const S = { map:null, baseLayer:null, startMarker:null, variantLayers:[], highlightLayer:null, highlighted:null };
 
-    // === Map & helpers ===
-    function setLatLonInputs(lat, lon) {
-      const s = `${lat.toFixed(5)},${lon.toFixed(5)}`;
-      $('defaultLatLon').value = s;
-      $('routeStartLoop').value = s;
-      if (!$('routeStartP2P').value) $('routeStartP2P').value = s;
-      S.cfg.defaultLatLon = s;
-      try{ localStorage.setItem('runloop_default_latlon', s); }catch{}
-    }
-    function currentCenter(){
-      const s = S.cfg.defaultLatLon || `${DEFAULT_LAT},${DEFAULT_LON}`;
-      const [lat,lon] = s.split(',').map(Number);
-      return {lat,lon};
-    }
-    function moveMapTo(lat, lon, zoom = 15) {
-      if (!S.map) return;
-      S.map.setView([lat, lon], Math.max(S.map.getZoom(), zoom), { animate: true });
-      if (!S.youMarker) S.youMarker = L.marker([lat, lon], { title: 'Tú aquí' }).addTo(S.map);
-      else S.youMarker.setLatLng([lat, lon]);
-    }
-    function putStartMarker(lat, lon){
+    function initMap(){
+      if (S.map) S.map.remove();
+      const [lat,lon] = $('latlon').value.split(',').map(Number);
+      S.map = L.map('map').setView([lat,lon], 13);
+      const url = `https://api.mapbox.com/styles/v1/{id}/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`;
+      S.baseLayer = L.tileLayer(url, { id:'mapbox/outdoors-v12', tileSize:512, zoomOffset:-1, maxZoom:19, attribution:'© Mapbox © OpenStreetMap' }).addTo(S.map);
       if (S.startMarker) S.map.removeLayer(S.startMarker);
       S.startMarker = L.marker([lat,lon], { title:'Inicio' }).addTo(S.map).bindPopup('Inicio');
+      setTimeout(()=> S.map.invalidateSize(), 150);
     }
-    function putEndMarker(lat, lon){
-      if (S.endMarker) S.map.removeLayer(S.endMarker);
-      S.endMarker = L.marker([lat,lon], { title:'Fin' }).addTo(S.map).bindPopup('Fin');
-    }
-    function clearRoutes(){
-      S.variantLayers.forEach(v => S.map.removeLayer(v.layer));
+    initMap();
+    $('latlon').addEventListener('change', initMap);
+
+    function clearMap(){
+      S.variantLayers.forEach(v=> S.map.removeLayer(v.layer));
       S.variantLayers = [];
       if (S.highlightLayer){ S.map.removeLayer(S.highlightLayer); S.highlightLayer=null; }
-      S.highlightedRoute = null;
-      $('routeInfo').textContent = '';
-      $('debug').textContent = '';
-      $('surfaceNote').style.display = 'none';
-      enableSendToRun(false);
+      S.highlighted = null;
+      $('note').style.display='none';
+      $('dbg').textContent='';
+      $('btnToRun').disabled = true;
     }
-    function clearMarkers(){ if (S.startMarker){ S.map.removeLayer(S.startMarker); S.startMarker=null; } if (S.endMarker){ S.map.removeLayer(S.endMarker); S.endMarker=null; } }
-    function clearAll(){ clearRoutes(); clearMarkers(); }
+    $('btnClear').onclick = clearMap;
+
+    async function fx(path, {method='GET', body=null}={}){
+      const h = {}; let reqBody;
+      if (body!==null && body!==undefined){ h['Content-Type']='application/json'; reqBody = JSON.stringify(body); }
+      const r = await fetch(API_BASE.replace(/\/+$/,'') + path, {method, headers:h, body:reqBody});
+      const txt = await r.text(); let data=null; try{ data=JSON.parse(txt);}catch{ data=txt; }
+      return { ok:r.ok, status:r.status, data };
+    }
 
     function drawHighlight(geom){
       if (S.highlightLayer) S.map.removeLayer(S.highlightLayer);
@@ -284,232 +131,108 @@
       layer.on('click', onClick);
       return layer;
     }
-    function deriveEndpointsFromGeom(geom){
-      try{
-        const coords = (geom?.coordinates)||[];
-        if (coords.length >= 2){
-          const [sLon, sLat] = coords[0];
-          const [eLon, eLat] = coords[coords.length-1];
-          return { start:{ lat:sLat, lon:sLon }, end:{ lat:eLat, lon:eLon } };
-        }
-      }catch{}
-      return { start:null, end:null };
+
+    function saveForRun(route){
+      const payload = {
+        route_id: route.route_id,
+        distance_m: route.distance_m,
+        geom: route.geom,
+        start_point: route.start_point,
+        end_point: route.end_point,
+        saved_at: new Date().toISOString()
+      };
+      localStorage.setItem('runloop_target_route', JSON.stringify(payload));
     }
-
-    function initMap(){
-      // carga de default desde localStorage o constantes
-      const saved = (localStorage.getItem('runloop_default_latlon')||`${DEFAULT_LAT},${DEFAULT_LON}`).split(',').map(Number);
-      S.cfg.defaultLatLon = `${saved[0]},${saved[1]}`;
-      $('defaultLatLon').value = S.cfg.defaultLatLon;
-      $('routeStartLoop').value = S.cfg.defaultLatLon;
-
-      if (S.map) S.map.remove();
-      S.map = L.map('map').setView(saved, 13);
-      const url = `https://api.mapbox.com/styles/v1/{id}/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`;
-      L.tileLayer(url, {
-        id:'mapbox/outdoors-v12', tileSize:512, zoomOffset:-1, maxZoom:19,
-        attribution:'© Mapbox © OpenStreetMap'
-      }).addTo(S.map);
-      setTimeout(()=> S.map.invalidateSize(), 150);
-      S.map.on('click', (ev) => {
-        if (!S._pickMode) return;
-        const lat = ev.latlng.lat, lon = ev.latlng.lng;
-        if (S._pickMode === 'startLoop'){ $('routeStartLoop').value = `${lat.toFixed(5)},${lon.toFixed(5)}`; putStartMarker(lat, lon); }
-        else if (S._pickMode === 'start'){ $('routeStartP2P').value = `${lat.toFixed(5)},${lon.toFixed(5)}`; putStartMarker(lat, lon); }
-        else if (S._pickMode === 'end'){ $('routeEndP2P').value = `${lat.toFixed(5)},${lon.toFixed(5)}`; putEndMarker(lat, lon); }
-        S._pickMode = null;
-      });
-    }
-
-    async function fx(path, {method='GET', body=null, headers={}}={}){
-      const url = API_BASE.replace(/\/+$/,'') + path;
-      const h = {...headers};
-      let reqBody;
-      if (body !== null && body !== undefined){ h['Content-Type']='application/json'; reqBody = JSON.stringify(body); }
-      const r = await fetch(url, {method, headers:h, body:reqBody});
-      const txt = await r.text(); let data=null; try{ data = JSON.parse(txt); }catch{ data = txt; }
-      return { ok:r.ok, status:r.status, data };
-    }
-
-    $('btnUseLoc').onclick = async () => {
-      if (!('geolocation' in navigator)) return alert('Tu navegador no soporta geolocalización.');
-      const getOnce = (opts)=> new Promise((res,rej)=> navigator.geolocation.getCurrentPosition(res,rej,opts));
-      try{
-        let pos;
-        try { pos = await getOnce({ enableHighAccuracy:true, timeout:25000, maximumAge:0 }); }
-        catch { pos = await getOnce({ enableHighAccuracy:false, timeout:25000, maximumAge:10000 }); }
-        const { latitude: lat, longitude: lon } = pos.coords;
-        setLatLonInputs(lat, lon);
-        moveMapTo(lat, lon, 15);
-        if (!S._watchId){
-          S._watchId = navigator.geolocation.watchPosition(
-            p => moveMapTo(p.coords.latitude, p.coords.longitude, 15),
-            err => console.warn('watchPosition error', err),
-            { enableHighAccuracy:true, maximumAge:2000, timeout:30000 }
-          );
-        }
-      }catch(err){
-        const msg = ({1:'Permiso denegado (actívalo en el navegador).',2:'Posición no disponible.',3:'Tiempo agotado.'}[err.code]) || ('No se pudo obtener ubicación: '+err.message);
-        alert(msg);
-      }
+    $('btnToRun').onclick = ()=> {
+      if (!S.highlighted) return alert('No hay ruta destacada');
+      saveForRun(S.highlighted);
+      window.location.href = 'run.html';
     };
 
-    function updateMode(){
-      const mode = document.querySelector('input[name="mode"]:checked').value;
-      $('loopBox').style.display = (mode==='loop') ? 'block' : 'none';
-      $('p2pBox').style.display = (mode==='p2p') ? 'block' : 'none';
-    }
-    document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener('change', updateMode));
-
-    $('btnPickStartLoop').onclick = ()=>{ S._pickMode = 'startLoop'; alert('Haz clic en el mapa para INICIO (circular).'); };
-    $('btnCopyFromDefaultLoop').onclick = ()=>{
-      $('routeStartLoop').value = $('defaultLatLon').value.trim();
-      const [lat,lon] = $('routeStartLoop').value.split(',').map(Number);
-      if (Number.isFinite(lat)&&Number.isFinite(lon)){ putStartMarker(lat,lon); moveMapTo(lat,lon,15); }
-    };
-    $('btnPickStart').onclick = ()=>{ S._pickMode = 'start'; alert('Haz clic en el mapa para ORIGEN.'); };
-    $('btnPickEnd').onclick   = ()=>{ S._pickMode = 'end';   alert('Haz clic en el mapa para DESTINO.'); };
-
-    // Bind autocompletado ES
-    bindSuggest($('startAddr'), $('startSug'), $('routeStartP2P'), putStartMarker);
-    bindSuggest($('endAddr'),   $('endSug'),   $('routeEndP2P'),   putEndMarker);
-
-    $('btnSearchStart').onclick = async ()=>{
-      const q = $('startAddr').value.trim(); if(!q) return;
-      try{ const p = await geocodeMapbox(q, currentCenter()); const pick = Array.isArray(p)? p[0]:p; $('routeStartP2P').value = `${pick.lat.toFixed(5)},${pick.lon.toFixed(5)}`; putStartMarker(pick.lat,pick.lon); moveMapTo(pick.lat,pick.lon,15); }
-      catch{ alert('Origen no encontrado'); }
-    };
-    $('btnSearchEnd').onclick = async ()=>{
-      const q = $('endAddr').value.trim(); if(!q) return;
-      try{ const p = await geocodeMapbox(q, currentCenter()); const pick = Array.isArray(p)? p[0]:p; $('routeEndP2P').value = `${pick.lat.toFixed(5)},${pick.lon.toFixed(5)}`; putEndMarker(pick.lat,pick.lon); moveMapTo(pick.lat,pick.lon,15); }
-      catch{ alert('Destino no encontrado'); }
+    $('btnExport').onclick = async ()=>{
+      if (!S.highlighted?.route_id) return alert('No hay ruta destacada');
+      const r = await fx(`/routes/${S.highlighted.route_id}/export`, {method:'POST'});
+      if (r.ok && r.data?.url) window.open(r.data.url, '_blank'); else alert('No se pudo exportar GPX');
     };
 
     function buildPayload(seed){
-      const km = parseFloat($('routeKm').value || '10');
-      const hill = $('altPref').value;
-      const surf = $('surfacePref').value;
-      const mode = document.querySelector('input[name="mode"]:checked').value;
-
-      let start, end, round_trip=false;
-      if (mode === 'loop'){
-        const s = $('routeStartLoop').value.trim();
-        const [lat,lon] = s.split(',').map(Number);
-        start = { lat, lon }; round_trip = true;
-      } else {
-        const s = $('routeStartP2P').value.trim();
-        const e = $('routeEndP2P').value.trim();
-        const [sLat,sLon] = s.split(',').map(Number);
-        const [eLat,eLon] = e.split(',').map(Number);
-        start = { lat:sLat, lon:sLon }; end = { lat:eLat, lon:eLon };
-      }
-
+      const [lat,lon] = $('latlon').value.split(',').map(Number);
+      const km = parseFloat($('km').value||'10');
+      const surface = $('surface').value;
       return {
-        start, ...(end ? { end } : {}),
+        start: { lat, lon },
         distance_m: Math.max(500, km*1000),
-        hill_pref: hill,
-        surface_pref: surf,
-        round_trip,
+        round_trip: true,
+        surface_pref: surface,
         seed
       };
     }
 
-    function enableSendToRun(enabled) {
-      const b = document.getElementById('btnSendToRun');
-      if (!b) return; b.disabled = !enabled; b.style.opacity = enabled ? '1' : '.6'; b.style.cursor = enabled ? 'pointer' : 'not-allowed';
-    }
-    function saveTargetRouteForRun(r) {
-      if (!r || !r.geom) return;
-      const dist = r.distance_m || 0;
-      const target = { route_id: r.route_id || null, distance_m: dist, geom: r.geom, start_point: r.start_point || null, end_point: r.end_point || null, saved_at: new Date().toISOString() };
-      localStorage.setItem('runloop_target_route', JSON.stringify(target));
-    }
-    (function initSendToRunButton() {
-      const btn = document.getElementById('btnSendToRun');
-      if (!btn) return;
-      btn.addEventListener('click', () => {
-        if (!S.highlightedRoute) { alert('Primero genera y selecciona una ruta.'); return; }
-        saveTargetRouteForRun(S.highlightedRoute);
-        window.location.href = 'run.html';
-      });
-    })();
-
     async function generateOne(seed){
       const payload = buildPayload(seed);
-      const res = await fx('/routes/generate', { method:'POST', body: payload });
-      $('debug').textContent = JSON.stringify(res.data, null, 2);
-      if (!res.ok) throw new Error(res.data?.message || 'Error generando ruta');
+      const res = await fx('/routes/generate', { method:'POST', body:payload });
+      $('dbg').textContent = JSON.stringify(res.data, null, 2);
+      if (!res.ok) throw new Error(res.data?.message||'Error generando ruta');
+      if (!res.data?.geom?.coordinates?.length) throw new Error('Respuesta sin geometría');
 
-      const geom = res.data.geom || res.data.geojson || null;
-      const distance_m = (typeof res.data.distance_m === 'number' ? res.data.distance_m : null);
-      let startPoint = res.data.start_point, endPoint = res.data.end_point;
-      if ((!startPoint || !endPoint) && geom){
-        const d = deriveEndpointsFromGeom(geom);
-        startPoint = startPoint || d.start; endPoint = endPoint || d.end;
-      }
       if (res.data.surface_note){
-        const n = $('surfaceNote'); n.style.display = 'block'; n.textContent = res.data.surface_note;
-      } else { $('surfaceNote').style.display = 'none'; }
+        const n=$('note'); n.style.display='block'; n.textContent=res.data.surface_note + (res.data.distance_within_10pct ? ' (±10% OK)' : '');
+      } else { $('note').style.display='none'; }
 
-      return { route_id: res.data.route_id, geom, start_point: startPoint, end_point: endPoint, distance_m };
+      return {
+        route_id: res.data.route_id,
+        distance_m: res.data.distance_m,
+        geom: res.data.geom,
+        start_point: res.data.start_point,
+        end_point: res.data.end_point
+      };
     }
 
-    async function onGenerate1(){
-      clearRoutes();
+    $('btn1').onclick = async ()=>{
+      clearMap();
       try{
-        const r = await generateOne(Math.floor(Math.random()*100000));
-        S.highlightedRoute = r;
+        const seed = Math.floor(Math.random()*1e6);
+        const r = await generateOne(seed);
+        S.highlighted = r;
         drawHighlight(r.geom);
-        if (r.start_point) putStartMarker(r.start_point.lat, r.start_point.lon);
-        if (r.end_point)   putEndMarker(r.end_point.lat,   r.end_point.lon);
-        $('routeInfo').textContent = `Ruta ${r.route_id} – ${(r.distance_m/1000).toFixed(2)} km – destacada`;
-        enableSendToRun(true);
+        $('btnToRun').disabled = false;
       }catch(e){ alert('Error: ' + e.message); }
-    }
-    async function onGenerate5(){
-      clearRoutes();
-      const seeds = [1,2,3,4,5].map(s => s + Math.floor(Math.random()*10000));
+    };
+
+    $('btn5').onclick = async ()=>{
+      clearMap();
       try{
-        const results = await Promise.all(seeds.map(s => generateOne(s)));
-        const highlighted = results[0];
-        S.highlightedRoute = highlighted;
-        drawHighlight(highlighted.geom);
-        if (highlighted.start_point) putStartMarker(highlighted.start_point.lat, highlighted.start_point.lon);
-        if (highlighted.end_point)   putEndMarker(highlighted.end_point.lat,   highlighted.end_point.lon);
-        $('routeInfo').textContent = `Ruta ${highlighted.route_id} (azul) – ${(highlighted.distance_m/1000).toFixed(2)} km. Haz clic en otra para destacar.`;
-        enableSendToRun(true);
+        // 5 seeds realmente distintos
+        const base = Math.floor(Math.random()*1e6);
+        const seeds = [base, base+97, base+193, base+349, base+571];
+        const routes = [];
+        for (const s of seeds){
+          try{
+            const r = await generateOne(s);
+            routes.push(r);
+          }catch(e){
+            // si alguna falla, seguimos con las restantes
+            console.warn('Variante fallida', e.message);
+          }
+        }
+        if (!routes.length) throw new Error('No se pudo generar ninguna variante');
 
-        results.slice(1).forEach(r => {
-          const layer = drawVariant(r.geom, () => {
-            S.highlightedRoute = r;
+        // primera destacada
+        const main = routes[0];
+        S.highlighted = main;
+        drawHighlight(main.geom);
+        $('btnToRun').disabled = false;
+
+        // pinta el resto en gris y permite resaltarlas
+        routes.slice(1).forEach(r=>{
+          const layer = drawVariant(r.geom, ()=>{
+            S.highlighted = r;
             drawHighlight(r.geom);
-            if (r.start_point) putStartMarker(r.start_point.lat, r.start_point.lon);
-            if (r.end_point)   putEndMarker(r.end_point.lat,   r.end_point.lon);
-            $('routeInfo').textContent = `Ruta ${r.route_id} destacada – ${(r.distance_m/1000).toFixed(2)} km`;
-            enableSendToRun(true);
           });
-          S.variantLayers.push({ layer, ...r });
+          S.variantLayers.push({ layer, r });
         });
-      }catch(e){ alert('Error generando variantes: ' + e.message); }
-    }
-
-    async function onExport(){
-      if (!S.highlightedRoute?.route_id) return alert('No hay ruta destacada. Genera primero.');
-      const r = await fx(`/routes/${S.highlightedRoute.route_id}/export`, { method:'POST' });
-      if (r.data?.url) window.open(r.data.url, '_blank'); else alert('No se pudo obtener el GPX');
-    }
-
-    $('btnClear').onclick = () => { clearAll(); };
-
-    (function init(){
-      initMap();
-      updateMode();
-      $('btnGen1').onclick = onGenerate1;
-      $('btnGen5').onclick = onGenerate5;
-      $('btnExport').onclick = onExport;
-      // coloca por defecto tus coordenadas si no hay nada guardado
-      if (!localStorage.getItem('runloop_default_latlon')) setLatLonInputs(DEFAULT_LAT, DEFAULT_LON);
-    })();
+      }catch(e){ alert('Error (variantes): ' + e.message); }
+    };
   </script>
 </body>
 </html>
