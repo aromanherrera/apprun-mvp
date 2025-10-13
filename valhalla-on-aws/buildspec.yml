@@ -1,0 +1,31 @@
+version: 0.2
+
+env:
+  variables:
+    AWS_DEFAULT_REGION: "eu-west-1"
+    ECR_REPO: "valhalla"
+    IMAGE_TAG: "latest"
+  parameter-store: {}
+  secrets-manager: {}
+
+phases:
+  pre_build:
+    commands:
+      - echo "Iniciando build en $AWS_DEFAULT_REGION"
+      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - ECR_URI="$ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO"
+      - echo "ECR_URI=$ECR_URI"
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com"
+  build:
+    commands:
+      - echo "Construyendo imagen Docker..."
+      - docker build -t $ECR_REPO:$IMAGE_TAG .
+      - docker tag $ECR_REPO:$IMAGE_TAG $ECR_URI:$IMAGE_TAG
+  post_build:
+    commands:
+      - echo "Subiendo imagen a ECR..."
+      - docker push $ECR_URI:$IMAGE_TAG
+      - echo "IMAGEN SUBIDA: $ECR_URI:$IMAGE_TAG"
+artifacts:
+  files:
+    - '**/*'
