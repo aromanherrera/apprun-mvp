@@ -1,0 +1,26 @@
+{
+  "mjolnir": {
+    "tile_dir": "/valhalla/tiles",
+    "admin": "/valhalla/admin",
+    "timezone": "/valhalla/timezone"
+  },
+  "loki": {
+    "actions": ["route", "height", "isochrone", "trace_route"]
+  },
+  "thor": {
+    "max_reserved_labels_count": 1
+  },
+  "odin": {},
+  "skadi": {
+    "data_source": "/valhalla/elevation"
+  },
+  "meili": {},
+  "service": {
+    "listen": "0.0.0.0",
+    "port": 8002,
+    "concurrency": 2
+  },
+  "additional_data": {
+    "elevation": "/valhalla/elevation"
+  }
+}
