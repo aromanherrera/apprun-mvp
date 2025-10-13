@@ -1,0 +1,6 @@
+# Cosas típicas que no necesitamos
+.DS_Store
+*.log
+*.tmp
+node_modules/
+dist/
