@@ -11,13 +11,16 @@ phases:
     commands:
       - |
         echo "== Pre-build =="
+        cd valhalla-on-aws
+        echo "PWD (pre_build): $(pwd)"
+        ls -la
         ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
         ECR_URI="${ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO}"
         echo "ECR_URI=${ECR_URI}"
-        # Crea el repo si no existe (no falla si ya existe)
+        # Crea repo ECR si no existe (idempotente)
         aws ecr describe-repositories --repository-names "${ECR_REPO}" \
           || aws ecr create-repository --repository-name "${ECR_REPO}"
-        # Login a ECR
+        # Login ECR
         aws ecr get-login-password --region "${AWS_DEFAULT_REGION}" \
           | docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
 
@@ -25,17 +28,24 @@ phases:
     commands:
       - |
         echo "== Build =="
-        docker build -t "${ECR_REPO}:${IMAGE_TAG}" .
+        cd valhalla-on-aws
+        echo "PWD (build): $(pwd)"
+        ls -la
+        docker version
+        # Construye usando el Dockerfile de esta carpeta
+        docker build -t "${ECR_REPO}:${IMAGE_TAG}" -f Dockerfile .
         docker tag "${ECR_REPO}:${IMAGE_TAG}" "${ECR_URI}:${IMAGE_TAG}"
 
   post_build:
     commands:
       - |
         echo "== Push =="
+        cd valhalla-on-aws
+        echo "PWD (post_build): $(pwd)"
         docker push "${ECR_URI}:${IMAGE_TAG}"
         printf '[{"name":"valhalla","imageUri":"%s"}]' "${ECR_URI}:${IMAGE_TAG}" > imagedefinitions.json
         echo "Listo: ${ECR_URI}:${IMAGE_TAG}"
 
 artifacts:
   files:
-    - imagedefinitions.json
+    - valhalla-on-aws/imagedefinitions.json
