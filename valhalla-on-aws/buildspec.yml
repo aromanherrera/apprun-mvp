@@ -5,27 +5,30 @@ env:
     AWS_DEFAULT_REGION: "eu-west-1"
     ECR_REPO: "valhalla"
     IMAGE_TAG: "latest"
-  parameter-store: {}
-  secrets-manager: {}
 
 phases:
   pre_build:
     commands:
-      - echo "Iniciando build en $AWS_DEFAULT_REGION"
+      - echo "== Pre-build =="
       - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
       - ECR_URI="$ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO"
       - echo "ECR_URI=$ECR_URI"
+      - aws ecr describe-repositories --repository-names "$ECR_REPO" || aws ecr create-repository --repository-name "$ECR_REPO"
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com"
+
   build:
     commands:
-      - echo "Construyendo imagen Docker..."
+      - echo "== Build =="
       - docker build -t $ECR_REPO:$IMAGE_TAG .
       - docker tag $ECR_REPO:$IMAGE_TAG $ECR_URI:$IMAGE_TAG
+
   post_build:
     commands:
-      - echo "Subiendo imagen a ECR..."
+      - echo "== Push =="
       - docker push $ECR_URI:$IMAGE_TAG
-      - echo "IMAGEN SUBIDA: $ECR_URI:$IMAGE_TAG"
+      - printf '[{"name":"valhalla","imageUri":"%s"}]' "$ECR_URI:$IMAGE_TAG" > imagedefinitions.json
+      - echo "Listo: $ECR_URI:$IMAGE_TAG"
+
 artifacts:
   files:
-    - '**/*'
+    - imagedefinitions.json
