@@ -5,15 +5,19 @@ agentes que devuelve recomendaciones de seguridad, y generar un entregable a par
 de una plantilla.
 
 ## Páginas
-- `index.html` — login (contra API o modo demo).
+- `index.html` — login con contraseña única (`SecurityArchitecture2026!`) y, opcionalmente,
+  API Base URL + token de API cuando estén disponibles.
 - `dashboard.html` / `dashboard.js` — carga de ficheros (PDF, Word, Excel, etc.),
   lanzamiento del análisis, listado de recomendaciones, generación del entregable.
 - `report.html` — plantilla del entregable, imprimible/exportable a PDF desde el navegador.
-- `archia.js` — sesión, cliente API, modo demo.
+- `archia.js` — sesión, cliente API, validación de contraseña.
 
-## Modo demo
-Sin backend, pulsa "Entrar en modo demo" en el login. Simula el análisis y genera
-recomendaciones de ejemplo para probar todo el flujo, incluido el entregable PDF.
+## Acceso
+La contraseña del portal es `SecurityArchitecture2026!` (definida en `archia.js`).
+Mientras no se configure la API Base URL + token en "Configuración avanzada", el
+panel funciona en modo simulado (recomendaciones de ejemplo) para poder probar
+todo el flujo, incluido el entregable PDF. En cuanto se proporcione el token de la
+API real, introdúcelo en el login para que las llamadas usen el backend de agentes.
 
 ## Contrato de API asumido (a confirmar con el backend real)
 Configurable en el login como "API Base URL" (se guarda en `localStorage`).

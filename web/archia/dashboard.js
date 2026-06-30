@@ -1,7 +1,12 @@
 (function () {
   const session = ArchIA.requireSession();
   document.getElementById("userEmail").textContent = session.user?.email || session.user?.name || "";
-  if (session.demo) document.getElementById("demoPill").style.display = "inline-block";
+  const apiConfigured = !!(ArchIA.getApiBase() && session.token);
+  if (!apiConfigured) {
+    const pill = document.getElementById("demoPill");
+    pill.textContent = "API no configurada – modo simulado";
+    pill.style.display = "inline-block";
+  }
   document.getElementById("btnLogout").onclick = ArchIA.logout;
 
   const $ = (id) => document.getElementById(id);
@@ -39,7 +44,7 @@
     $("btnAnalyze").disabled = true;
     $("jobStatus").textContent = "Subiendo ficheros…";
     try {
-      if (session.demo) {
+      if (!apiConfigured) {
         await runDemoAnalysis();
       } else {
         await runRealAnalysis();
@@ -152,7 +157,7 @@
     $("reportStatus").textContent = "Generando entregable…";
     try {
       const payload = buildReportPayload();
-      if (session.demo || !ArchIA.getApiBase()) {
+      if (!apiConfigured) {
         sessionStorage.setItem("archia_report_preview", JSON.stringify(payload));
         window.open("report.html?download=1", "_blank");
         $("reportStatus").textContent = "Entregable generado (modo demo). Usa 'Imprimir > Guardar como PDF' en la pestaña abierta.";

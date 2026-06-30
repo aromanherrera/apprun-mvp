@@ -55,9 +55,12 @@
     return data;
   }
 
+  const PORTAL_PASSWORD = "SecurityArchitecture2026!";
+
   // ---- Login page ----
   function initLoginPage() {
     const apiInput = document.getElementById("apiBase");
+    const tokenInput = document.getElementById("apiToken");
     apiInput.value = getApiBase();
     apiInput.addEventListener("change", () => setApiBase(apiInput.value));
 
@@ -66,14 +69,13 @@
       const err = document.getElementById("err");
       err.style.display = "none";
       const btn = document.getElementById("btnLogin");
-      const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
       setApiBase(apiInput.value);
       btn.disabled = true;
       try {
-        if (!getApiBase()) throw new Error("Configura la API Base URL o usa el modo demo");
-        const res = await apiFetch("/auth/login", { method: "POST", body: { email, password } });
-        setSession({ token: res.token, user: res.user || { email }, demo: false });
+        if (password !== PORTAL_PASSWORD) throw new Error("Contraseña incorrecta");
+        const apiToken = (tokenInput.value || "").trim();
+        setSession({ token: apiToken || null, user: { name: "Usuario ArchIA" } });
         window.location.href = "dashboard.html";
       } catch (e) {
         err.textContent = "No se pudo iniciar sesión: " + e.message;
@@ -81,11 +83,6 @@
       } finally {
         btn.disabled = false;
       }
-    });
-
-    document.getElementById("btnDemo").addEventListener("click", () => {
-      setSession({ token: "demo-token", user: { name: "Usuario Demo", email: "demo@archia.local" }, demo: true });
-      window.location.href = "dashboard.html";
     });
   }
 

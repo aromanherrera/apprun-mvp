@@ -28,8 +28,6 @@
     <div class="sub">Recomendaciones de seguridad asistidas por agentes</div>
 
     <form id="loginForm">
-      <label>Usuario / email</label>
-      <input id="email" type="text" autocomplete="username" required/>
       <label>Contraseña</label>
       <input id="password" type="password" autocomplete="current-password" required/>
       <button type="submit" id="btnLogin">Entrar</button>
@@ -41,11 +39,12 @@
       <div class="apiRow">
         <label>API Base URL</label>
         <input id="apiBase" placeholder="https://tu-api.example.com"/>
+        <label>Token de la API (cuando esté disponible)</label>
+        <input id="apiToken" placeholder="Bearer token"/>
       </div>
       <p class="note">
-        Si la API aún no está disponible, puedes entrar en <b>modo demo</b> (botón abajo) para probar el portal con datos simulados.
+        Mientras no haya token de API configurado, el acceso se valida solo con la contraseña.
       </p>
-      <button type="button" id="btnDemo" style="background:#0f1320;border-color:#243247">Entrar en modo demo</button>
     </details>
   </div>
 
