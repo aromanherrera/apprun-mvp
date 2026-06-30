@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>ArchIA – Entregable</title>
+<style>
+  :root{color-scheme:light}
+  body{margin:0;background:#f4f6f9;color:#1b2433;font-family:Georgia,'Times New Roman',serif}
+  .toolbar{position:sticky;top:0;background:#0b0c10;padding:10px 16px;display:flex;gap:8px;z-index:10}
+  .toolbar button{cursor:pointer;background:#3b82f6;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-family:system-ui,sans-serif;font-weight:600}
+  .page{max-width:820px;margin:24px auto;background:#fff;padding:48px;box-shadow:0 0 12px rgba(0,0,0,.15)}
+  .cover h1{font-size:30px;margin-bottom:4px}
+  .cover .brand{color:#3b82f6;font-weight:700;font-family:system-ui,sans-serif}
+  .cover .meta{color:#5a6b80;font-size:13px;margin-top:8px;font-family:system-ui,sans-serif}
+  hr{border:none;border-top:1px solid #d8dee6;margin:24px 0}
+  h2{font-size:20px;border-bottom:2px solid #3b82f6;padding-bottom:6px}
+  .summary{font-size:15px;line-height:1.6}
+  .rec{border-left:4px solid #3b82f6;padding:10px 14px;margin:14px 0;background:#f8fafc}
+  .rec h3{margin:0 0 4px;font-size:16px}
+  .sev{font-family:system-ui,sans-serif;font-size:11px;padding:2px 8px;border-radius:999px;margin-left:8px;vertical-align:middle}
+  .sev-critica{background:#fde2e2;color:#9c2f2f}
+  .sev-alta{background:#fde9d6;color:#b3621a}
+  .sev-media{background:#fdf6d6;color:#8a7a12}
+  .sev-baja{background:#dff5e3;color:#1f6f34}
+  .rec p{margin:6px 0 0;font-size:14px}
+  footer{margin-top:40px;font-size:11px;color:#9aa6b5;font-family:system-ui,sans-serif;text-align:center}
+  @media print { .toolbar{display:none} body{background:#fff} .page{box-shadow:none;margin:0} }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <button onclick="window.print()">Imprimir / Guardar como PDF</button>
+  </div>
+
+  <div class="page" id="page"></div>
+
+  <script>
+    function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+    const raw = sessionStorage.getItem("archia_report_preview");
+    const data = raw ? JSON.parse(raw) : null;
+    const page = document.getElementById("page");
+
+    if (!data) {
+      page.innerHTML = "<p>No hay datos de entregable. Genera el informe desde el panel de ArchIA.</p>";
+    } else {
+      const date = new Date(data.generated_at || Date.now()).toLocaleString("es-ES");
+      const recsHtml = (data.recommendations || []).map(r => `
+        <div class="rec">
+          <h3>${escapeHtml(r.title)} <span class="sev sev-${escapeHtml(r.severity)}">${escapeHtml((r.severity||'').toUpperCase())}</span></h3>
+          <p>${escapeHtml(r.description)}</p>
+        </div>
+      `).join("");
+
+      page.innerHTML = `
+        <div class="cover">
+          <div class="brand">ArchIA</div>
+          <h1>Informe de recomendaciones de seguridad</h1>
+          <div class="meta">Proyecto: ${escapeHtml(data.project_name)}<br/>Generado: ${escapeHtml(date)}</div>
+        </div>
+        <hr/>
+        <h2>Resumen ejecutivo</h2>
+        <p class="summary">${escapeHtml(data.summary)}</p>
+        <h2>Recomendaciones</h2>
+        ${recsHtml || "<p>Sin recomendaciones.</p>"}
+        <footer>Documento generado automáticamente por ArchIA. Revisar antes de su distribución.</footer>
+      `;
+    }
+  </script>
+</body>
+</html>
