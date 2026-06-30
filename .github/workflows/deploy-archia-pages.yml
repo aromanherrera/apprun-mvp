@@ -3,6 +3,7 @@ name: Deploy ArchIA portal to GitHub Pages
 on:
   push:
     branches:
+      - main
       - claude/archia-portal-build-2zckr6
     paths:
       - "web/archia/**"
