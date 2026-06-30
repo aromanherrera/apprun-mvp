@@ -12,6 +12,17 @@
   const $ = (id) => document.getElementById(id);
   const state = { files: [], projectId: null, jobId: null, recommendations: [], polling: null };
 
+  // ---- API connection settings ----
+  $("apiBaseInput").value = ArchIA.getApiBase();
+  $("apiTokenInput").value = session.token || "";
+  $("btnApiSettings").onclick = () => { $("apiSettingsCard").style.display = "block"; };
+  $("btnCancelApiSettings").onclick = () => { $("apiSettingsCard").style.display = "none"; };
+  $("btnSaveApiSettings").onclick = () => {
+    ArchIA.setApiBase($("apiBaseInput").value);
+    ArchIA.setApiToken($("apiTokenInput").value);
+    window.location.reload();
+  };
+
   // ---- File picking / drag&drop ----
   const dropZone = $("dropZone"), fileInput = $("fileInput");
   $("btnPick").onclick = () => fileInput.click();

@@ -50,10 +50,23 @@
     <div class="logo">Arch<span>IA</span></div>
     <span class="pill" id="demoPill" style="display:none">Modo demo</span>
     <div class="userbox">
+      <button class="ghost" id="btnApiSettings">Conectar API</button>
       <span id="userEmail"></span>
       <button class="ghost" id="btnLogout">Salir</button>
     </div>
   </header>
+
+  <div class="card" id="apiSettingsCard" style="display:none;margin:16px">
+    <h2>Conexión con la API de agentes</h2>
+    <label>API Base URL</label>
+    <input id="apiBaseInput" placeholder="https://tu-api.example.com"/>
+    <label>Token de la API</label>
+    <input id="apiTokenInput" placeholder="Bearer token"/>
+    <div class="toolbar">
+      <button id="btnSaveApiSettings">Guardar</button>
+      <button class="ghost" id="btnCancelApiSettings">Cancelar</button>
+    </div>
+  </div>
 
   <main>
     <div>

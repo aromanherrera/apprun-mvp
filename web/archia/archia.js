@@ -29,10 +29,10 @@
   }
 
   function requireSession() {
-    const s = getSession();
-    if (!s || !s.token) {
-      window.location.href = "index.html";
-      throw new Error("No autenticado");
+    let s = getSession();
+    if (!s) {
+      s = { user: { name: "Usuario ArchIA" } };
+      setSession(s);
     }
     return s;
   }
@@ -55,35 +55,10 @@
     return data;
   }
 
-  const PORTAL_PASSWORD = "SecurityArchitecture2026!";
-
-  // ---- Login page ----
-  function initLoginPage() {
-    const apiInput = document.getElementById("apiBase");
-    const tokenInput = document.getElementById("apiToken");
-    apiInput.value = getApiBase();
-    apiInput.addEventListener("change", () => setApiBase(apiInput.value));
-
-    document.getElementById("loginForm").addEventListener("submit", async (ev) => {
-      ev.preventDefault();
-      const err = document.getElementById("err");
-      err.style.display = "none";
-      const btn = document.getElementById("btnLogin");
-      const password = document.getElementById("password").value;
-      setApiBase(apiInput.value);
-      btn.disabled = true;
-      try {
-        if (password !== PORTAL_PASSWORD) throw new Error("Contraseña incorrecta");
-        const apiToken = (tokenInput.value || "").trim();
-        setSession({ token: apiToken || null, user: { name: "Usuario ArchIA" } });
-        window.location.href = "dashboard.html";
-      } catch (e) {
-        err.textContent = "No se pudo iniciar sesión: " + e.message;
-        err.style.display = "block";
-      } finally {
-        btn.disabled = false;
-      }
-    });
+  function setApiToken(token) {
+    const s = requireSession();
+    s.token = (token || "").trim() || null;
+    setSession(s);
   }
 
   function logout() {
@@ -94,6 +69,6 @@
   global.ArchIA = {
     getApiBase, setApiBase,
     getSession, setSession, clearSession, requireSession,
-    apiFetch, initLoginPage, logout
+    apiFetch, setApiToken, logout
   };
 })(window);
