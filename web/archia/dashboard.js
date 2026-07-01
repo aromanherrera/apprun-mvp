@@ -9,6 +9,63 @@
   function authHeaders() {
     return { "Authorization": "Bearer " + API_TOKEN };
   }
+
+  // ---- API Logger ----
+  function log(type, data) {
+    const entries = $("logEntries");
+    if (!entries) return;
+    const div = document.createElement("div");
+    div.className = "log-entry " + type;
+    const time = new Date().toLocaleTimeString("es-ES", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    let headHtml = "";
+    let bodyHtml = "";
+    if (type === "log-req") {
+      headHtml = '<span class="log-method">' + escHtml(data.method) + '</span><span class="log-url">' + escHtml(data.url) + '</span><span class="log-time">' + time + '</span>';
+      const parts = [];
+      if (data.headers) parts.push("Headers: " + JSON.stringify(data.headers, null, 2));
+      if (data.body) parts.push("Body: " + data.body);
+      bodyHtml = parts.join("\n\n");
+    } else {
+      const status = data.status ? " HTTP " + data.status : "";
+      headHtml = '<span class="log-method">' + escHtml(data.label || "RESPONSE") + '</span><span class="log-url">' + escHtml(status) + ' ' + escHtml(data.url || "") + '</span><span class="log-time">' + (data.ms ? data.ms + "ms · " : "") + time + '</span>';
+      bodyHtml = data.body || data.error || "";
+    }
+    div.innerHTML = '<div class="log-head">' + headHtml + '</div>' + (bodyHtml ? '<div class="log-body">' + escHtml(bodyHtml) + '</div>' : "");
+    entries.appendChild(div);
+    entries.scrollTop = entries.scrollHeight;
+  }
+
+  async function apiFetch(url, options) {
+    options = options || {};
+    const method = (options.method || "GET").toUpperCase();
+    const headers = options.headers || {};
+    let loggedBody = "";
+    if (options.body instanceof FormData) {
+      const parts = [];
+      for (const [k, v] of options.body.entries()) {
+        parts.push(k + ": " + (v instanceof File ? "[File: " + v.name + ", " + (v.size/1024).toFixed(0) + " KB, " + v.type + "]" : String(v)));
+      }
+      loggedBody = "FormData {\n  " + parts.join("\n  ") + "\n}";
+    } else if (options.body) {
+      loggedBody = typeof options.body === "string" ? options.body : JSON.stringify(options.body);
+    }
+    log("log-req", { method, url, headers, body: loggedBody });
+    const t0 = Date.now();
+    try {
+      const res = await fetch(url, options);
+      const ms = Date.now() - t0;
+      const bodyText = await res.text();
+      const type = res.ok ? "log-res-ok" : "log-res-err";
+      log(type, { label: res.ok ? "OK" : "ERROR", url, status: res.status, ms, body: bodyText.slice(0, 2000) });
+      return { ok: res.ok, status: res.status, text: bodyText };
+    } catch (e) {
+      const ms = Date.now() - t0;
+      log("log-net-err", { label: "NET ERROR", url, ms, error: e.message });
+      throw e;
+    }
+  }
+
+  // ---- UI helpers ----
   function setUploadStatus(html) {
     const el = $("uploadStatus");
     el.style.display = "flex";
@@ -69,14 +126,13 @@
     try {
       var fd = new FormData();
       fd.append("file", f);
-      var res = await fetch(API_BASE + "/datasource/uploadfile", {
+      var res = await apiFetch(API_BASE + "/datasource/uploadfile", {
         method: "POST",
         headers: authHeaders(),
         body: fd
       });
       if (!res.ok) {
-        var txt = await res.text().catch(function() { return ""; });
-        throw new Error("HTTP " + res.status + (txt ? " – " + txt.slice(0, 120) : ""));
+        throw new Error("HTTP " + res.status + (res.text ? " – " + res.text.slice(0, 120) : ""));
       }
       setUploadStatus(spinner("Fichero enviado. Verificando disponibilidad…"));
       startPolling(f.name);
@@ -90,11 +146,12 @@
     clearInterval(state.polling);
     state.polling = setInterval(async function() {
       try {
-        var res = await fetch(API_BASE + "/datasource/listfiles/", {
+        var res = await apiFetch(API_BASE + "/datasource/listfiles/", {
           headers: authHeaders()
         });
         if (!res.ok) return;
-        var data = await res.json().catch(function() { return null; });
+        var data = null;
+        try { data = JSON.parse(res.text); } catch (_) {}
         if (fileFoundInList(data, filename)) {
           clearInterval(state.polling);
           state.uploaded = true;
@@ -124,7 +181,7 @@
 
     try {
       var msg = "incluye en la variable {documentos} el fichero denominado " + state.file.name;
-      var res = await fetch(
+      var res = await apiFetch(
         API_BASE + "/playbooks/invoke/analisis-de-diseno-inicial-de-arquitectura",
         {
           method: "POST",
@@ -132,13 +189,12 @@
           body: JSON.stringify({ msg: msg })
         }
       );
-      var txt = await res.text();
       var content;
       try {
-        var json = JSON.parse(txt);
+        var json = JSON.parse(res.text);
         content = json.result || json.output || json.response || json.message || JSON.stringify(json, null, 2);
       } catch (_) {
-        content = txt;
+        content = res.text;
       }
       if (!res.ok) throw new Error("HTTP " + res.status + " – " + (content || "").slice(0, 200));
       $("resultBox").textContent = content;

@@ -97,6 +97,34 @@
   </div>
 </main>
 
+
+<div id="logPanel">
+  <details open>
+    <summary>&#128270; Log de llamadas API <button id="btnClearLog" onclick="event.stopPropagation();document.getElementById('logEntries').innerHTML=''">Limpiar</button></summary>
+    <div id="logEntries"></div>
+  </details>
+</div>
 <script src="dashboard.js"></script>
 </body>
 </html>
+<!-- LOG PANEL (debug temporal) -->
+<style>
+  #logPanel{max-width:860px;margin:0 auto 28px;padding:0 20px}
+  #logPanel details{background:#0a0f0a;border:1px solid #1a2e1a;border-radius:10px;padding:0}
+  #logPanel summary{padding:10px 14px;font-size:12px;font-weight:700;color:#4ade80;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;user-select:none}
+  #logEntries{padding:0 14px 14px;display:flex;flex-direction:column;gap:10px;max-height:380px;overflow-y:auto}
+  .log-entry{font-size:11px;font-family:monospace;border-radius:6px;overflow:hidden}
+  .log-entry .log-head{padding:6px 10px;display:flex;gap:8px;align-items:baseline}
+  .log-entry .log-method{font-weight:700}
+  .log-entry .log-url{color:#86efac;word-break:break-all}
+  .log-entry .log-time{margin-left:auto;color:#4a7a4a;white-space:nowrap}
+  .log-entry .log-body{padding:6px 10px;border-top:1px solid rgba(255,255,255,.06);white-space:pre-wrap;word-break:break-all;line-height:1.5;color:#a0c8a0;max-height:140px;overflow-y:auto}
+  .log-req{background:#071207}
+  .log-res-ok{background:#052e16}
+  .log-res-err{background:#1a0808}
+  .log-res-err .log-url{color:#f87171}
+  .log-net-err{background:#1a0808}
+  .log-net-err .log-url{color:#f87171}
+  #btnClearLog{float:right;margin-top:-2px;font-size:11px;background:transparent;border:none;color:#4a7a4a;cursor:pointer;padding:2px 6px}
+  #btnClearLog:hover{color:#f87171}
+</style>
