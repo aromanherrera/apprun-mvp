@@ -99,7 +99,16 @@
       return { ok: res.ok, status: res.status, text: bodyText };
     } catch (e) {
       const ms = Date.now() - t0;
-      log("log-net-err", { label: "NET ERROR", url, ms, error: e.message });
+      let hint = "";
+      if (e instanceof TypeError && e.message.includes("fetch")) {
+        hint = "\n\nPosibles causas:\n" +
+          "1. CORS: el servidor no permite peticiones desde este origen (" + location.origin + ")\n" +
+          "2. Certificado SSL no confiable (abre " + url.split('/').slice(0,3).join('/') + " en el navegador y acepta el cert)\n" +
+          "3. API no accesible desde esta red\n" +
+          "4. Preflight OPTIONS bloqueado (requiere cabecera Access-Control-Allow-Origin)";
+      }
+      log("log-net-err", { label: "NET ERROR [" + e.constructor.name + "]", url, ms, error: e.message + hint });
+      if (window.__logError) window.__logError("NET ERROR", e.message + hint, e.stack);
       throw e;
     }
   }
@@ -119,6 +128,33 @@
   function errorIcon(text) {
     return '<div class="x-icon">&#10007;</div><span class="status-text err">' + text + '</span>';
   }
+
+  // ---- Test connection ----
+  document.getElementById("btnTestConn").addEventListener("click", async function() {
+    var el = document.getElementById("connResult");
+    el.style.color = "#6b9e6b";
+    el.textContent = "Probando…";
+    var endpoints = [
+      API_BASE + "/datasource/listfiles/",
+      API_BASE + "/health",
+      API_BASE + "/"
+    ];
+    var ok = false;
+    for (var i = 0; i < endpoints.length; i++) {
+      try {
+        var r = await apiFetch(endpoints[i], { headers: authHeaders() });
+        el.style.color = "#4ade80";
+        el.textContent = "✓ API accesible (HTTP " + r.status + " en " + endpoints[i].replace(API_BASE,"") + ")";
+        ok = true;
+        break;
+      } catch(e) {
+        if (i === endpoints.length - 1) {
+          el.style.color = "#f87171";
+          el.textContent = "✗ No se puede conectar: " + e.message + " — mira la consola de errores";
+        }
+      }
+    }
+  });
 
   // ---- File selection ----
   const dropZone = $("dropZone");
