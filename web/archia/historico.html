@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>ArchIA – Histórico</title>
+<style>
+  :root{color-scheme:dark}
+  *{box-sizing:border-box}
+  body{margin:0;background:#0a0f0a;color:#e0f0e0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  header{padding:14px 24px;border-bottom:1px solid #1a2e1a;background:#0c120c;display:flex;align-items:center;gap:16px}
+  .logo{font-weight:700;font-size:19px}.logo span{color:#22c55e}
+  nav{display:flex;gap:6px;margin-left:auto}
+  nav a{color:#8db88d;font-size:13px;text-decoration:none;padding:5px 12px;border-radius:8px;border:1px solid transparent}
+  nav a:hover{background:#0e180e;border-color:#1a2e1a;color:#4ade80}
+  nav a.active{color:#4ade80;border-color:#1a2e1a;background:#0e180e}
+  main{max-width:1100px;margin:0 auto;padding:28px 20px}
+  h1{font-size:18px;margin:0 0 20px;color:#4ade80}
+  .card{background:#0e180e;border:1px solid #1a2e1a;border-radius:14px;padding:20px;margin-bottom:20px}
+
+  /* Table */
+  .tbl-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead tr{border-bottom:2px solid #1e3a1e}
+  thead th{padding:10px 12px;text-align:left;color:#4ade80;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+  tbody tr{border-bottom:1px solid #0f1f0f;transition:background .1s}
+  tbody tr:hover{background:#0f1a0f}
+  tbody td{padding:10px 12px;vertical-align:middle;color:#c0d8c0}
+  .badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700}
+  .badge-completed{background:#052e16;color:#4ade80;border:1px solid #166534}
+  .badge-working{background:#1c2a0a;color:#a3e635;border:1px solid #365314}
+  .badge-failed{background:#1a0808;color:#f87171;border:1px solid #7f1d1d}
+  .badge-unknown{background:#1a1a1a;color:#9ca3af;border:1px solid #374151}
+  .btn-detail{cursor:pointer;background:transparent;border:1px solid #166534;color:#4ade80;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;white-space:nowrap}
+  .btn-detail:hover{background:#052e16}
+  .btn-detail.active{background:#166534;color:#e0f0e0}
+  .id-cell{font-family:monospace;font-size:11px;color:#6b9e6b;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .loading{color:#6b9e6b;font-size:13px;display:flex;align-items:center;gap:8px;padding:8px 0}
+  .spinner{width:16px;height:16px;border:2px solid #1e3a1e;border-top-color:#22c55e;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .empty{color:#4a7a4a;font-size:13px;padding:20px 0;text-align:center}
+
+  /* Detail panel */
+  #detailPanel{display:none}
+  #detailPanel .detail-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  #detailPanel .detail-id{font-family:monospace;font-size:11px;color:#6b9e6b}
+  #detailClose{cursor:pointer;margin-left:auto;background:transparent;border:1px solid #1a2e1a;color:#8db88d;border-radius:8px;padding:4px 10px;font-size:12px}
+  #detailClose:hover{border-color:#f87171;color:#f87171}
+  #detailContent{font-size:13px;line-height:1.7;color:#c0d8c0;max-height:600px;overflow-y:auto}
+
+  /* Rendered markdown */
+  #detailContent h1,#detailContent h2,#detailContent h3{color:#4ade80;margin:16px 0 6px}
+  #detailContent h1{font-size:17px}#detailContent h2{font-size:15px}#detailContent h3{font-size:14px}
+  #detailContent p{margin:6px 0}
+  #detailContent strong{color:#e0f0e0}
+  #detailContent ul,#detailContent ol{margin:6px 0;padding-left:20px}
+  #detailContent li{margin:3px 0}
+  #detailContent table{width:100%;border-collapse:collapse;margin:12px 0;font-size:12px}
+  #detailContent th{background:#071007;color:#4ade80;padding:8px 10px;text-align:left;border:1px solid #1e3a1e;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  #detailContent td{padding:8px 10px;border:1px solid #0f1f0f;vertical-align:top;color:#c0d8c0}
+  #detailContent tr:nth-child(even) td{background:#071007}
+  #detailContent code{background:#071007;padding:1px 5px;border-radius:4px;font-family:monospace;font-size:12px;color:#4ade80}
+  #detailContent hr{border:none;border-top:1px solid #1a2e1a;margin:14px 0}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Arch<span>IA</span></div>
+  <nav>
+    <a href="dashboard.html">Panel</a>
+    <a href="historico.html" class="active">Histórico</a>
+  </nav>
+</header>
+
+<main>
+  <h1>Histórico de ejecuciones</h1>
+
+  <div class="card">
+    <div id="tableWrap">
+      <div class="loading"><div class="spinner"></div> Cargando ejecuciones…</div>
+    </div>
+  </div>
+
+  <div class="card" id="detailPanel">
+    <div class="detail-header">
+      <strong style="color:#4ade80;font-size:14px">Detalle de ejecución</strong>
+      <span class="detail-id" id="detailId"></span>
+      <button id="detailClose" onclick="closeDetail()">✕ Cerrar</button>
+    </div>
+    <div id="detailContent"><div class="loading"><div class="spinner"></div> Cargando…</div></div>
+  </div>
+</main>
+
+<script>
+  var API_BASE  = "https://api1-soarplus-pre.es.deloitte.com";
+  var API_TOKEN = "sk-UmL4haDNvWZdQ4a8ZxKb3Q";
+
+  function authHeaders(extra) {
+    return Object.assign({ "Authorization": "Bearer " + API_TOKEN }, extra || {});
+  }
+
+  // ---- Load executions ----
+  async function loadHistory() {
+    try {
+      var res = await fetch(API_BASE + "/mta/excutions", { headers: authHeaders() });
+      var data = await res.json();
+      renderTable(Array.isArray(data) ? data : (data.executions || data.data || data.results || data.items || []));
+    } catch(e) {
+      document.getElementById("tableWrap").innerHTML =
+        '<div class="empty">Error cargando el histórico: ' + esc(e.message) + '</div>';
+    }
+  }
+
+  function renderTable(rows) {
+    if (!rows.length) {
+      document.getElementById("tableWrap").innerHTML = '<div class="empty">No hay ejecuciones registradas.</div>';
+      return;
+    }
+    var html = '<div class="tbl-wrap"><table><thead><tr>' +
+      '<th>ID</th><th>Usuario</th><th>Fecha</th><th>Estado</th><th></th>' +
+      '</tr></thead><tbody>';
+    rows.forEach(function(r) {
+      var id     = r.id || r.task_id || r.taskId || r._id || "—";
+      var user   = r.username || r.user || r.user_id || r.owner || "—";
+      var date   = formatDate(r.created_at || r.date || r.timestamp || r.start_date || r.add_date);
+      var status = (r.status || r.state || "unknown").toLowerCase();
+      var badge  = badgeClass(status);
+      html += '<tr>' +
+        '<td class="id-cell" title="' + esc(id) + '">' + esc(id) + '</td>' +
+        '<td>' + esc(user) + '</td>' +
+        '<td style="white-space:nowrap">' + esc(date) + '</td>' +
+        '<td><span class="badge ' + badge + '">' + esc(status) + '</span></td>' +
+        '<td><button class="btn-detail" onclick="openDetail(' + "'" + esc(id) + "'" + ', this)">Ver detalle</button></td>' +
+        '</tr>';
+    });
+    html += '</tbody></table></div>';
+    document.getElementById("tableWrap").innerHTML = html;
+  }
+
+  // ---- Detail ----
+  var activeBtn = null;
+  async function openDetail(id, btn) {
+    if (activeBtn) activeBtn.classList.remove("active");
+    activeBtn = btn;
+    btn.classList.add("active");
+
+    var panel = document.getElementById("detailPanel");
+    panel.style.display = "block";
+    panel.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("detailId").textContent = id;
+    document.getElementById("detailContent").innerHTML = '<div class="loading"><div class="spinner"></div> Cargando detalle…</div>';
+
+    try {
+      var res = await fetch(API_BASE + "/agents/callagent-orchestrator/task/" + encodeURIComponent(id), {
+        headers: authHeaders()
+      });
+      var data = await res.json();
+      var text = extractText(data.status || data);
+      document.getElementById("detailContent").innerHTML = text
+        ? renderMarkdown(text)
+        : '<pre style="white-space:pre-wrap;font-size:12px;color:#6b9e6b">' + esc(JSON.stringify(data, null, 2)) + '</pre>';
+    } catch(e) {
+      document.getElementById("detailContent").innerHTML = '<span style="color:#f87171">Error: ' + esc(e.message) + '</span>';
+    }
+  }
+
+  function closeDetail() {
+    document.getElementById("detailPanel").style.display = "none";
+    if (activeBtn) { activeBtn.classList.remove("active"); activeBtn = null; }
+  }
+
+  // ---- Helpers ----
+  function extractText(statusObj) {
+    if (!statusObj) return null;
+    var msg = statusObj.message;
+    if (!msg) return null;
+    var parts = msg.parts || msg.content || [];
+    var texts = parts.filter(function(p){ return p && (p.kind==="text"||p.type==="text") && p.text; }).map(function(p){ return p.text; });
+    if (texts.length) return texts.join("\n\n");
+    if (typeof msg === "string") return msg;
+    return null;
+  }
+
+  function badgeClass(s) {
+    if (s==="completed"||s==="done"||s==="success") return "badge-completed";
+    if (s==="working"||s==="running"||s==="pending") return "badge-working";
+    if (s==="failed"||s==="error") return "badge-failed";
+    return "badge-unknown";
+  }
+
+  function formatDate(v) {
+    if (!v) return "—";
+    var d = new Date(v);
+    if (isNaN(d)) return v;
+    return d.toLocaleString("es-ES", {day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+  }
+
+  function esc(s) {
+    return (s||"").toString().replace(/[&<>"']/g, function(c){
+      return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  // ---- Markdown renderer ----
+  function renderMarkdown(md) {
+    var lines = md.split("\n");
+    var out = [];
+    var inTable = false;
+    var tableRows = [];
+
+    function flushTable() {
+      if (!tableRows.length) return;
+      var h = out;
+      var header = tableRows[0];
+      var body = tableRows.slice(2); // skip separator row
+      var html = "<table><thead><tr>" +
+        header.map(function(c){ return "<th>" + inlineRender(c) + "</th>"; }).join("") +
+        "</tr></thead><tbody>";
+      body.forEach(function(row) {
+        html += "<tr>" + row.map(function(c){ return "<td>" + inlineRender(c) + "</td>"; }).join("") + "</tr>";
+      });
+      html += "</tbody></table>";
+      out.push(html);
+      tableRows = [];
+      inTable = false;
+    }
+
+    lines.forEach(function(line) {
+      if (line.trim().startsWith("|")) {
+        inTable = true;
+        var cells = line.split("|").slice(1,-1).map(function(c){ return c.trim(); });
+        tableRows.push(cells);
+        return;
+      }
+      if (inTable) flushTable();
+
+      if (/^### /.test(line)) { out.push("<h3>" + inlineRender(line.slice(4)) + "</h3>"); return; }
+      if (/^## /.test(line))  { out.push("<h2>" + inlineRender(line.slice(3)) + "</h2>"); return; }
+      if (/^# /.test(line))   { out.push("<h1>" + inlineRender(line.slice(2)) + "</h1>"); return; }
+      if (/^---+$/.test(line.trim())) { out.push("<hr>"); return; }
+      if (/^[-*] /.test(line)) { out.push("<ul><li>" + inlineRender(line.slice(2)) + "</li></ul>"); return; }
+      if (/^\d+\. /.test(line)) { out.push("<ol><li>" + inlineRender(line.replace(/^\d+\. /,"")) + "</li></ol>"); return; }
+      if (line.trim() === "") { out.push("<br>"); return; }
+      out.push("<p>" + inlineRender(line) + "</p>");
+    });
+    if (inTable) flushTable();
+
+    // Merge consecutive ul/ol
+    var html = out.join("\n")
+      .replace(/<\/ul>\n<ul>/g, "")
+      .replace(/<\/ol>\n<ol>/g, "");
+    return html;
+  }
+
+  function inlineRender(text) {
+    return text
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.+?)\*/g, "<em>$1</em>")
+      .replace(/`(.+?)`/g, "<code>$1</code>")
+      .replace(/<br>/g, "<br>");
+  }
+
+  loadHistory();
+</script>
+</body>
+</html>
