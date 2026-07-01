@@ -6,41 +6,44 @@
 <title>ArchIA – Panel</title>
 <style>
   :root{color-scheme:dark}
-  body{margin:0;background:#0b0c10;color:#e8f0fe;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif}
-  header{padding:16px 20px;border-bottom:1px solid #1b2131;background:#0d1017;display:flex;align-items:center;gap:14px}
+  body{margin:0;background:#0a0f0a;color:#e0f0e0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif}
+  header{padding:16px 20px;border-bottom:1px solid #1a2e1a;background:#0c120c;display:flex;align-items:center;gap:14px}
   .logo{font-weight:700;font-size:18px}
-  .logo span{color:#3b82f6}
-  .userbox{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:13px;color:#9fb3c8}
-  button{cursor:pointer;background:#3b82f6;border-color:#215ab6;color:#e8f0fe;border:1px solid #243247;border-radius:10px;padding:8px 12px;font-weight:600}
-  button.ghost{background:#0f1320}
-  button.danger{background:#e55353;border-color:#9c2f2f}
+  .logo span{color:#22c55e}
+  .userbox{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:13px;color:#8db88d}
+  button{cursor:pointer;background:#166534;border:1px solid #14532d;color:#e0f0e0;border-radius:10px;padding:8px 12px;font-weight:600}
+  button:hover{background:#15803d}
+  button.ghost{background:#0e180e;border-color:#1a2e1a}
+  button.ghost:hover{background:#162616}
+  button.danger{background:#7f1d1d;border-color:#6b1a1a}
   button:disabled{opacity:.6;cursor:not-allowed}
   main{display:grid;grid-template-columns:420px 1fr;gap:16px;padding:16px}
   @media(max-width:1000px){main{grid-template-columns:1fr}}
-  .card{background:#11131a;border:1px solid #1b2131;border-radius:12px;padding:16px;margin-bottom:16px}
+  .card{background:#0e180e;border:1px solid #1a2e1a;border-radius:12px;padding:16px;margin-bottom:16px}
   h2{margin:0 0 10px;font-size:16px}
-  label{font-size:13px;color:#9fb3c8;display:block;margin-top:8px}
-  input,select,textarea{width:100%;padding:9px;margin-top:6px;border-radius:8px;border:1px solid #243247;background:#0f1320;color:#e8f0fe;box-sizing:border-box}
-  .drop{margin-top:10px;border:2px dashed #243247;border-radius:10px;padding:24px;text-align:center;color:#9fb3c8;font-size:13px}
-  .drop.over{border-color:#3b82f6;background:#0f1320}
+  label{font-size:13px;color:#8db88d;display:block;margin-top:8px}
+  input,select,textarea{width:100%;padding:9px;margin-top:6px;border-radius:8px;border:1px solid #1e3a1e;background:#071007;color:#e0f0e0;box-sizing:border-box}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:#22c55e}
+  .drop{margin-top:10px;border:2px dashed #1e3a1e;border-radius:10px;padding:24px;text-align:center;color:#8db88d;font-size:13px}
+  .drop.over{border-color:#22c55e;background:#071007}
   ul.files{list-style:none;margin:10px 0 0;padding:0}
-  ul.files li{display:flex;justify-content:space-between;align-items:center;background:#0f1320;border:1px solid #243247;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:13px}
-  ul.files li .rm{cursor:pointer;color:#ff8989;font-size:12px}
-  .pill{display:inline-block;padding:3px 9px;border-radius:999px;border:1px solid #243247;background:#0f1320;font-size:12px}
-  .status-queued{color:#f0ad4e}
-  .status-running{color:#3b82f6}
-  .status-done{color:#25a244}
-  .status-error{color:#e55353}
-  progress{width:100%;height:10px;border-radius:8px;margin-top:8px}
-  .rec{border:1px solid #243247;border-radius:10px;padding:12px;margin-top:10px;background:#0f1320}
+  ul.files li{display:flex;justify-content:space-between;align-items:center;background:#071007;border:1px solid #1e3a1e;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:13px}
+  ul.files li .rm{cursor:pointer;color:#f87171;font-size:12px}
+  .pill{display:inline-block;padding:3px 9px;border-radius:999px;border:1px solid #1e3a1e;background:#071007;font-size:12px}
+  .status-queued{color:#fbbf24}
+  .status-running{color:#4ade80}
+  .status-done{color:#22c55e}
+  .status-error{color:#f87171}
+  progress{width:100%;height:10px;border-radius:8px;margin-top:8px;accent-color:#22c55e}
+  .rec{border:1px solid #1e3a1e;border-radius:10px;padding:12px;margin-top:10px;background:#071007}
   .rec h3{margin:0 0 4px;font-size:14px}
   .sev{font-size:11px;padding:2px 8px;border-radius:999px;margin-left:8px}
-  .sev-critica{background:#5c1414;color:#ff8989}
-  .sev-alta{background:#5c3414;color:#ffc089}
-  .sev-media{background:#5c4f14;color:#fff089}
-  .sev-baja{background:#143b1e;color:#8dffa6}
-  .rec p{font-size:13px;color:#cdd9e6;margin:6px 0 0}
-  .muted{color:#9fb3c8;font-size:12px}
+  .sev-critica{background:#5c1414;color:#f87171}
+  .sev-alta{background:#5c3414;color:#fbbf24}
+  .sev-media{background:#4a4000;color:#fde68a}
+  .sev-baja{background:#052e16;color:#4ade80}
+  .rec p{font-size:13px;color:#b0ccb0;margin:6px 0 0}
+  .muted{color:#6b9e6b;font-size:12px}
   textarea#summaryEdit{height:90px}
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 </style>
@@ -48,25 +51,13 @@
 <body>
   <header>
     <div class="logo">Arch<span>IA</span></div>
-    <span class="pill" id="demoPill" style="display:none">Modo demo</span>
+    <span class="pill" id="demoPill" style="display:none">Modo simulado</span>
     <div class="userbox">
-      <button class="ghost" id="btnApiSettings">Conectar API</button>
+      <a href="settings.html" style="color:#4ade80;font-size:13px;text-decoration:none" title="Configuración API">&#9881; Configuración</a>
       <span id="userEmail"></span>
       <button class="ghost" id="btnLogout">Salir</button>
     </div>
   </header>
-
-  <div class="card" id="apiSettingsCard" style="display:none;margin:16px">
-    <h2>Conexión con la API de agentes</h2>
-    <label>API Base URL</label>
-    <input id="apiBaseInput" placeholder="https://tu-api.example.com"/>
-    <label>Token de la API</label>
-    <input id="apiTokenInput" placeholder="Bearer token"/>
-    <div class="toolbar">
-      <button id="btnSaveApiSettings">Guardar</button>
-      <button class="ghost" id="btnCancelApiSettings">Cancelar</button>
-    </div>
-  </div>
 
   <main>
     <div>
