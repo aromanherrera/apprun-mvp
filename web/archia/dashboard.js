@@ -267,7 +267,7 @@
         {
           method: "POST",
           headers: Object.assign({}, authHeaders(), { "Content-Type": "application/json" }),
-          body: JSON.stringify({ msg: msg })
+          body: JSON.stringify({ query: msg })
         }
       );
       var content;
