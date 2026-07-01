@@ -61,6 +61,40 @@
   #detailContent tr:nth-child(even) td{background:#071007}
   #detailContent code{background:#071007;padding:1px 5px;border-radius:4px;font-family:monospace;font-size:12px;color:#4ade80}
   #detailContent hr{border:none;border-top:1px solid #1a2e1a;margin:14px 0}
+
+  /* Log panel */
+  #logPanel{max-width:1100px;margin:0 auto 12px;padding:0 20px}
+  #logPanel details{background:#0a0f0a;border:1px solid #1a2e1a;border-radius:10px;padding:0}
+  #logPanel summary{padding:10px 14px;font-size:12px;font-weight:700;color:#4ade80;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;user-select:none}
+  #logEntries{padding:0 14px 14px;display:flex;flex-direction:column;gap:10px;max-height:380px;overflow-y:auto}
+  .log-entry{font-size:11px;font-family:monospace;border-radius:6px;overflow:hidden}
+  .log-entry .log-head{padding:6px 10px;display:flex;gap:8px;align-items:baseline}
+  .log-entry .log-method{font-weight:700}
+  .log-entry .log-url{color:#86efac;word-break:break-all}
+  .log-entry .log-time{margin-left:auto;color:#4a7a4a;white-space:nowrap}
+  .log-entry .log-body{padding:6px 10px;border-top:1px solid rgba(255,255,255,.06);white-space:pre-wrap;word-break:break-all;line-height:1.5;color:#a0c8a0;max-height:200px;overflow-y:auto}
+  .log-req{background:#071207}
+  .log-res-ok{background:#052e16}
+  .log-res-err{background:#1a0808}
+  .log-res-err .log-url{color:#f87171}
+  .log-net-err{background:#1a0808}
+  .log-net-err .log-url{color:#f87171}
+  #btnClearLog{float:right;margin-top:-2px;font-size:11px;background:transparent;border:none;color:#4a7a4a;cursor:pointer;padding:2px 6px}
+  #btnClearLog:hover{color:#f87171}
+
+  /* Error console */
+  #errorPanel{max-width:1100px;margin:0 auto 28px;padding:0 20px}
+  #errorPanel details{background:#0a0f0a;border:1px solid #3a1a1a;border-radius:10px;padding:0}
+  #errorPanel summary{padding:10px 14px;font-size:12px;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;user-select:none}
+  #errorEntries{padding:0 14px 14px;display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto}
+  .err-entry{font-size:11px;font-family:monospace;background:#1a0808;border:1px solid #3a1a1a;border-radius:6px;padding:8px 10px}
+  .err-entry .err-time{color:#6b4a4a;margin-right:8px}
+  .err-entry .err-type{font-weight:700;color:#f87171;margin-right:6px}
+  .err-entry .err-msg{color:#fca5a5;word-break:break-all;white-space:pre-wrap}
+  .err-entry .err-stack{color:#7a4444;margin-top:4px;white-space:pre-wrap;font-size:10px;max-height:80px;overflow-y:auto}
+  #btnClearErrors{float:right;margin-top:-2px;font-size:11px;background:transparent;border:none;color:#6b4a4a;cursor:pointer;padding:2px 6px}
+  #btnClearErrors:hover{color:#f87171}
+  #errorBadge{display:none;background:#ef4444;color:#fff;border-radius:999px;font-size:10px;padding:1px 6px;margin-left:6px;font-weight:700}
 </style>
 </head>
 <body>
@@ -91,7 +125,58 @@
   </div>
 </main>
 
+<div id="logPanel">
+  <details open>
+    <summary>&#128270; Log de llamadas API <button id="btnClearLog" onclick="event.stopPropagation();document.getElementById('logEntries').innerHTML=''">Limpiar</button></summary>
+    <div id="logEntries"></div>
+  </details>
+</div>
+
+<div id="errorPanel">
+  <details id="errorDetails">
+    <summary>&#9888; Consola de errores <span id="errorBadge">0</span>
+      <button id="btnClearErrors" onclick="event.stopPropagation();document.getElementById('errorEntries').innerHTML='';document.getElementById('errorBadge').style.display='none';document.getElementById('errorBadge').textContent='0'">Limpiar</button>
+    </summary>
+    <div id="errorEntries"><span style="color:#4a3030;font-size:11px;font-family:monospace;padding:4px 0;display:block">Sin errores registrados.</span></div>
+  </details>
+</div>
+
 <script>
+  // ---- Global error console ----
+  (function() {
+    var count = 0;
+    function addError(type, msg, stack, extra) {
+      var entries = document.getElementById('errorEntries');
+      if (!entries) return;
+      var placeholder = entries.querySelector('span');
+      if (placeholder) placeholder.remove();
+      count++;
+      var badge = document.getElementById('errorBadge');
+      if (badge) { badge.textContent = count; badge.style.display = 'inline'; }
+      var details = document.getElementById('errorDetails');
+      if (details) details.open = true;
+      var time = new Date().toLocaleTimeString('es-ES', {hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      var div = document.createElement('div');
+      div.className = 'err-entry';
+      var html = '<span class="err-time">'+time+'</span><span class="err-type">'+esc(type)+'</span><span class="err-msg">'+esc(msg)+'</span>';
+      if (extra) html += '<div class="err-stack">'+esc(extra)+'</div>';
+      if (stack && stack !== msg) html += '<div class="err-stack">'+esc(stack)+'</div>';
+      div.innerHTML = html;
+      entries.appendChild(div);
+    }
+    function esc(s){return(s||'').replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+    window.addEventListener('error', function(e) {
+      var loc = (e.filename ? e.filename.replace(/.*\//,'') : '') + (e.lineno ? ':'+e.lineno : '');
+      addError('JS ERROR', e.message, e.error && e.error.stack, loc || undefined);
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      var reason = e.reason;
+      var msg = reason instanceof Error ? reason.message : String(reason);
+      addError('PROMISE', msg, reason instanceof Error ? reason.stack : undefined);
+    });
+    window.__logError = addError;
+  })();
+
   var API_BASE  = "https://api1-soarplus-pre.es.deloitte.com";
   var API_TOKEN = "sk-UmL4haDNvWZdQ4a8ZxKb3Q";
 
@@ -99,11 +184,56 @@
     return Object.assign({ "Authorization": "Bearer " + API_TOKEN }, extra || {});
   }
 
+  // ---- API Logger ----
+  function log(type, data) {
+    var entries = document.getElementById("logEntries");
+    if (!entries) return;
+    var div = document.createElement("div");
+    div.className = "log-entry " + type;
+    var time = new Date().toLocaleTimeString("es-ES", {hour12:false,hour:"2-digit",minute:"2-digit",second:"2-digit"});
+    var headHtml = "", bodyHtml = "";
+    if (type === "log-req") {
+      headHtml = '<span class="log-method">'+esc(data.method)+'</span><span class="log-url">'+esc(data.url)+'</span><span class="log-time">'+time+'</span>';
+      var parts = [];
+      if (data.headers) parts.push("Headers: " + JSON.stringify(data.headers, null, 2));
+      if (data.body) parts.push("Body: " + data.body);
+      bodyHtml = parts.join("\n\n");
+    } else {
+      var status = data.status ? " HTTP " + data.status : "";
+      headHtml = '<span class="log-method">'+esc(data.label||"RESPONSE")+'</span><span class="log-url">'+esc(status)+' '+esc(data.url||"")+'</span><span class="log-time">'+(data.ms ? data.ms+"ms · " : "")+time+'</span>';
+      bodyHtml = data.body || data.error || "";
+    }
+    div.innerHTML = '<div class="log-head">'+headHtml+'</div>'+(bodyHtml ? '<div class="log-body">'+esc(bodyHtml)+'</div>' : "");
+    entries.appendChild(div);
+    entries.scrollTop = entries.scrollHeight;
+  }
+
+  async function apiFetch(url, options) {
+    options = options || {};
+    var method = (options.method || "GET").toUpperCase();
+    var headers = options.headers || {};
+    log("log-req", { method: method, url: url, headers: headers, body: options.body ? JSON.stringify(options.body) : "" });
+    var t0 = Date.now();
+    try {
+      var res = await fetch(url, options);
+      var ms = Date.now() - t0;
+      var bodyText = await res.text();
+      log(res.ok ? "log-res-ok" : "log-res-err", { label: res.ok ? "OK" : "ERROR", url: url, status: res.status, ms: ms, body: bodyText.slice(0, 3000) });
+      return { ok: res.ok, status: res.status, text: bodyText };
+    } catch(e) {
+      var ms2 = Date.now() - t0;
+      var hint = e instanceof TypeError ? "\n\nPosible causa: CORS — abre Chrome con --disable-web-security o usa GitHub Pages." : "";
+      log("log-net-err", { label: "NET ERROR ["+e.constructor.name+"]", url: url, ms: ms2, error: e.message + hint });
+      if (window.__logError) window.__logError("NET ERROR", e.message + hint, e.stack);
+      throw e;
+    }
+  }
+
   // ---- Load executions ----
   async function loadHistory() {
     try {
-      var res = await fetch(API_BASE + "/mta/excutions", { headers: authHeaders() });
-      var data = await res.json();
+      var r = await apiFetch(API_BASE + "/mta/excutions", { headers: authHeaders() });
+      var data = JSON.parse(r.text);
       renderTable(Array.isArray(data) ? data : (data.executions || data.data || data.results || data.items || []));
     } catch(e) {
       document.getElementById("tableWrap").innerHTML =
@@ -151,10 +281,10 @@
     document.getElementById("detailContent").innerHTML = '<div class="loading"><div class="spinner"></div> Cargando detalle…</div>';
 
     try {
-      var res = await fetch(API_BASE + "/agents/callagent-orchestrator/task/" + encodeURIComponent(id), {
+      var r = await apiFetch(API_BASE + "/agents/callagent-orchestrator/task/" + encodeURIComponent(id), {
         headers: authHeaders()
       });
-      var data = await res.json();
+      var data = JSON.parse(r.text);
       var text = extractText(data.status || data);
       document.getElementById("detailContent").innerHTML = text
         ? renderMarkdown(text)
