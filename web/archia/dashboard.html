@@ -39,6 +39,12 @@
   .status-text.ok{color:#4ade80;font-weight:600}
   .status-text.err{color:#f87171}
 
+  /* Option buttons (step 2) */
+  .opt-btn{cursor:pointer;padding:12px 20px;border-radius:10px;border:2px solid #1e3a1e;background:#0e180e;color:#4a6a4a;font-size:14px;font-weight:600;transition:all .15s}
+  .opt-btn:disabled{opacity:.45;cursor:not-allowed}
+  .opt-btn:not(:disabled):hover{border-color:#22c55e;color:#b0d8b0}
+  .opt-btn.selected{background:#052e16;border-color:#22c55e;color:#4ade80}
+
   /* Playbook button */
   #btnPlaybook{width:100%;padding:18px;font-size:16px;font-weight:700;border-radius:12px;border:none;cursor:pointer;background:#166534;color:#e0f0e0;letter-spacing:.02em;transition:background .15s,opacity .15s}
   #btnPlaybook:hover:not(:disabled){background:#15803d}
@@ -115,14 +121,25 @@
     <div id="uploadStatus" style="display:none"></div>
   </div>
 
-  <!-- STEP 2: PLAYBOOK -->
+  <!-- STEP 2: OPTIONS -->
   <div class="card">
-    <div class="card-title">2 · Ejecutar análisis de arquitectura</div>
+    <div class="card-title">2 · Seleccionar análisis</div>
+    <p style="font-size:13px;color:#6b9e6b;margin:0 0 16px">Selecciona los análisis que quieres incluir en el informe. Puedes marcar más de uno.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="opt-btn" id="optMarcos" disabled onclick="toggleOpt(this)">Marcos de controles</button>
+      <button class="opt-btn" id="optArqPub" disabled onclick="toggleOpt(this)">Arquitectura de publicación</button>
+      <button class="opt-btn" id="optArqNav" disabled onclick="toggleOpt(this)">Arquitectura de navegación</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: PLAYBOOK -->
+  <div class="card">
+    <div class="card-title">3 · Ejecutar análisis de arquitectura</div>
     <button id="btnPlaybook" disabled>&#9654;&nbsp; Ejecutar Playbook</button>
     <div id="playbookStatus" style="margin-top:12px;font-size:13px;color:#6b9e6b;min-height:20px"></div>
   </div>
 
-  <!-- STEP 3: RESULT -->
+  <!-- STEP 4: RESULT -->
   <div class="card" id="resultCard" style="display:none">
     <div class="card-title" style="margin-bottom:14px">3 · Resultado</div>
     <div id="resultBox"></div>

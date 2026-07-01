@@ -226,6 +226,9 @@
           state.uploaded = true;
           setUploadStatus(checkIcon("Fichero disponible en la plataforma: " + filename));
           $("btnPlaybook").disabled = false;
+          $("optMarcos").disabled = false;
+          $("optArqPub").disabled = false;
+          $("optArqNav").disabled = false;
         }
       } catch (_) { /* seguir intentando */ }
     }, POLL_INTERVAL);
@@ -249,7 +252,11 @@
     $("resultBox").innerHTML = '<div class="result-running"><div class="spinner"></div> Lanzando playbook…</div>';
 
     try {
-      var msg = "incluye en la variable {documentos} el fichero denominado " + state.file.name;
+      var marcos = $("optMarcos").classList.contains("selected") ? "Si" : "No";
+      var arq    = ($("optArqPub").classList.contains("selected") || $("optArqNav").classList.contains("selected")) ? "Si" : "No";
+      var msg = "incluye en la variable {documentos} el fichero denominado " + state.file.name +
+                ". En la variable {marcos} incluye " + marcos +
+                ". En la variable {arquitectura} incluye " + arq + ".";
       var res = await apiFetch(
         API_BASE + "/playbooks/invoke/analisis-de-diseno-inicial-de-arquitectura",
         {
@@ -377,6 +384,13 @@
     $("playbookStatus").textContent = "";
     $("resultCard").style.display = "none";
     $("resultBox").textContent = "";
+    ["optMarcos","optArqPub","optArqNav"].forEach(function(id) {
+      var el = $(id); el.disabled = true; el.classList.remove("selected");
+    });
+  }
+
+  function toggleOpt(btn) {
+    btn.classList.toggle("selected");
   }
 
   function escHtml(s) {
