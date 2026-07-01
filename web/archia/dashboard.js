@@ -1,3 +1,42 @@
+// ---- Global error console ----
+(function() {
+  var count = 0;
+  function addError(type, msg, stack, extra) {
+    var entries = document.getElementById('errorEntries');
+    if (!entries) return;
+    var placeholder = entries.querySelector('span');
+    if (placeholder) placeholder.remove();
+    count++;
+    var badge = document.getElementById('errorBadge');
+    if (badge) { badge.textContent = count; badge.style.display = 'inline'; }
+    var details = document.getElementById('errorDetails');
+    if (details) details.open = true;
+    var time = new Date().toLocaleTimeString('es-ES', {hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    var div = document.createElement('div');
+    div.className = 'err-entry';
+    var html = '<span class="err-time">' + time + '</span><span class="err-type">' + esc(type) + '</span><span class="err-msg">' + esc(msg) + '</span>';
+    if (extra) html += '<div class="err-stack">' + esc(extra) + '</div>';
+    if (stack && stack !== msg) html += '<div class="err-stack">' + esc(stack) + '</div>';
+    div.innerHTML = html;
+    entries.appendChild(div);
+    entries.scrollTop = entries.scrollHeight;
+  }
+  function esc(s) {
+    return (s||'').replace(/[&<>"']/g, function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
+  }
+  window.addEventListener('error', function(e) {
+    var loc = (e.filename ? e.filename.replace(/.*\//, '') : '') + (e.lineno ? ':' + e.lineno : '');
+    addError('JS ERROR', e.message, e.error && e.error.stack, loc || undefined);
+  });
+  window.addEventListener('unhandledrejection', function(e) {
+    var reason = e.reason;
+    var msg = reason instanceof Error ? reason.message : String(reason);
+    var stack = reason instanceof Error ? reason.stack : undefined;
+    addError('PROMISE', msg, stack);
+  });
+  window.__logError = addError;
+})();
+
 (function () {
   const API_BASE = "https://api1-soarplus-pre.es.deloitte.com";
   const API_TOKEN = "sk-UmL4haDNvWZdQ4a8ZxKb3Q";
@@ -103,21 +142,27 @@
   $("btnRemove").addEventListener("click", resetAll);
 
   function setFile(f) {
-    var allowed = [".doc", ".docx", ".pdf"];
-    var ext = f.name.slice(f.name.lastIndexOf(".")).toLowerCase();
-    if (!allowed.includes(ext)) {
-      setUploadStatus(errorIcon("Formato no admitido: " + ext + ". Usa .doc, .docx o .pdf"));
-      $("fileInfo").style.display = "none";
-      dropZone.style.display = "";
-      return;
+    try {
+      if (window.__logError) window.__logError('INFO', 'Fichero seleccionado: ' + f.name + ' (' + f.size + ' bytes, type=' + (f.type||'unknown') + ')');
+      var allowed = [".doc", ".docx", ".pdf"];
+      var ext = f.name.slice(f.name.lastIndexOf(".")).toLowerCase();
+      if (!allowed.includes(ext)) {
+        setUploadStatus(errorIcon("Formato no admitido: " + ext + ". Usa .doc, .docx o .pdf"));
+        $("fileInfo").style.display = "none";
+        dropZone.style.display = "";
+        return;
+      }
+      state.file = f;
+      state.uploaded = false;
+      $("fileName").textContent = f.name + "  (" + (f.size / 1024).toFixed(0) + " KB)";
+      $("fileInfo").style.display = "flex";
+      dropZone.style.display = "none";
+      $("btnPlaybook").disabled = true;
+      uploadFile(f);
+    } catch(e) {
+      if (window.__logError) window.__logError('setFile ERROR', e.message, e.stack);
+      setUploadStatus(errorIcon("Error procesando fichero: " + e.message));
     }
-    state.file = f;
-    state.uploaded = false;
-    $("fileName").textContent = f.name + "  (" + (f.size / 1024).toFixed(0) + " KB)";
-    $("fileInfo").style.display = "flex";
-    dropZone.style.display = "none";
-    $("btnPlaybook").disabled = true;
-    uploadFile(f);
   }
 
   // ---- Upload ----
