@@ -228,7 +228,6 @@
           $("btnPlaybook").disabled = false;
           $("optMarcos").disabled = false;
           $("optArqPub").disabled = false;
-          $("optArqNav").disabled = false;
         }
       } catch (_) { /* seguir intentando */ }
     }, POLL_INTERVAL);
@@ -384,7 +383,7 @@
     $("playbookStatus").textContent = "";
     $("resultCard").style.display = "none";
     $("resultBox").textContent = "";
-    ["optMarcos","optArqPub","optArqNav"].forEach(function(id) {
+    ["optMarcos","optArqPub"].forEach(function(id) {
       var el = $(id); el.disabled = true; el.classList.remove("selected");
     });
   }
