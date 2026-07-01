@@ -246,7 +246,7 @@
     $("btnPlaybook").disabled = true;
     $("playbookStatus").textContent = "";
     $("resultCard").style.display = "block";
-    $("resultBox").innerHTML = '<div class="result-running"><div class="spinner"></div> Ejecutando análisis… puede tardar unos minutos.</div>';
+    $("resultBox").innerHTML = '<div class="result-running"><div class="spinner"></div> Lanzando playbook…</div>';
 
     try {
       var msg = "incluye en la variable {documentos} el fichero denominado " + state.file.name;
@@ -258,21 +258,99 @@
           body: JSON.stringify({ query: msg })
         }
       );
-      var content;
-      try {
-        var json = JSON.parse(res.text);
-        content = json.result || json.output || json.response || json.message || JSON.stringify(json, null, 2);
-      } catch (_) {
-        content = res.text;
-      }
-      if (!res.ok) throw new Error("HTTP " + res.status + " – " + (content || "").slice(0, 200));
-      $("resultBox").textContent = content;
+      if (!res.ok) throw new Error("HTTP " + res.status + " – " + res.text.slice(0, 200));
+
+      var json;
+      try { json = JSON.parse(res.text); } catch(_) { throw new Error("Respuesta no es JSON: " + res.text.slice(0, 200)); }
+
+      // Extraer el task ID de la respuesta
+      var taskId = json.id || json.task_id || json.taskId || (json.status && json.status.id) || null;
+      if (!taskId) throw new Error("No se encontró ID de tarea en la respuesta: " + JSON.stringify(json).slice(0, 300));
+
+      $("resultBox").innerHTML = '<div class="result-running"><div class="spinner"></div> Análisis en curso… (tarea ' + escHtml(taskId) + ')</div>';
+      await pollTaskResult(taskId);
+
     } catch (e) {
-      $("resultBox").innerHTML = '<span style="color:#f87171">Error al ejecutar el playbook: ' + escHtml(e.message) + '</span>';
-    } finally {
+      $("resultBox").innerHTML = '<span style="color:#f87171">Error: ' + escHtml(e.message) + '</span>';
       $("btnPlaybook").disabled = false;
     }
   });
+
+  // ---- Poll task until completed ----
+  async function pollTaskResult(taskId) {
+    var url = API_BASE + "/agents/callagent-orchestrator/task/" + taskId;
+    var attempts = 0;
+    var maxAttempts = 120; // 10 min máximo a 5s por intento
+
+    function scheduleNext() {
+      if (attempts >= maxAttempts) {
+        $("resultBox").innerHTML = '<span style="color:#f87171">Tiempo de espera agotado. El análisis sigue en curso en la plataforma (ID: ' + escHtml(taskId) + ')</span>';
+        $("btnPlaybook").disabled = false;
+        return;
+      }
+      setTimeout(checkTask, 5000);
+    }
+
+    async function checkTask() {
+      attempts++;
+      try {
+        var res = await apiFetch(url, { headers: authHeaders() });
+        if (!res.ok) { scheduleNext(); return; }
+
+        var data;
+        try { data = JSON.parse(res.text); } catch(_) { scheduleNext(); return; }
+
+        var statusObj = data.status || data;
+        var taskState = (statusObj.state || statusObj.status || "").toLowerCase();
+
+        if (taskState === "working" || taskState === "pending" || taskState === "running" || taskState === "") {
+          $("resultBox").innerHTML = '<div class="result-running"><div class="spinner"></div> Analizando… (' + attempts * 5 + 's)</div>';
+          scheduleNext();
+          return;
+        }
+
+        if (taskState === "completed" || taskState === "done" || taskState === "success") {
+          // Extraer texto de status.message.parts[].text
+          var text = extractText(statusObj);
+          $("resultBox").textContent = text || JSON.stringify(data, null, 2);
+          $("btnPlaybook").disabled = false;
+          return;
+        }
+
+        // Estado de error u otro
+        if (taskState === "failed" || taskState === "error") {
+          var errText = extractText(statusObj) || JSON.stringify(data, null, 2);
+          $("resultBox").innerHTML = '<span style="color:#f87171">El análisis terminó con error:<br><pre style="white-space:pre-wrap">' + escHtml(errText) + '</pre></span>';
+          $("btnPlaybook").disabled = false;
+          return;
+        }
+
+        // Estado desconocido — seguir esperando
+        scheduleNext();
+
+      } catch(e) {
+        // Error de red — reintentar
+        scheduleNext();
+      }
+    }
+
+    checkTask();
+  }
+
+  function extractText(statusObj) {
+    // status.message.parts[].text donde kind === "text"
+    var msg = statusObj.message;
+    if (!msg) return null;
+    var parts = msg.parts || msg.content || [];
+    var texts = [];
+    for (var i = 0; i < parts.length; i++) {
+      var p = parts[i];
+      if (p && (p.kind === "text" || p.type === "text") && p.text) texts.push(p.text);
+    }
+    if (texts.length) return texts.join("\n\n");
+    if (typeof msg === "string") return msg;
+    return null;
+  }
 
   // ---- Copy ----
   $("btnCopy").addEventListener("click", function() {
