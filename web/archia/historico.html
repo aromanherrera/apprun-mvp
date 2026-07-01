@@ -241,26 +241,55 @@
     }
   }
 
+  function pickField(r, keys) {
+    for (var i = 0; i < keys.length; i++) if (r[keys[i]] !== undefined && r[keys[i]] !== null) return r[keys[i]];
+    return null;
+  }
+
   function renderTable(rows) {
     if (!rows.length) {
       document.getElementById("tableWrap").innerHTML = '<div class="empty">No hay ejecuciones registradas.</div>';
       return;
     }
+
+    var idKey    = pickField(rows[0], ["id","_id","task_id","taskId","execution_id","run_id"]);
+    var userKey  = pickField(rows[0], ["username","user","user_id","owner","created_by","email"]);
+    var dateKey  = pickField(rows[0], ["created_at","createdAt","date","timestamp","start_date","started_at","add_date","executed_at"]);
+    var statKey  = pickField(rows[0], ["status","state","result"]);
+
+    // detect actual key names from first object
+    var allKeys = Object.keys(rows[0]);
+    function findKey(candidates) {
+      for (var i = 0; i < candidates.length; i++) if (allKeys.indexOf(candidates[i]) !== -1) return candidates[i];
+      return null;
+    }
+    var kId   = findKey(["id","_id","task_id","taskId","execution_id","run_id"]);
+    var kUser = findKey(["username","user","user_id","owner","created_by","email"]);
+    var kDate = findKey(["created_at","createdAt","date","timestamp","start_date","started_at","add_date","executed_at"]);
+    var kStat = findKey(["status","state","result"]);
+
     var html = '<div class="tbl-wrap"><table><thead><tr>' +
-      '<th>ID</th><th>Usuario</th><th>Fecha</th><th>Estado</th><th></th>' +
-      '</tr></thead><tbody>';
+      '<th>' + esc(kId || "ID") + '</th>' +
+      '<th>' + esc(kUser || "Usuario") + '</th>' +
+      '<th>' + esc(kDate || "Fecha") + '</th>' +
+      '<th>' + esc(kStat || "Estado") + '</th>' +
+      '<th></th></tr></thead><tbody>';
+
     rows.forEach(function(r) {
-      var id     = r.id || r.task_id || r.taskId || r._id || "—";
-      var user   = r.username || r.user || r.user_id || r.owner || "—";
-      var date   = formatDate(r.created_at || r.date || r.timestamp || r.start_date || r.add_date);
-      var status = (r.status || r.state || "unknown").toLowerCase();
+      var id     = kId   ? String(r[kId])   : "—";
+      var user   = kUser ? String(r[kUser]) : "—";
+      var date   = kDate ? formatDate(r[kDate]) : "—";
+      var status = kStat ? String(r[kStat]).toLowerCase() : "unknown";
       var badge  = badgeClass(status);
+      var hasId  = id && id !== "—";
       html += '<tr>' +
         '<td class="id-cell" title="' + esc(id) + '">' + esc(id) + '</td>' +
         '<td>' + esc(user) + '</td>' +
         '<td style="white-space:nowrap">' + esc(date) + '</td>' +
         '<td><span class="badge ' + badge + '">' + esc(status) + '</span></td>' +
-        '<td><button class="btn-detail" onclick="openDetail(' + "'" + esc(id) + "'" + ', this)">Ver detalle</button></td>' +
+        '<td>' + (hasId
+          ? '<button class="btn-detail" onclick="openDetail(\'' + esc(id) + '\', this)">Ver detalle</button>'
+          : '<span style="color:#4a7a4a;font-size:11px">Sin ID</span>') + '</td>' +
         '</tr>';
     });
     html += '</tbody></table></div>';
