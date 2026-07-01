@@ -38,7 +38,7 @@
 })();
 
 (function () {
-  const API_BASE = "/api";  // proxy local -> server.py reenvía a https://api1-soarplus-pre.es.deloitte.com
+  const API_BASE = "https://api1-soarplus-pre.es.deloitte.com";
   const API_TOKEN = "sk-UmL4haDNvWZdQ4a8ZxKb3Q";
   const POLL_INTERVAL = 4000;
 
