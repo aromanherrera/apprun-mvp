@@ -207,7 +207,7 @@
     try {
       var fd = new FormData();
       fd.append("file", f);
-      var res = await apiFetch(API_BASE + "/datasource/uploadfile", {
+      var res = await apiFetch(API_BASE + "/datasource/uploadfile/", {
         method: "POST",
         headers: authHeaders(),
         body: fd
