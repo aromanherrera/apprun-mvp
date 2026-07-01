@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>ArchIA – Configuración</title>
+<style>
+  :root{color-scheme:dark}
+  body{margin:0;background:#0a0f0a;color:#e0f0e0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif}
+  header{padding:16px 20px;border-bottom:1px solid #1a2e1a;background:#0c120c;display:flex;align-items:center;gap:14px}
+  .logo{font-weight:700;font-size:18px}
+  .logo span{color:#22c55e}
+  a.back{margin-left:auto;color:#4ade80;font-size:13px;text-decoration:none;display:flex;align-items:center;gap:6px}
+  a.back:hover{color:#86efac}
+  main{max-width:560px;margin:32px auto;padding:0 16px}
+  .card{background:#0e180e;border:1px solid #1a2e1a;border-radius:12px;padding:24px;margin-bottom:20px}
+  h2{margin:0 0 6px;font-size:17px;color:#4ade80}
+  .subtitle{font-size:13px;color:#6b9e6b;margin:0 0 20px}
+  label{font-size:13px;color:#8db88d;display:block;margin-top:14px}
+  input{width:100%;padding:10px;margin-top:6px;border-radius:8px;border:1px solid #1e3a1e;background:#071007;color:#e0f0e0;box-sizing:border-box;font-size:14px}
+  input:focus{outline:none;border-color:#22c55e;box-shadow:0 0 0 2px rgba(34,197,94,.15)}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
+  button{cursor:pointer;background:#166534;border:1px solid #14532d;color:#e0f0e0;border-radius:10px;padding:9px 16px;font-weight:600;font-size:14px}
+  button:hover{background:#15803d}
+  button.ghost{background:#0e180e;border-color:#1a2e1a}
+  button.ghost:hover{background:#162616}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .status-box{margin-top:16px;padding:12px 14px;border-radius:8px;font-size:13px;display:none}
+  .status-box.ok{background:#052e16;border:1px solid #166534;color:#4ade80;display:block}
+  .status-box.error{background:#1a0a0a;border:1px solid #7f1d1d;color:#f87171;display:block}
+  .status-box.loading{background:#0e180e;border:1px solid #1a2e1a;color:#8db88d;display:block}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .dot.green{background:#22c55e}
+  .dot.red{background:#ef4444}
+  .dot.grey{background:#4b5563;animation:pulse 1.2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .saved-badge{display:none;background:#052e16;border:1px solid #166534;color:#4ade80;font-size:12px;padding:3px 10px;border-radius:999px;margin-left:10px;vertical-align:middle}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Arch<span>IA</span></div>
+  <span style="color:#6b9e6b;font-size:13px">Configuración</span>
+  <a class="back" href="dashboard.html">← Volver al panel</a>
+</header>
+
+<main>
+  <div class="card">
+    <h2>Conexión con la API de agentes</h2>
+    <p class="subtitle">Introduce la URL base y el token de acceso para conectar ArchIA con el backend real. Si no los tienes aún, el panel funciona en modo simulado.</p>
+
+    <label>API Base URL</label>
+    <input id="apiBaseInput" type="url" placeholder="https://tu-api.example.com" autocomplete="off" spellcheck="false"/>
+
+    <label>Token de acceso (Bearer)</label>
+    <input id="apiTokenInput" type="password" placeholder="••••••••••••••••" autocomplete="off"/>
+
+    <div id="statusBox" class="status-box"></div>
+
+    <div class="toolbar">
+      <button id="btnTest">Probar conexión</button>
+      <button id="btnSave">Guardar<span class="saved-badge" id="savedBadge">¡Guardado!</span></button>
+      <button class="ghost" id="btnClear">Borrar configuración</button>
+    </div>
+  </div>
+
+  <div class="card" style="font-size:13px;color:#6b9e6b">
+    <h2 style="font-size:14px;margin-bottom:8px">Contrato de API esperado</h2>
+    <code style="display:block;white-space:pre;color:#4ade80;font-size:12px;line-height:1.7;background:#071007;padding:12px;border-radius:8px;border:1px solid #1a2e1a;overflow-x:auto">POST /auth/login            {email,password} → {token, user}
+POST /projects              {name} → {project_id}
+POST /projects/:id/files    multipart → {file_id, name}
+POST /projects/:id/analyze  {} → {job_id}
+GET  /jobs/:id              → {status, progress, recommendations}
+POST /projects/:id/report   {...} → {report_id, download_url}</code>
+    <p style="margin:10px 0 0">Todas las peticiones autenticadas envían <code style="color:#4ade80">Authorization: Bearer &lt;token&gt;</code>.</p>
+  </div>
+</main>
+
+<script src="archia.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const session = ArchIA.requireSession();
+
+  $("apiBaseInput").value = ArchIA.getApiBase();
+  $("apiTokenInput").value = session.token || "";
+
+  function showStatus(type, html) {
+    const box = $("statusBox");
+    box.className = "status-box " + type;
+    box.innerHTML = html;
+  }
+
+  $("btnTest").onclick = async () => {
+    const base = $("apiBaseInput").value.trim();
+    const token = $("apiTokenInput").value.trim();
+    if (!base) { showStatus("error", '<span class="dot red"></span>Introduce una API Base URL antes de probar.'); return; }
+
+    $("btnTest").disabled = true;
+    showStatus("loading", '<span class="dot grey"></span>Probando conexión…');
+
+    try {
+      const url = base.replace(/\/+$/, "") + "/health";
+      const headers = token ? { "Authorization": "Bearer " + token } : {};
+      const res = await fetch(url, { method: "GET", headers, signal: AbortSignal.timeout(8000) });
+      if (res.ok) {
+        const ct = res.headers.get("content-type") || "";
+        let body = "";
+        try { body = ct.includes("json") ? JSON.stringify(await res.json()) : await res.text(); } catch {}
+        showStatus("ok", `<span class="dot green"></span><strong>Conexión OK</strong> – HTTP ${res.status}${body ? `<br/><span style="opacity:.8;font-size:12px">${escapeHtml(body.slice(0, 200))}</span>` : ""}`);
+      } else {
+        showStatus("error", `<span class="dot red"></span><strong>Error HTTP ${res.status}</strong> – El servidor respondió pero con error. Comprueba la URL y el token.`);
+      }
+    } catch (e) {
+      const msg = e.name === "TimeoutError" ? "Tiempo de espera agotado (8 s). Verifica que la URL sea accesible." : e.message;
+      showStatus("error", `<span class="dot red"></span><strong>No se pudo conectar</strong><br/><span style="font-size:12px">${escapeHtml(msg)}</span>`);
+    } finally {
+      $("btnTest").disabled = false;
+    }
+  };
+
+  $("btnSave").onclick = () => {
+    ArchIA.setApiBase($("apiBaseInput").value.trim());
+    ArchIA.setApiToken($("apiTokenInput").value.trim());
+    const badge = $("savedBadge");
+    badge.style.display = "inline-block";
+    setTimeout(() => { badge.style.display = "none"; }, 2500);
+  };
+
+  $("btnClear").onclick = () => {
+    if (!confirm("¿Borrar la configuración de API guardada?")) return;
+    ArchIA.setApiBase("");
+    ArchIA.setApiToken("");
+    $("apiBaseInput").value = "";
+    $("apiTokenInput").value = "";
+    showStatus("ok", '<span class="dot green"></span>Configuración borrada. El panel volverá a modo simulado.');
+  };
+
+  function escapeHtml(s) {
+    return (s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+})();
+</script>
+</body>
+</html>
