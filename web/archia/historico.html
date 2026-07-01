@@ -232,7 +232,7 @@
   // ---- Load executions ----
   async function loadHistory() {
     try {
-      var r = await apiFetch(API_BASE + "/mta/excutions", { headers: authHeaders() });
+      var r = await apiFetch(API_BASE + "/mta/executions", { headers: authHeaders() });
       var data = JSON.parse(r.text);
       renderTable(Array.isArray(data) ? data : (data.executions || data.data || data.results || data.items || []));
     } catch(e) {
