@@ -251,10 +251,10 @@
     $("resultBox").innerHTML = '<div class="result-running"><div class="spinner"></div> Lanzando playbook…</div>';
 
     try {
-      var marcos = $("optMarcos").classList.contains("selected") ? "Si" : "No";
-      var arq    = ($("optArqPub").classList.contains("selected") || $("optArqNav").classList.contains("selected")) ? "Si" : "No";
+      var marcos = $("optMarcos").classList.contains("selected") ? "sí" : "no";
+      var arq    = $("optArqPub").classList.contains("selected") ? "sí" : "no";
       var msg = "incluye en la variable {documentos} el fichero denominado " + state.file.name +
-                ". En la variable {marcos} incluye " + marcos +
+                ". En la variable {framework} incluye " + marcos +
                 ". En la variable {arquitectura} incluye " + arq + ".";
       var res = await apiFetch(
         API_BASE + "/playbooks/invoke/analisis-de-diseno-inicial-de-arquitectura",
@@ -388,10 +388,6 @@
     });
   }
 
-  function toggleOpt(btn) {
-    btn.classList.toggle("selected");
-  }
-
   function escHtml(s) {
     return (s || "").replace(/[&<>"']/g, function(c) {
       return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
@@ -446,3 +442,7 @@
     return out.join("\n").replace(/<\/ul>\n<ul>/g,"").replace(/<\/ol>\n<ol>/g,"");
   }
 })();
+
+function toggleOpt(btn) {
+  btn.classList.toggle("selected");
+}
