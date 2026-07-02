@@ -53,7 +53,8 @@
 
   /* Result area */
   #resultCard{display:none}
-  #resultBox{background:#071007;border:1px solid #1e3a1e;border-radius:8px;padding:16px;font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word;max-height:420px;overflow-y:auto;color:#b0ccb0}
+  .result-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#4ade80;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #1a2e1a}
+  .result-section-body{background:#071007;border:1px solid #1e3a1e;border-radius:8px;padding:16px;font-size:13px;line-height:1.7;word-break:break-word;max-height:480px;overflow-y:auto;color:#b0ccb0}
   .result-running{display:flex;align-items:center;gap:10px;color:#6b9e6b;font-size:13px}
 
   button.ghost{cursor:pointer;background:#0e180e;border:1px solid #1a2e1a;color:#8db88d;border-radius:8px;padding:7px 14px;font-size:13px}
@@ -73,19 +74,18 @@
   #btnClearErrors:hover{color:#f87171}
   #errorBadge{display:none;background:#ef4444;color:#fff;border-radius:999px;font-size:10px;padding:1px 6px;margin-left:6px;font-weight:700}
   /* Markdown result */
-  #resultBox{font-size:13px;line-height:1.7;color:#c0d8c0}
-  #resultBox h1,#resultBox h2,#resultBox h3{color:#4ade80;margin:16px 0 6px}
-  #resultBox h1{font-size:17px}#resultBox h2{font-size:15px}#resultBox h3{font-size:14px}
-  #resultBox p{margin:6px 0}
-  #resultBox strong{color:#e0f0e0}
-  #resultBox ul,#resultBox ol{margin:6px 0;padding-left:20px}
-  #resultBox li{margin:3px 0}
-  #resultBox table{width:100%;border-collapse:collapse;margin:12px 0;font-size:12px}
-  #resultBox th{background:#071007;color:#4ade80;padding:8px 10px;text-align:left;border:1px solid #1e3a1e;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
-  #resultBox td{padding:8px 10px;border:1px solid #0f1f0f;vertical-align:top;color:#c0d8c0}
-  #resultBox tr:nth-child(even) td{background:#071007}
-  #resultBox code{background:#071007;padding:1px 5px;border-radius:4px;font-family:monospace;font-size:12px;color:#4ade80}
-  #resultBox hr{border:none;border-top:1px solid #1a2e1a;margin:14px 0}
+  .result-section-body h1,.result-section-body h2,.result-section-body h3{color:#4ade80;margin:16px 0 6px}
+  .result-section-body h1{font-size:17px}.result-section-body h2{font-size:15px}.result-section-body h3{font-size:14px}
+  .result-section-body p{margin:6px 0}
+  .result-section-body strong{color:#e0f0e0}
+  .result-section-body ul,.result-section-body ol{margin:6px 0;padding-left:20px}
+  .result-section-body li{margin:3px 0}
+  .result-section-body table{width:100%;border-collapse:collapse;margin:12px 0;font-size:12px}
+  .result-section-body th{background:#071007;color:#4ade80;padding:8px 10px;text-align:left;border:1px solid #1e3a1e;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  .result-section-body td{padding:8px 10px;border:1px solid #0f1f0f;vertical-align:top;color:#c0d8c0}
+  .result-section-body tr:nth-child(even) td{background:#071007}
+  .result-section-body code{background:#071007;padding:1px 5px;border-radius:4px;font-family:monospace;font-size:12px;color:#4ade80}
+  .result-section-body hr{border:none;border-top:1px solid #1a2e1a;margin:14px 0}
 </style>
 </head>
 <body>
@@ -127,7 +127,7 @@
     <div class="card-title">2 · Seleccionar análisis</div>
     <p style="font-size:13px;color:#6b9e6b;margin:0 0 16px">Selecciona los análisis que quieres incluir en el informe. Puedes marcar más de uno.</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <button class="opt-btn" id="optMarcos" disabled onclick="toggleOpt(this)">Marcos de controles</button>
+      <button class="opt-btn selected" id="optMarcos" disabled>Marcos de controles ✓</button>
       <button class="opt-btn" id="optArqPub" disabled onclick="toggleOpt(this)">Arquitectura de publicación</button>
       <button class="opt-btn" id="optArqNav" disabled style="opacity:.3" title="Próximamente">Arquitectura de navegación</button>
     </div>
@@ -142,10 +142,16 @@
 
   <!-- STEP 4: RESULT -->
   <div class="card" id="resultCard" style="display:none">
-    <div class="card-title" style="margin-bottom:14px">3 · Resultado</div>
-    <div id="resultBox"></div>
+    <div class="card-title" style="margin-bottom:14px">4 · Resultado</div>
+    <div id="resultMarcos" class="result-section" style="display:none">
+      <div class="result-section-title">Marcos de controles</div>
+      <div class="result-section-body" id="resultBoxMarcos"></div>
+    </div>
+    <div id="resultArq" class="result-section" style="display:none;margin-top:20px">
+      <div class="result-section-title">Arquitectura de publicación</div>
+      <div class="result-section-body" id="resultBoxArq"></div>
+    </div>
     <div style="margin-top:12px;display:flex;gap:8px">
-      <button class="ghost" id="btnCopy">&#128203; Copiar</button>
       <button class="ghost" id="btnReset">&#8635; Nuevo análisis</button>
     </div>
   </div>

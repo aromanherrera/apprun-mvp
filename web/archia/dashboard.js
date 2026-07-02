@@ -247,21 +247,41 @@
     if (!state.file || !state.uploaded) return;
     $("btnPlaybook").disabled = true;
     $("playbookStatus").textContent = "";
-    $("resultCard").style.display = "block";
-    $("resultBox").innerHTML = '<div class="result-running"><div class="spinner"></div> Lanzando playbook…</div>';
 
+    var doArq = $("optArqPub").classList.contains("selected");
+    var query = "incluye en la variable {documentos} el fichero denominado " + state.file.name;
+
+    // Mostrar secciones según selección
+    $("resultCard").style.display = "block";
+    $("resultMarcos").style.display = "block";
+    $("resultBoxMarcos").innerHTML = '<div class="result-running"><div class="spinner"></div> Lanzando análisis de marcos…</div>';
+    if (doArq) {
+      $("resultArq").style.display = "block";
+      $("resultBoxArq").innerHTML = '<div class="result-running"><div class="spinner"></div> Lanzando análisis de arquitectura…</div>';
+    } else {
+      $("resultArq").style.display = "none";
+    }
+
+    // Lanzar llamadas (en paralelo si hay dos)
+    var promises = [
+      invokePlaybook("analisis-de-diseno-inicial-de-arquitectura", query, "resultBoxMarcos")
+    ];
+    if (doArq) {
+      promises.push(invokePlaybook("revarquitectura", query, "resultBoxArq"));
+    }
+
+    await Promise.allSettled(promises);
+    $("btnPlaybook").disabled = false;
+  });
+
+  async function invokePlaybook(playbookName, query, boxId) {
     try {
-      var marcos = $("optMarcos").classList.contains("selected") ? "sí" : "no";
-      var arq    = $("optArqPub").classList.contains("selected") ? "sí" : "no";
-      var msg = "incluye en la variable {documentos} el fichero denominado " + state.file.name +
-                ". En la variable {framework} incluye " + marcos +
-                ". En la variable {arquitectura} incluye " + arq + ".";
       var res = await apiFetch(
-        API_BASE + "/playbooks/invoke/analisis-de-diseno-inicial-de-arquitectura",
+        API_BASE + "/playbooks/invoke/" + playbookName,
         {
           method: "POST",
           headers: Object.assign({}, authHeaders(), { "Content-Type": "application/json" }),
-          body: JSON.stringify({ query: msg })
+          body: JSON.stringify({ query: query })
         }
       );
       if (!res.ok) throw new Error("HTTP " + res.status + " – " + res.text.slice(0, 200));
@@ -269,78 +289,73 @@
       var json;
       try { json = JSON.parse(res.text); } catch(_) { throw new Error("Respuesta no es JSON: " + res.text.slice(0, 200)); }
 
-      // Extraer el task ID de la respuesta
       var taskId = json.id || json.task_id || json.taskId || (json.status && json.status.id) || null;
-      if (!taskId) throw new Error("No se encontró ID de tarea en la respuesta: " + JSON.stringify(json).slice(0, 300));
+      if (!taskId) throw new Error("No se encontró ID de tarea: " + JSON.stringify(json).slice(0, 300));
 
-      $("resultBox").innerHTML = '<div class="result-running"><div class="spinner"></div> Análisis en curso… (tarea ' + escHtml(taskId) + ')</div>';
-      await pollTaskResult(taskId);
+      $(boxId).innerHTML = '<div class="result-running"><div class="spinner"></div> Análisis en curso… (tarea ' + escHtml(taskId) + ')</div>';
+      await pollTask(taskId, boxId);
 
-    } catch (e) {
-      $("resultBox").innerHTML = '<span style="color:#f87171">Error: ' + escHtml(e.message) + '</span>';
-      $("btnPlaybook").disabled = false;
+    } catch(e) {
+      $(boxId).innerHTML = '<span style="color:#f87171">Error: ' + escHtml(e.message) + '</span>';
     }
-  });
+  }
 
   // ---- Poll task until completed ----
-  async function pollTaskResult(taskId) {
-    var url = API_BASE + "/agents/callagent-orchestrator/task/" + taskId;
-    var attempts = 0;
-    var maxAttempts = 120; // 10 min máximo a 5s por intento
+  function pollTask(taskId, boxId) {
+    return new Promise(function(resolve) {
+      var url = API_BASE + "/agents/callagent-orchestrator/task/" + taskId;
+      var attempts = 0;
+      var maxAttempts = 120;
 
-    function scheduleNext() {
-      if (attempts >= maxAttempts) {
-        $("resultBox").innerHTML = '<span style="color:#f87171">Tiempo de espera agotado. El análisis sigue en curso en la plataforma (ID: ' + escHtml(taskId) + ')</span>';
-        $("btnPlaybook").disabled = false;
-        return;
+      function scheduleNext() {
+        if (attempts >= maxAttempts) {
+          $(boxId).innerHTML = '<span style="color:#f87171">Tiempo de espera agotado (ID: ' + escHtml(taskId) + ')</span>';
+          resolve();
+          return;
+        }
+        setTimeout(checkTask, 5000);
       }
-      setTimeout(checkTask, 5000);
-    }
 
-    async function checkTask() {
-      attempts++;
-      try {
-        var res = await apiFetch(url, { headers: authHeaders() });
-        if (!res.ok) { scheduleNext(); return; }
+      async function checkTask() {
+        attempts++;
+        try {
+          var res = await apiFetch(url, { headers: authHeaders() });
+          if (!res.ok) { scheduleNext(); return; }
 
-        var data;
-        try { data = JSON.parse(res.text); } catch(_) { scheduleNext(); return; }
+          var data;
+          try { data = JSON.parse(res.text); } catch(_) { scheduleNext(); return; }
 
-        var statusObj = data.status || data;
-        var taskState = (statusObj.state || statusObj.status || "").toLowerCase();
+          var statusObj = data.status || data;
+          var taskState = (statusObj.state || statusObj.status || "").toLowerCase();
 
-        if (taskState === "working" || taskState === "pending" || taskState === "running" || taskState === "") {
-          $("resultBox").innerHTML = '<div class="result-running"><div class="spinner"></div> Analizando… (' + attempts * 5 + 's)</div>';
+          if (taskState === "working" || taskState === "pending" || taskState === "running" || taskState === "") {
+            $(boxId).innerHTML = '<div class="result-running"><div class="spinner"></div> Analizando… (' + (attempts * 5) + 's)</div>';
+            scheduleNext();
+            return;
+          }
+
+          if (taskState === "completed" || taskState === "done" || taskState === "success") {
+            var text = extractText(statusObj);
+            $(boxId).innerHTML = text ? renderMarkdown(text) : '<pre style="white-space:pre-wrap;font-size:12px;color:#6b9e6b">' + escHtml(JSON.stringify(data, null, 2)) + '</pre>';
+            resolve();
+            return;
+          }
+
+          if (taskState === "failed" || taskState === "error") {
+            var errText = extractText(statusObj) || JSON.stringify(data, null, 2);
+            $(boxId).innerHTML = '<span style="color:#f87171">El análisis terminó con error:<br><pre style="white-space:pre-wrap">' + escHtml(errText) + '</pre></span>';
+            resolve();
+            return;
+          }
+
           scheduleNext();
-          return;
+        } catch(e) {
+          scheduleNext();
         }
-
-        if (taskState === "completed" || taskState === "done" || taskState === "success") {
-          // Extraer texto de status.message.parts[].text
-          var text = extractText(statusObj);
-          $("resultBox").innerHTML = text ? renderMarkdown(text) : '<pre style="white-space:pre-wrap;font-size:12px;color:#6b9e6b">' + escHtml(JSON.stringify(data, null, 2)) + '</pre>';
-          $("btnPlaybook").disabled = false;
-          return;
-        }
-
-        // Estado de error u otro
-        if (taskState === "failed" || taskState === "error") {
-          var errText = extractText(statusObj) || JSON.stringify(data, null, 2);
-          $("resultBox").innerHTML = '<span style="color:#f87171">El análisis terminó con error:<br><pre style="white-space:pre-wrap">' + escHtml(errText) + '</pre></span>';
-          $("btnPlaybook").disabled = false;
-          return;
-        }
-
-        // Estado desconocido — seguir esperando
-        scheduleNext();
-
-      } catch(e) {
-        // Error de red — reintentar
-        scheduleNext();
       }
-    }
 
-    checkTask();
+      checkTask();
+    });
   }
 
   function extractText(statusObj) {
@@ -382,10 +397,11 @@
     $("btnPlaybook").disabled = true;
     $("playbookStatus").textContent = "";
     $("resultCard").style.display = "none";
-    $("resultBox").textContent = "";
-    ["optMarcos","optArqPub"].forEach(function(id) {
-      var el = $(id); el.disabled = true; el.classList.remove("selected");
-    });
+    $("resultMarcos").style.display = "none";
+    $("resultBoxMarcos").innerHTML = "";
+    $("resultArq").style.display = "none";
+    $("resultBoxArq").innerHTML = "";
+    var arqBtn = $("optArqPub"); arqBtn.disabled = true; arqBtn.classList.remove("selected");
   }
 
   function escHtml(s) {
