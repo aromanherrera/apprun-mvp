@@ -251,66 +251,66 @@
     var doArq = $("optArqPub").classList.contains("selected");
     var query = "incluye en la variable {documentos} el fichero denominado " + state.file.name;
 
-    // Mostrar secciones según selección
     $("resultCard").style.display = "block";
-    $("resultMarcos").style.display = "block";
-    $("resultBoxMarcos").innerHTML = '<div class="result-running"><div class="spinner"></div> Lanzando análisis de marcos…</div>';
-    if (doArq) {
-      $("resultArq").style.display = "block";
-      $("resultBoxArq").innerHTML = '<div class="result-running"><div class="spinner"></div> Lanzando análisis de arquitectura…</div>';
-    } else {
-      $("resultArq").style.display = "none";
-    }
+    $("resultBox").style.display = "none";
+    $("resultSpinner").style.display = "flex";
 
-    // Lanzar llamadas (en paralelo si hay dos)
-    var promises = [
-      invokePlaybook("analisis-de-diseno-inicial-de-arquitectura", query, "resultBoxMarcos")
-    ];
-    if (doArq) {
-      promises.push(invokePlaybook("revarquitectura", query, "resultBoxArq"));
-    }
+    // Lanzar en paralelo, recoger resultados
+    var jobs = [invokePlaybook("analisis-de-diseno-inicial-de-arquitectura", query)];
+    if (doArq) jobs.push(invokePlaybook("revarquitectura", query));
 
-    await Promise.allSettled(promises);
+    var results = await Promise.allSettled(jobs);
+
+    // Construir HTML final con ambos resultados
+    var html = "";
+    var labels = ["Marcos de controles", "Arquitectura de publicación"];
+    results.forEach(function(r, i) {
+      if (results.length > 1) {
+        html += '<div class="result-section-title"' + (i > 0 ? ' style="margin-top:24px"' : '') + '>' + labels[i] + '</div>';
+      }
+      if (r.status === "fulfilled") {
+        html += r.value;
+      } else {
+        html += '<span style="color:#f87171">Error: ' + escHtml(r.reason && r.reason.message || String(r.reason)) + '</span>';
+      }
+    });
+
+    $("resultSpinner").style.display = "none";
+    $("resultBox").style.display = "block";
+    $("resultBox").innerHTML = html;
     $("btnPlaybook").disabled = false;
   });
 
-  async function invokePlaybook(playbookName, query, boxId) {
-    try {
-      var res = await apiFetch(
-        API_BASE + "/playbooks/invoke/" + playbookName,
-        {
-          method: "POST",
-          headers: Object.assign({}, authHeaders(), { "Content-Type": "application/json" }),
-          body: JSON.stringify({ query: query })
-        }
-      );
-      if (!res.ok) throw new Error("HTTP " + res.status + " – " + res.text.slice(0, 200));
+  async function invokePlaybook(playbookName, query) {
+    var res = await apiFetch(
+      API_BASE + "/playbooks/invoke/" + playbookName,
+      {
+        method: "POST",
+        headers: Object.assign({}, authHeaders(), { "Content-Type": "application/json" }),
+        body: JSON.stringify({ query: query })
+      }
+    );
+    if (!res.ok) throw new Error("HTTP " + res.status + " – " + res.text.slice(0, 200));
 
-      var json;
-      try { json = JSON.parse(res.text); } catch(_) { throw new Error("Respuesta no es JSON: " + res.text.slice(0, 200)); }
+    var json;
+    try { json = JSON.parse(res.text); } catch(_) { throw new Error("Respuesta no es JSON: " + res.text.slice(0, 200)); }
 
-      var taskId = json.id || json.task_id || json.taskId || (json.status && json.status.id) || null;
-      if (!taskId) throw new Error("No se encontró ID de tarea: " + JSON.stringify(json).slice(0, 300));
+    var taskId = json.id || json.task_id || json.taskId || (json.status && json.status.id) || null;
+    if (!taskId) throw new Error("No se encontró ID de tarea: " + JSON.stringify(json).slice(0, 300));
 
-      $(boxId).innerHTML = '<div class="result-running"><div class="spinner"></div> Análisis en curso… (tarea ' + escHtml(taskId) + ')</div>';
-      await pollTask(taskId, boxId);
-
-    } catch(e) {
-      $(boxId).innerHTML = '<span style="color:#f87171">Error: ' + escHtml(e.message) + '</span>';
-    }
+    return pollTask(taskId);
   }
 
-  // ---- Poll task until completed ----
-  function pollTask(taskId, boxId) {
-    return new Promise(function(resolve) {
+  // ---- Poll task until completed — returns HTML string ----
+  function pollTask(taskId) {
+    return new Promise(function(resolve, reject) {
       var url = API_BASE + "/agents/callagent-orchestrator/task/" + taskId;
       var attempts = 0;
       var maxAttempts = 120;
 
       function scheduleNext() {
         if (attempts >= maxAttempts) {
-          $(boxId).innerHTML = '<span style="color:#f87171">Tiempo de espera agotado (ID: ' + escHtml(taskId) + ')</span>';
-          resolve();
+          reject(new Error("Tiempo de espera agotado (ID: " + taskId + ")"));
           return;
         }
         setTimeout(checkTask, 5000);
@@ -329,22 +329,19 @@
           var taskState = (statusObj.state || statusObj.status || "").toLowerCase();
 
           if (taskState === "working" || taskState === "pending" || taskState === "running" || taskState === "") {
-            $(boxId).innerHTML = '<div class="result-running"><div class="spinner"></div> Analizando… (' + (attempts * 5) + 's)</div>';
             scheduleNext();
             return;
           }
 
           if (taskState === "completed" || taskState === "done" || taskState === "success") {
             var text = extractText(statusObj);
-            $(boxId).innerHTML = text ? renderMarkdown(text) : '<pre style="white-space:pre-wrap;font-size:12px;color:#6b9e6b">' + escHtml(JSON.stringify(data, null, 2)) + '</pre>';
-            resolve();
+            resolve(text ? renderMarkdown(text) : '<pre style="white-space:pre-wrap;font-size:12px;color:#6b9e6b">' + escHtml(JSON.stringify(data, null, 2)) + '</pre>');
             return;
           }
 
           if (taskState === "failed" || taskState === "error") {
             var errText = extractText(statusObj) || JSON.stringify(data, null, 2);
-            $(boxId).innerHTML = '<span style="color:#f87171">El análisis terminó con error:<br><pre style="white-space:pre-wrap">' + escHtml(errText) + '</pre></span>';
-            resolve();
+            reject(new Error(errText));
             return;
           }
 
@@ -397,10 +394,9 @@
     $("btnPlaybook").disabled = true;
     $("playbookStatus").textContent = "";
     $("resultCard").style.display = "none";
-    $("resultMarcos").style.display = "none";
-    $("resultBoxMarcos").innerHTML = "";
-    $("resultArq").style.display = "none";
-    $("resultBoxArq").innerHTML = "";
+    $("resultSpinner").style.display = "none";
+    $("resultBox").style.display = "none";
+    $("resultBox").innerHTML = "";
     var arqBtn = $("optArqPub"); arqBtn.disabled = true; arqBtn.classList.remove("selected");
   }
 

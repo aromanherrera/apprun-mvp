@@ -127,7 +127,7 @@
     <div class="card-title">2 · Seleccionar análisis</div>
     <p style="font-size:13px;color:#6b9e6b;margin:0 0 16px">Selecciona los análisis que quieres incluir en el informe. Puedes marcar más de uno.</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <button class="opt-btn selected" id="optMarcos" disabled>Marcos de controles ✓</button>
+      <button class="opt-btn selected" id="optMarcos" disabled>Marcos de controles</button>
       <button class="opt-btn" id="optArqPub" disabled onclick="toggleOpt(this)">Arquitectura de publicación</button>
       <button class="opt-btn" id="optArqNav" disabled style="opacity:.3" title="Próximamente">Arquitectura de navegación</button>
     </div>
@@ -143,14 +143,8 @@
   <!-- STEP 4: RESULT -->
   <div class="card" id="resultCard" style="display:none">
     <div class="card-title" style="margin-bottom:14px">4 · Resultado</div>
-    <div id="resultMarcos" class="result-section" style="display:none">
-      <div class="result-section-title">Marcos de controles</div>
-      <div class="result-section-body" id="resultBoxMarcos"></div>
-    </div>
-    <div id="resultArq" class="result-section" style="display:none;margin-top:20px">
-      <div class="result-section-title">Arquitectura de publicación</div>
-      <div class="result-section-body" id="resultBoxArq"></div>
-    </div>
+    <div id="resultSpinner" class="result-running" style="display:none"><div class="spinner"></div> Ejecutando análisis…</div>
+    <div class="result-section-body" id="resultBox" style="display:none"></div>
     <div style="margin-top:12px;display:flex;gap:8px">
       <button class="ghost" id="btnReset">&#8635; Nuevo análisis</button>
     </div>
