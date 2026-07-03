@@ -299,24 +299,25 @@
   }
 
   function renderResults(results, labels) {
-    var html = "";
+    var bodyHtml = "";
     state.lastResults = [];
     results.forEach(function(r, i) {
       if (results.length > 1) {
-        html += '<div class="result-section-title"' + (i > 0 ? ' style="margin-top:28px"' : '') + '>' + labels[i] + '</div>';
+        bodyHtml += '<div class="result-section-title"' + (i > 0 ? ' style="margin-top:32px"' : '') + '>' + labels[i] + '</div>';
       }
       if (r.status === "fulfilled") {
-        html += r.value.html;
+        bodyHtml += r.value.html;
         state.lastResults.push({ label: labels[i], text: r.value.text });
       } else {
-        html += '<span style="color:var(--red)">Error: ' + escHtml(r.reason && r.reason.message || String(r.reason)) + '</span>';
+        bodyHtml += '<p style="color:var(--red)">Error: ' + escHtml(r.reason && r.reason.message || String(r.reason)) + '</p>';
         state.lastResults.push({ label: labels[i], text: null });
       }
     });
+    var kpiHtml = buildKpiHtml(bodyHtml);
     $("resultSpinner").style.display = "none";
     $("resultBox").style.display = "block";
     $("resultBox").className = "result-body";
-    $("resultBox").innerHTML = html;
+    $("resultBox").innerHTML = kpiHtml + bodyHtml;
     $("btnDownloadWord").style.display = state.lastResults.some(function(r){ return r.text; }) ? "inline-block" : "none";
   }
 
@@ -440,14 +441,42 @@
       .replace(/`(.+?)`/g, "<code>$1</code>");
   }
 
+  function statusBadge(raw) {
+    var v = raw.trim();
+    var lo = v.toLowerCase();
+    if (lo === "sí" || lo === "si" || lo === "yes" || lo === "aplica" || lo === "✓")
+      return '<span class="badge badge-si">' + escHtml(v) + '</span>';
+    if (lo === "no")
+      return '<span class="badge badge-no">' + escHtml(v) + '</span>';
+    if (lo === "n/a" || lo === "na" || lo === "no aplica" || lo === "no aplicable" || lo === "no aplica")
+      return '<span class="badge badge-na">' + escHtml(v) + '</span>';
+    if (lo === "parcial" || lo === "parcialmente")
+      return '<span class="badge badge-parcial">' + escHtml(v) + '</span>';
+    if (lo === "alto" || lo === "crítico")
+      return '<span class="badge badge-alto">' + escHtml(v) + '</span>';
+    if (lo === "medio" || lo === "moderado")
+      return '<span class="badge badge-medio">' + escHtml(v) + '</span>';
+    if (lo === "bajo")
+      return '<span class="badge badge-bajo">' + escHtml(v) + '</span>';
+    return inlineRender(v);
+  }
+
   function renderMarkdown(md) {
     var lines = md.split("\n"), out = [], inTable = false, tableRows = [];
     function flushTable() {
       if (!tableRows.length) return;
       var header = tableRows[0], body = tableRows.slice(2);
-      var html = "<table><thead><tr>" + header.map(function(c){ return "<th>" + inlineRender(c) + "</th>"; }).join("") + "</tr></thead><tbody>";
-      body.forEach(function(row){ html += "<tr>" + row.map(function(c){ return "<td>" + inlineRender(c) + "</td>"; }).join("") + "</tr>"; });
-      html += "</tbody></table>"; out.push(html); tableRows = []; inTable = false;
+      var html = '<div class="tbl-wrap"><table><thead><tr>';
+      html += header.map(function(c){ return "<th>" + inlineRender(c) + "</th>"; }).join("");
+      html += "</tr></thead><tbody>";
+      body.forEach(function(row, ri){
+        html += "<tr>" + row.map(function(c, ci){
+          var content = (ci > 0) ? statusBadge(c) : inlineRender(c);
+          return "<td>" + content + "</td>";
+        }).join("") + "</tr>";
+      });
+      html += "</tbody></table></div>";
+      out.push(html); tableRows = []; inTable = false;
     }
     lines.forEach(function(line) {
       if (line.trim().startsWith("|")) {
@@ -467,6 +496,25 @@
     });
     if (inTable) flushTable();
     return out.join("\n").replace(/<\/ul>\n<ul>/g,"").replace(/<\/ol>\n<ol>/g,"");
+  }
+
+  function buildKpiHtml(htmlContent) {
+    var tmp = document.createElement("div");
+    tmp.innerHTML = htmlContent;
+    var si = tmp.querySelectorAll(".badge-si").length;
+    var no = tmp.querySelectorAll(".badge-no").length;
+    var na = tmp.querySelectorAll(".badge-na").length;
+    var parcial = tmp.querySelectorAll(".badge-parcial").length;
+    var total = si + no + na + parcial;
+    if (total === 0) return "";
+    function pct(n) { return total > 0 ? Math.round(n/total*100) + "%" : "—"; }
+    return '<div class="kpi-row">' +
+      '<div class="kpi-card kpi-total"><div class="kpi-label">Total controles</div><div class="kpi-value">' + total + '</div></div>' +
+      (si    ? '<div class="kpi-card kpi-si"><div class="kpi-label">Aplicables</div><div class="kpi-value">' + si + '</div><div class="kpi-pct">' + pct(si) + ' del total</div></div>' : '') +
+      (no    ? '<div class="kpi-card kpi-no"><div class="kpi-label">No aplican</div><div class="kpi-value">' + no + '</div><div class="kpi-pct">' + pct(no) + ' del total</div></div>' : '') +
+      (na    ? '<div class="kpi-card kpi-na"><div class="kpi-label">N/A</div><div class="kpi-value">' + na + '</div><div class="kpi-pct">' + pct(na) + ' del total</div></div>' : '') +
+      (parcial ? '<div class="kpi-card kpi-parcial"><div class="kpi-label">Parcial</div><div class="kpi-value">' + parcial + '</div><div class="kpi-pct">' + pct(parcial) + ' del total</div></div>' : '') +
+      '</div>';
   }
 
 })();
