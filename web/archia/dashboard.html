@@ -8,91 +8,114 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,600;0,700;1,300&display=swap" rel="stylesheet"/>
 <style>
-  :root {
-    --green: #86BC25;
-    --green-dark: #6a9a1a;
-    --green-light: #f4f9eb;
-    --black: #000000;
-    --gray-900: #1a1a1a;
-    --gray-700: #53565A;
-    --gray-500: #75787B;
-    --gray-400: #97999B;
-    --gray-200: #D0D0CE;
-    --gray-100: #F2F2F2;
-    --gray-50: #F8F8F8;
-    --white: #FFFFFF;
-    --red: #C00000;
-    --border: #E0E0E0;
+  :root{
+    --green:#86BC25;--green-dark:#6a9a1a;--green-light:#f4f9eb;
+    --black:#000;--gray-900:#1a1a1a;--gray-700:#53565A;--gray-500:#75787B;
+    --gray-400:#97999B;--gray-200:#D0D0CE;--gray-100:#F2F2F2;--gray-50:#F8F8F8;
+    --white:#fff;--red:#C00000;--border:#E0E0E0;
+    --sidebar-w:260px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Open Sans',system-ui,sans-serif;background:var(--gray-50);color:var(--gray-900);font-size:14px;line-height:1.6}
 
   /* ── HEADER ── */
-  header{background:var(--black);height:60px;display:flex;align-items:center;padding:0 40px;position:sticky;top:0;z-index:100}
+  header{background:var(--black);height:60px;display:flex;align-items:center;padding:0 32px;position:sticky;top:0;z-index:200}
   .hd-logo{display:flex;align-items:baseline;text-decoration:none;gap:1px}
   .hd-logo-text{font-weight:700;font-size:20px;color:var(--white);letter-spacing:-.2px}
   .hd-logo-dot{color:var(--green);font-size:24px;line-height:1}
-  .hd-sep{width:1px;height:24px;background:rgba(255,255,255,.15);margin:0 28px}
-  .hd-product{font-size:14px;font-weight:600;color:var(--white);letter-spacing:.01em}
+  .hd-sep{width:1px;height:24px;background:rgba(255,255,255,.15);margin:0 24px}
+  .hd-product{font-size:14px;font-weight:600;color:var(--white)}
   .hd-sub{font-size:11px;color:var(--gray-400);margin-left:10px;font-weight:300;letter-spacing:.08em;text-transform:uppercase}
   nav{margin-left:auto;display:flex;gap:2px}
-  nav a{color:rgba(255,255,255,.55);font-size:12px;font-weight:600;text-decoration:none;padding:6px 16px;letter-spacing:.03em;text-transform:uppercase;border-bottom:2px solid transparent;transition:color .15s,border-color .15s}
+  nav a{color:rgba(255,255,255,.5);font-size:12px;font-weight:600;text-decoration:none;padding:6px 14px;letter-spacing:.03em;text-transform:uppercase;border-bottom:2px solid transparent;transition:color .15s,border-color .15s}
   nav a:hover{color:var(--white)}
   nav a.active{color:var(--white);border-bottom-color:var(--green)}
 
-  /* ── HERO BAND ── */
-  .hero{background:var(--black);padding:36px 40px 32px;border-bottom:3px solid var(--green)}
-  .hero-label{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--green);margin-bottom:10px}
-  .hero h1{font-size:26px;font-weight:300;color:var(--white);line-height:1.25}
+  /* ── HERO ── */
+  .hero{background:var(--black);padding:28px 32px 24px;border-bottom:3px solid var(--green)}
+  .hero-label{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--green);margin-bottom:8px}
+  .hero h1{font-size:24px;font-weight:300;color:var(--white);line-height:1.25}
   .hero h1 strong{font-weight:700}
-  .hero p{font-size:13px;color:rgba(255,255,255,.45);margin-top:8px;font-weight:300;max-width:560px;line-height:1.7}
+  .hero p{font-size:13px;color:rgba(255,255,255,.4);margin-top:6px;font-weight:300;line-height:1.7}
 
-  /* ── LAYOUT ── */
-  main{max-width:960px;margin:0 auto;padding:36px 40px;display:flex;flex-direction:column;gap:2px}
+  /* ── APP SHELL ── */
+  #appShell{display:flex;min-height:calc(100vh - 60px - 3px - 56px - 53px)}
+
+  /* ── SIDEBAR ── */
+  #sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--white);border-right:1px solid var(--border);position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto;display:flex;flex-direction:column}
+  #sidebar.hidden{display:none}
+  .sb-header{padding:20px 20px 12px;border-bottom:1px solid var(--border)}
+  .sb-title{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gray-400)}
+  .sb-actions{display:flex;gap:8px;margin-top:10px}
+  .sb-btn{cursor:pointer;background:none;border:1px solid var(--border);color:var(--gray-500);font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:4px 10px;font-family:'Open Sans',sans-serif;transition:border-color .15s,color .15s}
+  .sb-btn:hover{border-color:var(--gray-700);color:var(--black)}
+  .sb-btn.danger:hover{border-color:var(--red);color:var(--red)}
+  .sb-list{flex:1;overflow-y:auto;padding:8px 0}
+  .sb-project{border-bottom:1px solid var(--border)}
+  .sb-project-name{padding:10px 20px;font-size:12px;font-weight:700;color:var(--black);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;user-select:none}
+  .sb-project-name:hover{background:var(--gray-50)}
+  .sb-project-name .sb-chevron{font-size:10px;color:var(--gray-400);transition:transform .15s}
+  .sb-project.open .sb-chevron{transform:rotate(90deg)}
+  .sb-runs{display:none;background:var(--gray-50)}
+  .sb-project.open .sb-runs{display:block}
+  .sb-run{padding:8px 20px 8px 28px;cursor:pointer;border-top:1px solid var(--border);transition:background .1s}
+  .sb-run:hover{background:var(--green-light)}
+  .sb-run.active{background:var(--green-light);border-left:3px solid var(--green)}
+  .sb-run-type{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--green-dark)}
+  .sb-run-date{font-size:11px;color:var(--gray-500);margin-top:1px}
+  .sb-run-file{font-size:11px;color:var(--gray-700);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sb-empty{padding:24px 20px;font-size:12px;color:var(--gray-400);line-height:1.6;text-align:center}
+
+  /* ── MAIN AREA ── */
+  #mainArea{flex:1;min-width:0;display:flex;flex-direction:column}
+  main{padding:0;display:flex;flex-direction:column;gap:0;flex:1}
 
   /* ── STEP BLOCK ── */
-  .step{background:var(--white);border:1px solid var(--border);border-top:none;position:relative}
-  .step:first-child{border-top:1px solid var(--border)}
-  .step-inner{padding:32px 36px}
-  .step-num{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--green);margin-bottom:8px;display:block}
-  .step-title{font-size:18px;font-weight:700;color:var(--black);margin-bottom:4px}
-  .step-desc{font-size:13px;color:var(--gray-500);margin-bottom:24px;line-height:1.6;max-width:580px}
+  .step{background:var(--white);border-bottom:1px solid var(--border);position:relative}
+  .step-inner{padding:28px 40px}
+  .step-num{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--green);margin-bottom:6px;display:block}
+  .step-title{font-size:17px;font-weight:700;color:var(--black);margin-bottom:4px}
+  .step-desc{font-size:13px;color:var(--gray-500);margin-bottom:20px;line-height:1.6;max-width:640px}
+
+  /* ── PROJECT NAME INPUT ── */
+  .project-input-wrap{position:relative;max-width:520px}
+  .project-input-wrap label{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:8px}
+  #projectName{width:100%;padding:12px 16px;border:1px solid var(--border);background:var(--gray-50);font-family:'Open Sans',sans-serif;font-size:14px;color:var(--gray-900);outline:none;transition:border-color .15s}
+  #projectName:focus{border-color:var(--green);background:var(--white)}
+  #projectName::placeholder{color:var(--gray-400)}
 
   /* ── TYPE CARDS ── */
-  .type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--border)}
-  .type-card{cursor:pointer;background:var(--white);padding:28px 28px 26px;transition:background .15s;border-right:1px solid var(--border);position:relative;display:flex;flex-direction:column;gap:10px}
+  .type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--border);max-width:800px}
+  .type-card{cursor:pointer;background:var(--white);padding:24px 22px 20px;transition:background .15s;border-right:1px solid var(--border);position:relative;display:flex;flex-direction:column;gap:8px}
   .type-card:last-child{border-right:none}
   .type-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:transparent;transition:background .15s}
-  .type-card:hover:not(.disabled)::after{background:var(--green)}
-  .type-card.selected::after{background:var(--green)}
+  .type-card:hover:not(.disabled)::after,.type-card.selected::after{background:var(--green)}
   .type-card.selected{background:var(--green-light)}
-  .type-card.disabled{cursor:not-allowed;opacity:.45}
-  .tc-tag{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-400);margin-bottom:4px}
+  .type-card.disabled{cursor:not-allowed;opacity:.4}
+  .tc-tag{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-400)}
   .type-card.selected .tc-tag{color:var(--green-dark)}
-  .tc-name{font-size:14px;font-weight:700;color:var(--black);line-height:1.3}
-  .tc-desc{font-size:12px;color:var(--gray-500);line-height:1.6}
-  .tc-badge{display:inline-block;background:var(--gray-100);color:var(--gray-500);font-size:10px;font-weight:700;padding:3px 10px;letter-spacing:.06em;text-transform:uppercase;margin-top:4px;width:fit-content}
-  .tc-check{display:none;width:18px;height:18px;background:var(--green);border-radius:50%;align-items:center;justify-content:center;position:absolute;top:14px;right:14px}
+  .tc-name{font-size:13px;font-weight:700;color:var(--black);line-height:1.3}
+  .tc-desc{font-size:12px;color:var(--gray-500);line-height:1.55}
+  .tc-badge{display:inline-block;background:var(--gray-100);color:var(--gray-500);font-size:10px;font-weight:700;padding:2px 8px;letter-spacing:.06em;text-transform:uppercase;margin-top:2px}
+  .tc-check{display:none;width:16px;height:16px;background:var(--green);border-radius:50%;align-items:center;justify-content:center;position:absolute;top:12px;right:12px}
   .tc-check svg{display:block}
   .type-card.selected .tc-check{display:flex}
 
   /* ── DROP ZONE ── */
-  .drop{border:1px solid var(--border);padding:40px 24px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;background:var(--gray-50)}
+  .drop{border:1px solid var(--border);padding:36px 24px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;background:var(--gray-50)}
   .drop:hover,.drop.over{border-color:var(--green);background:var(--green-light)}
   .drop input[type=file]{display:none}
   .drop-title{font-size:14px;font-weight:600;color:var(--gray-700);margin-bottom:4px}
   .drop-sub{font-size:12px;color:var(--gray-400)}
-  .drop-cta{display:inline-block;margin-top:16px;padding:9px 20px;background:var(--black);color:var(--white);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:background .15s}
+  .drop-cta{display:inline-block;margin-top:14px;padding:8px 18px;background:var(--black);color:var(--white);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:background .15s}
   .drop:hover .drop-cta,.drop.over .drop-cta{background:var(--green-dark)}
-
-  /* ── FILE INFO ── */
-  #fileInfo{display:none;margin-top:16px;background:var(--gray-50);border:1px solid var(--border);padding:12px 18px;font-size:13px;align-items:center;gap:12px}
+  #fileInfo{display:none;margin-top:14px;background:var(--gray-50);border:1px solid var(--border);padding:10px 16px;font-size:13px;align-items:center;gap:12px}
   #fileInfo .fname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gray-900);font-weight:600}
-  #fileInfo .fremove{cursor:pointer;color:var(--gray-500);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;flex-shrink:0;text-decoration:none;transition:color .15s}
+  #fileInfo .fremove{cursor:pointer;color:var(--gray-500);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;flex-shrink:0;transition:color .15s}
   #fileInfo .fremove:hover{color:var(--red)}
-  #uploadStatus{margin-top:12px;font-size:13px;display:none;align-items:center;gap:10px}
+  #uploadStatus{margin-top:10px;font-size:13px;display:none;align-items:center;gap:10px}
 
-  /* ── STATUS INDICATORS ── */
+  /* ── STATUS ── */
   .spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
   @keyframes spin{to{transform:rotate(360deg)}}
   .check{width:18px;height:18px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -102,8 +125,8 @@
   .status-text.err{color:var(--red)}
 
   /* ── OPTION BUTTONS ── */
-  .opt-row{display:flex;gap:0;flex-wrap:wrap;border:1px solid var(--border)}
-  .opt-btn{cursor:pointer;padding:12px 24px;border:none;border-right:1px solid var(--border);background:var(--white);color:var(--gray-700);font-size:13px;font-weight:600;font-family:'Open Sans',sans-serif;transition:background .15s,color .15s;position:relative;letter-spacing:.01em}
+  .opt-row{display:flex;gap:0;flex-wrap:wrap;border:1px solid var(--border);max-width:640px}
+  .opt-btn{cursor:pointer;padding:11px 22px;border:none;border-right:1px solid var(--border);background:var(--white);color:var(--gray-700);font-size:13px;font-weight:600;font-family:'Open Sans',sans-serif;transition:background .15s,color .15s;position:relative}
   .opt-btn:last-child{border-right:none}
   .opt-btn:disabled{opacity:.35;cursor:not-allowed}
   .opt-btn::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:transparent;transition:background .15s}
@@ -112,59 +135,64 @@
   .opt-btn.selected{background:var(--green-light);color:var(--green-dark)}
 
   /* ── EXECUTE BUTTON ── */
-  #btnPlaybook{width:100%;padding:16px;font-size:13px;font-weight:700;border:none;cursor:pointer;background:var(--black);color:var(--white);letter-spacing:.1em;text-transform:uppercase;transition:background .15s;font-family:'Open Sans',sans-serif}
+  #btnPlaybook{width:100%;max-width:400px;padding:14px;font-size:13px;font-weight:700;border:none;cursor:pointer;background:var(--black);color:var(--white);letter-spacing:.1em;text-transform:uppercase;transition:background .15s;font-family:'Open Sans',sans-serif}
   #btnPlaybook:hover:not(:disabled){background:#222}
   #btnPlaybook:disabled{background:var(--gray-100);color:var(--gray-400);cursor:not-allowed}
 
   /* ── RESULTS ── */
   #resultCard{display:none}
-  .result-running{display:flex;align-items:center;gap:12px;color:var(--gray-700);font-size:13px;padding:24px 0}
-  .result-section-title{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--green-dark);margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--green)}
+  .result-running{display:flex;align-items:center;gap:12px;color:var(--gray-700);font-size:13px;padding:20px 0}
+  .result-section-label{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--green-dark);margin:28px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--green)}
+  .result-section-label:first-child{margin-top:0}
 
-  /* KPI summary bar */
-  .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));border:1px solid var(--border);margin-bottom:20px;background:var(--white)}
-  .kpi-card{padding:18px 20px;border-right:1px solid var(--border);position:relative}
-  .kpi-card:last-child{border-right:none}
-  .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
-  .kpi-card.kpi-total::before{background:var(--black)}
-  .kpi-card.kpi-si::before{background:#4a9b1a}
-  .kpi-card.kpi-no::before{background:#c00000}
-  .kpi-card.kpi-na::before{background:var(--gray-400)}
-  .kpi-card.kpi-parcial::before{background:#d97706}
-  .kpi-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-400);margin-bottom:6px}
-  .kpi-value{font-size:30px;font-weight:700;color:var(--black);line-height:1}
-  .kpi-pct{font-size:11px;color:var(--gray-500);margin-top:3px}
+  /* ── STAT CARDS (big numbers) ── */
+  .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));border:1px solid var(--border);background:var(--white);margin-bottom:28px}
+  .stat-card{padding:24px 20px 20px;border-right:1px solid var(--border);text-align:center;position:relative}
+  .stat-card:last-child{border-right:none}
+  .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+  .stat-card.sc-total::before{background:var(--black)}
+  .stat-card.sc-si::before{background:#4a9b1a}
+  .stat-card.sc-no::before{background:#c00000}
+  .stat-card.sc-na::before{background:var(--gray-400)}
+  .stat-card.sc-parcial::before{background:#d97706}
+  .stat-num{font-size:52px;font-weight:700;line-height:1;color:var(--black);font-variant-numeric:tabular-nums}
+  .stat-card.sc-si .stat-num{color:#3a6b0e}
+  .stat-card.sc-no .stat-num{color:#8b1a1a}
+  .stat-card.sc-na .stat-num{color:var(--gray-400)}
+  .stat-card.sc-parcial .stat-num{color:#7c5e04}
+  .stat-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-top:8px;line-height:1.4}
+  .stat-pct{font-size:12px;color:var(--gray-400);margin-top:4px}
 
-  /* Result body */
+  /* ── RESULT BODY ── */
   .result-body{font-size:14px;line-height:1.75;word-break:break-word;color:var(--gray-900)}
   .result-body h1,.result-body h2,.result-body h3{color:var(--black);font-weight:700}
-  .result-body h1{font-size:17px;margin:24px 0 10px;padding-bottom:8px;border-bottom:2px solid var(--green)}
-  .result-body h2{font-size:15px;margin:20px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
-  .result-body h3{font-size:13px;margin:16px 0 6px;color:var(--gray-700)}
-  .result-body p{margin:6px 0;color:var(--gray-700)}
+  .result-body h1{font-size:16px;margin:24px 0 10px;padding-bottom:8px;border-bottom:2px solid var(--green)}
+  .result-body h2{font-size:14px;margin:18px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+  .result-body h3{font-size:13px;margin:14px 0 5px;color:var(--gray-700)}
+  .result-body p{margin:5px 0;color:var(--gray-700)}
   .result-body strong{color:var(--black);font-weight:700}
-  .result-body ul,.result-body ol{margin:8px 0;padding-left:20px}
-  .result-body li{margin:3px 0;color:var(--gray-700)}
+  .result-body ul,.result-body ol{margin:6px 0;padding-left:20px}
+  .result-body li{margin:2px 0;color:var(--gray-700)}
   .result-body code{background:var(--gray-100);padding:2px 6px;font-family:monospace;font-size:12px;border:1px solid var(--border)}
-  .result-body hr{border:none;border-top:1px solid var(--border);margin:20px 0}
+  .result-body hr{border:none;border-top:1px solid var(--border);margin:18px 0}
 
-  /* Professional table */
-  .result-body .tbl-wrap{overflow-x:auto;margin:20px 0;border:1px solid var(--border)}
-  .result-body table{width:100%;border-collapse:collapse;font-size:13px;min-width:500px}
-  .result-body thead tr{background:var(--black)}
-  .result-body th{color:var(--white);padding:11px 16px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;white-space:nowrap;border-right:1px solid rgba(255,255,255,.1)}
-  .result-body th:last-child{border-right:none}
-  .result-body tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
-  .result-body tbody tr:hover{background:#f7faf0}
-  .result-body tbody tr:nth-child(even){background:var(--gray-50)}
-  .result-body tbody tr:nth-child(even):hover{background:#f0f7e2}
-  .result-body td{padding:10px 16px;vertical-align:middle;border-right:1px solid var(--border);line-height:1.5}
-  .result-body td:last-child{border-right:none}
-  .result-body td:first-child{font-weight:600;color:var(--black)}
+  /* ── TABLE ── */
+  .tbl-wrap{overflow-x:auto;margin:16px 0;border:1px solid var(--border)}
+  .tbl-wrap table{width:100%;border-collapse:collapse;font-size:13px;min-width:480px}
+  .tbl-wrap thead tr{background:var(--black)}
+  .tbl-wrap th{color:var(--white);padding:10px 14px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;white-space:nowrap;border-right:1px solid rgba(255,255,255,.1)}
+  .tbl-wrap th:last-child{border-right:none}
+  .tbl-wrap tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+  .tbl-wrap tbody tr:hover{background:#f5f9ec}
+  .tbl-wrap tbody tr:nth-child(even){background:var(--gray-50)}
+  .tbl-wrap tbody tr:nth-child(even):hover{background:#eef6dc}
+  .tbl-wrap td{padding:9px 14px;vertical-align:middle;border-right:1px solid var(--border);line-height:1.45}
+  .tbl-wrap td:last-child{border-right:none}
+  .tbl-wrap td:first-child{font-weight:600;color:var(--black);white-space:nowrap}
 
-  /* Status badges */
-  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
-  .badge::before{content:'';width:6px;height:6px;border-radius:50%;flex-shrink:0}
+  /* ── STATUS BADGES ── */
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap}
+  .badge::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}
   .badge-si{background:#e8f5d0;color:#3a6b0e}.badge-si::before{background:#4a9b1a}
   .badge-no{background:#fde8e8;color:#8b1a1a}.badge-no::before{background:#c00000}
   .badge-na{background:var(--gray-100);color:var(--gray-500)}.badge-na::before{background:var(--gray-400)}
@@ -172,43 +200,54 @@
   .badge-alto{background:#fde8e8;color:#8b1a1a}.badge-alto::before{background:#c00000}
   .badge-medio{background:#fef3cd;color:#7c5e04}.badge-medio::before{background:#d97706}
   .badge-bajo{background:#e8f5d0;color:#3a6b0e}.badge-bajo::before{background:#4a9b1a}
+  .badge-aplicable{background:#e8f5d0;color:#3a6b0e}.badge-aplicable::before{background:#4a9b1a}
 
-  /* ── GHOST / RESET BUTTON ── */
-  .btn-ghost{cursor:pointer;background:var(--white);border:1px solid var(--border);color:var(--gray-700);padding:9px 20px;font-size:12px;font-weight:700;font-family:'Open Sans',sans-serif;letter-spacing:.06em;text-transform:uppercase;transition:border-color .15s,color .15s}
+  /* ── ACTION BUTTONS ── */
+  .btn-ghost{cursor:pointer;background:var(--white);border:1px solid var(--border);color:var(--gray-700);padding:8px 18px;font-size:12px;font-weight:700;font-family:'Open Sans',sans-serif;letter-spacing:.06em;text-transform:uppercase;transition:border-color .15s,color .15s}
   .btn-ghost:hover{border-color:var(--gray-700);color:var(--black)}
+  .btn-green{cursor:pointer;background:var(--green);border:none;color:var(--white);padding:9px 22px;font-size:12px;font-weight:700;font-family:'Open Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;transition:background .15s}
+  .btn-green:hover{background:var(--green-dark)}
+  .btn-green:disabled{background:var(--gray-200);cursor:not-allowed}
 
   /* ── DEBUG PANELS ── */
-  #logPanel{max-width:960px;margin:0 auto 12px;padding:0 40px}
-  #logPanel details{background:var(--gray-900);border:1px solid #2a2a2a}
-  #logPanel summary{padding:10px 14px;font-size:11px;font-weight:700;color:#86BC25;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;user-select:none;font-family:'Open Sans',sans-serif}
-  #logEntries{padding:0 14px 14px;display:flex;flex-direction:column;gap:10px;max-height:380px;overflow-y:auto}
+  .debug-wrap{padding:16px 32px 0}
+  .debug-wrap details{background:var(--gray-900);border:1px solid #2a2a2a;margin-bottom:12px}
+  .debug-wrap summary{padding:9px 14px;font-size:11px;font-weight:700;color:#86BC25;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;user-select:none;font-family:'Open Sans',sans-serif}
+  #logEntries{padding:0 14px 12px;display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto}
   .log-entry{font-size:11px;font-family:monospace;overflow:hidden}
-  .log-entry .log-head{padding:6px 10px;display:flex;gap:8px;align-items:baseline}
+  .log-entry .log-head{padding:5px 10px;display:flex;gap:8px;align-items:baseline}
   .log-entry .log-method{font-weight:700;color:#fff}
   .log-entry .log-url{color:#86BC25;word-break:break-all}
   .log-entry .log-time{margin-left:auto;color:#555;white-space:nowrap}
-  .log-entry .log-body{padding:6px 10px;border-top:1px solid rgba(255,255,255,.06);white-space:pre-wrap;word-break:break-all;line-height:1.5;color:#aaa;max-height:140px;overflow-y:auto}
+  .log-entry .log-body{padding:5px 10px;border-top:1px solid rgba(255,255,255,.06);white-space:pre-wrap;word-break:break-all;line-height:1.5;color:#aaa;max-height:120px;overflow-y:auto}
   .log-req{background:#111}.log-res-ok{background:#182a08}
   .log-res-err,.log-net-err{background:#2a0808}
   .log-res-err .log-url,.log-net-err .log-url{color:#f87171}
-  #btnClearLog{float:right;font-size:11px;background:transparent;border:none;color:#555;cursor:pointer;padding:2px 6px}
+  #btnClearLog{float:right;font-size:10px;background:transparent;border:none;color:#555;cursor:pointer;padding:1px 4px}
   #btnClearLog:hover{color:#f87171}
-  #errorPanel{max-width:960px;margin:0 auto 40px;padding:0 40px}
-  #errorPanel details{background:#180808;border:1px solid #2e1010}
-  #errorPanel summary{padding:10px 14px;font-size:11px;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;user-select:none;font-family:'Open Sans',sans-serif}
-  #errorEntries{padding:0 14px 14px;display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto}
-  .err-entry{font-size:11px;font-family:monospace;background:#200a0a;border:1px solid #3a1212;padding:8px 10px}
-  .err-entry .err-time{color:#6b4040;margin-right:8px}
-  .err-entry .err-type{font-weight:700;color:#f87171;margin-right:6px}
+  #errorEntries{padding:0 14px 12px;display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto}
+  .err-entry{font-size:11px;font-family:monospace;background:#200a0a;border:1px solid #3a1212;padding:7px 10px}
+  .err-entry .err-time{color:#6b4040;margin-right:6px}
+  .err-entry .err-type{font-weight:700;color:#f87171;margin-right:5px}
   .err-entry .err-msg{color:#fca5a5;word-break:break-all;white-space:pre-wrap}
-  .err-entry .err-stack{color:#7a4444;margin-top:4px;white-space:pre-wrap;font-size:10px;max-height:80px;overflow-y:auto}
-  #btnClearErrors{float:right;font-size:11px;background:transparent;border:none;color:#6b4040;cursor:pointer;padding:2px 6px}
+  .err-entry .err-stack{color:#7a4444;margin-top:3px;white-space:pre-wrap;font-size:10px;max-height:70px;overflow-y:auto}
+  #btnClearErrors{float:right;font-size:10px;background:transparent;border:none;color:#6b4040;cursor:pointer;padding:1px 4px}
   #btnClearErrors:hover{color:#f87171}
-  #errorBadge{display:none;background:#C00000;color:#fff;border-radius:999px;font-size:10px;padding:1px 6px;margin-left:6px;font-weight:700}
+  #errorBadge{display:none;background:#C00000;color:#fff;border-radius:999px;font-size:10px;padding:1px 5px;margin-left:5px;font-weight:700}
+  .debug-wrap details[open] summary{border-bottom:1px solid #333}
 
   /* ── FOOTER ── */
-  footer{background:var(--black);color:rgba(255,255,255,.35);text-align:center;font-size:11px;padding:22px 40px;letter-spacing:.04em}
-  footer strong{color:rgba(255,255,255,.6);font-weight:600}
+  footer{background:var(--black);color:rgba(255,255,255,.3);text-align:center;font-size:11px;padding:18px 32px;letter-spacing:.04em}
+  footer strong{color:rgba(255,255,255,.55);font-weight:600}
+
+  /* ── HISTORY RESULT VIEW ── */
+  #historyView{display:none;padding:28px 40px;background:var(--white);border-bottom:1px solid var(--border)}
+  .hv-back{cursor:pointer;background:none;border:none;color:var(--gray-500);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-family:'Open Sans',sans-serif;display:flex;align-items:center;gap:6px;margin-bottom:20px;padding:0;transition:color .15s}
+  .hv-back:hover{color:var(--black)}
+  .hv-meta{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+  .hv-meta-item{display:flex;flex-direction:column;gap:2px}
+  .hv-meta-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-400)}
+  .hv-meta-val{font-size:13px;font-weight:600;color:var(--black)}
 </style>
 </head>
 <body>
@@ -229,130 +268,163 @@
 <div class="hero">
   <div class="hero-label">Solución de análisis automatizado</div>
   <h1>Análisis de <strong>Arquitectura de Seguridad</strong></h1>
-  <p>Selecciona el tipo de análisis, adjunta la documentación y obtén recomendaciones automáticas basadas en inteligencia artificial.</p>
+  <p>Selecciona el tipo de análisis, adjunta la documentación y obtén recomendaciones basadas en inteligencia artificial.</p>
 </div>
 
-<main>
+<div id="appShell">
 
-  <!-- STEP 1 -->
-  <div class="step">
-    <div class="step-inner">
-      <span class="step-num">Paso 1 — Tipo de análisis</span>
-      <div class="step-title">Seleccionar modalidad</div>
-      <div class="step-desc">Elige el tipo de análisis que deseas realizar sobre la documentación aportada.</div>
-      <div class="type-grid">
+  <!-- SIDEBAR -->
+  <div id="sidebar" class="hidden">
+    <div class="sb-header">
+      <div class="sb-title">Proyectos guardados</div>
+      <div class="sb-actions">
+        <button class="sb-btn" id="btnExportHistory">Exportar</button>
+        <button class="sb-btn danger" id="btnClearHistory">Borrar todo</button>
+      </div>
+    </div>
+    <div class="sb-list" id="sbList"></div>
+  </div>
 
-        <div class="type-card" id="typeArquitectura" onclick="selectType('arquitectura')">
-          <div class="tc-check">
-            <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <!-- MAIN AREA -->
+  <div id="mainArea">
+    <main>
+
+      <!-- HISTORY DETAIL VIEW (shown when clicking a sidebar entry) -->
+      <div id="historyView">
+        <button class="hv-back" id="btnHvBack">&#8592; Volver al análisis</button>
+        <div class="hv-meta" id="hvMeta"></div>
+        <div id="hvContent"></div>
+        <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap">
+          <button class="btn-green" id="btnHvDownload" onclick="downloadWordFromHistory()">Descargar informe Word</button>
+        </div>
+      </div>
+
+      <!-- WIZARD (hidden when history view is open) -->
+      <div id="wizardView">
+
+        <!-- STEP 0: PROJECT NAME -->
+        <div class="step">
+          <div class="step-inner">
+            <span class="step-num">Identificación del proyecto</span>
+            <div class="step-title">Nombre del proyecto</div>
+            <div class="step-desc">Asigna un nombre para identificar este análisis en el historial.</div>
+            <div class="project-input-wrap">
+              <label for="projectName">Nombre del proyecto o cliente</label>
+              <input type="text" id="projectName" placeholder="Ej. NovaBank Engage — Revisión inicial" maxlength="80"/>
+            </div>
           </div>
-          <div class="tc-tag">Arquitectura</div>
-          <div class="tc-name">Análisis de arquitectura</div>
-          <div class="tc-desc">Revisión de diseño y marcos de control de seguridad sobre documentación de arquitectura de sistemas.</div>
         </div>
 
-        <div class="type-card" id="typeFormulario" onclick="selectType('formulario')">
-          <div class="tc-check">
-            <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <!-- STEP 1: ANALYSIS TYPE -->
+        <div class="step">
+          <div class="step-inner">
+            <span class="step-num">Paso 1 — Tipo de análisis</span>
+            <div class="step-title">Seleccionar modalidad</div>
+            <div class="step-desc">Elige el tipo de análisis que deseas realizar sobre la documentación aportada.</div>
+            <div class="type-grid">
+              <div class="type-card" id="typeArquitectura" onclick="selectType('arquitectura')">
+                <div class="tc-check"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                <div class="tc-tag">Arquitectura</div>
+                <div class="tc-name">Análisis de arquitectura</div>
+                <div class="tc-desc">Revisión de diseño y marcos de control de seguridad sobre documentación de arquitectura de sistemas.</div>
+              </div>
+              <div class="type-card" id="typeFormulario" onclick="selectType('formulario')">
+                <div class="tc-check"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                <div class="tc-tag">Formulario</div>
+                <div class="tc-name">Análisis de formulario</div>
+                <div class="tc-desc">Revisión automatizada de cuestionarios y formularios de evaluación de seguridad.</div>
+              </div>
+              <div class="type-card disabled" id="typeEvidencias">
+                <div class="tc-tag">Evidencias</div>
+                <div class="tc-name">Análisis de evidencias</div>
+                <div class="tc-desc">Revisión y validación de evidencias de cumplimiento normativo y seguridad.</div>
+                <div class="tc-badge">Próximamente</div>
+              </div>
+            </div>
           </div>
-          <div class="tc-tag">Formulario</div>
-          <div class="tc-name">Análisis de formulario</div>
-          <div class="tc-desc">Revisión automatizada de cuestionarios y formularios de evaluación de seguridad.</div>
         </div>
 
-        <div class="type-card disabled" id="typeEvidencias">
-          <div class="tc-tag">Evidencias</div>
-          <div class="tc-name">Análisis de evidencias</div>
-          <div class="tc-desc">Revisión y validación de evidencias de cumplimiento normativo y seguridad.</div>
-          <div class="tc-badge">Próximamente</div>
+        <!-- STEP 2: FILE UPLOAD -->
+        <div class="step" id="stepUpload" style="display:none">
+          <div class="step-inner">
+            <span class="step-num">Paso 2 — Documentación</span>
+            <div class="step-title">Adjuntar documento</div>
+            <div class="step-desc" id="uploadDesc">Adjunta el documento a analizar. Formatos admitidos: .doc, .docx, .pdf, .md</div>
+            <div class="drop" id="dropZone">
+              <div class="drop-title">Arrastra el documento aquí</div>
+              <div class="drop-sub">Formatos admitidos: .doc, .docx, .pdf, .md</div>
+              <div class="drop-cta">Seleccionar archivo</div>
+              <input type="file" id="fileInput" accept=".doc,.docx,.pdf,.md"/>
+            </div>
+            <div id="fileInfo" style="display:none">
+              <span class="fname" id="fileName"></span>
+              <a class="fremove" id="btnRemove">Eliminar</a>
+            </div>
+            <div id="uploadStatus" style="display:none"></div>
+          </div>
         </div>
 
-      </div>
+        <!-- STEP 3: OPTIONS -->
+        <div class="step" id="stepOpciones" style="display:none">
+          <div class="step-inner">
+            <span class="step-num">Paso 3 — Configuración</span>
+            <div class="step-title">Módulos de análisis</div>
+            <div class="step-desc">Selecciona los módulos a incluir. El módulo de marcos de controles está siempre activo.</div>
+            <div class="opt-row">
+              <button class="opt-btn selected" id="optMarcos" disabled>Marcos de controles</button>
+              <button class="opt-btn" id="optArqPub" disabled onclick="toggleOpt(this)">Arquitectura de publicación</button>
+              <button class="opt-btn" id="optArqNav" disabled onclick="toggleOpt(this)">Arquitectura de navegación</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP EXECUTE -->
+        <div class="step" id="stepEjecutar" style="display:none">
+          <div class="step-inner">
+            <span class="step-num" id="executeStepLabel">Paso 4 — Ejecución</span>
+            <div class="step-title">Iniciar análisis</div>
+            <div class="step-desc">El proceso puede tardar varios minutos en función de la complejidad del documento.</div>
+            <button id="btnPlaybook" disabled>Iniciar análisis</button>
+            <div id="playbookStatus" style="margin-top:10px;font-size:13px;color:var(--gray-500);min-height:18px"></div>
+          </div>
+        </div>
+
+        <!-- RESULTS -->
+        <div class="step" id="resultCard" style="display:none">
+          <div class="step-inner">
+            <span class="step-num">Resultados</span>
+            <div class="step-title">Informe de análisis</div>
+            <div id="resultSpinner" class="result-running" style="display:none">
+              <div class="spinner"></div>
+              <span>Procesando análisis. Este proceso puede tardar varios minutos.</span>
+            </div>
+            <div id="resultBox" style="display:none"></div>
+            <div style="margin-top:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+              <button class="btn-green" id="btnDownloadWord" style="display:none" onclick="downloadWordReport()">Descargar informe Word</button>
+              <button class="btn-ghost" id="btnReset">Nuevo análisis</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /wizardView -->
+    </main>
+
+    <!-- DEBUG -->
+    <div class="debug-wrap">
+      <details>
+        <summary>Log de llamadas API <button id="btnClearLog" onclick="event.stopPropagation();document.getElementById('logEntries').innerHTML=''">Limpiar</button></summary>
+        <div id="logEntries"></div>
+      </details>
+      <details id="errorDetails">
+        <summary>Consola de errores <span id="errorBadge">0</span>
+          <button id="btnClearErrors" onclick="event.stopPropagation();document.getElementById('errorEntries').innerHTML='';document.getElementById('errorBadge').style.display='none';document.getElementById('errorBadge').textContent='0'">Limpiar</button>
+        </summary>
+        <div id="errorEntries"><span style="color:#4a3030;font-size:11px;font-family:monospace;padding:4px 0;display:block">Sin errores registrados.</span></div>
+      </details>
     </div>
-  </div>
 
-  <!-- STEP 2: FILE UPLOAD -->
-  <div class="step" id="stepUpload" style="display:none">
-    <div class="step-inner">
-      <span class="step-num">Paso 2 — Documentación</span>
-      <div class="step-title">Adjuntar documento</div>
-      <div class="step-desc" id="uploadDesc">Adjunta el documento a analizar. Formatos admitidos: .doc, .docx, .pdf, .md</div>
-
-      <div class="drop" id="dropZone">
-        <div class="drop-title">Arrastra el documento aquí</div>
-        <div class="drop-sub">Formatos admitidos: .doc, .docx, .pdf, .md</div>
-        <div class="drop-cta">Seleccionar archivo</div>
-        <input type="file" id="fileInput" accept=".doc,.docx,.pdf,.md"/>
-      </div>
-
-      <div id="fileInfo" style="display:none">
-        <span class="fname" id="fileName"></span>
-        <a class="fremove" id="btnRemove">Eliminar</a>
-      </div>
-
-      <div id="uploadStatus" style="display:none"></div>
-    </div>
-  </div>
-
-  <!-- STEP 3: OPTIONS (arquitectura only) -->
-  <div class="step" id="stepOpciones" style="display:none">
-    <div class="step-inner">
-      <span class="step-num">Paso 3 — Configuración</span>
-      <div class="step-title">Módulos de análisis</div>
-      <div class="step-desc">Selecciona los módulos a incluir en el análisis. El módulo de marcos de controles está siempre activo.</div>
-      <div class="opt-row">
-        <button class="opt-btn selected" id="optMarcos" disabled>Marcos de controles</button>
-        <button class="opt-btn" id="optArqPub" disabled onclick="toggleOpt(this)">Arquitectura de publicación</button>
-        <button class="opt-btn" id="optArqNav" disabled onclick="toggleOpt(this)">Arquitectura de navegación</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- STEP EXECUTE -->
-  <div class="step" id="stepEjecutar" style="display:none">
-    <div class="step-inner">
-      <span class="step-num" id="executeStepLabel">Paso 4 — Ejecución</span>
-      <div class="step-title">Iniciar análisis</div>
-      <div class="step-desc">El proceso de análisis puede tardar varios minutos en función de la complejidad del documento.</div>
-      <button id="btnPlaybook" disabled>Iniciar análisis</button>
-      <div id="playbookStatus" style="margin-top:12px;font-size:13px;color:var(--gray-500);min-height:18px"></div>
-    </div>
-  </div>
-
-  <!-- RESULTS -->
-  <div class="step" id="resultCard" style="display:none">
-    <div class="step-inner">
-      <span class="step-num">Resultados</span>
-      <div class="step-title">Informe de análisis</div>
-      <div id="resultSpinner" class="result-running" style="display:none">
-        <div class="spinner"></div>
-        <span>Procesando análisis. Este proceso puede tardar varios minutos.</span>
-      </div>
-      <div class="result-body" id="resultBox" style="display:none"></div>
-      <div style="margin-top:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-        <button id="btnDownloadWord" style="display:none;cursor:pointer;background:var(--green);border:none;color:#fff;padding:10px 24px;font-size:12px;font-weight:700;font-family:'Open Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;transition:background .15s" onclick="downloadWordReport()">Descargar informe Word</button>
-        <button class="btn-ghost" id="btnReset">Nuevo análisis</button>
-      </div>
-    </div>
-  </div>
-
-</main>
-
-<div id="logPanel">
-  <details>
-    <summary>Log de llamadas API <button id="btnClearLog" onclick="event.stopPropagation();document.getElementById('logEntries').innerHTML=''">Limpiar</button></summary>
-    <div id="logEntries"></div>
-  </details>
-</div>
-
-<div id="errorPanel">
-  <details id="errorDetails">
-    <summary>Consola de errores <span id="errorBadge">0</span>
-      <button id="btnClearErrors" onclick="event.stopPropagation();document.getElementById('errorEntries').innerHTML='';document.getElementById('errorBadge').style.display='none';document.getElementById('errorBadge').textContent='0'">Limpiar</button>
-    </summary>
-    <div id="errorEntries"><span style="color:#4a3030;font-size:11px;font-family:monospace;padding:4px 0;display:block">Sin errores registrados.</span></div>
-  </details>
-</div>
+  </div><!-- /mainArea -->
+</div><!-- /appShell -->
 
 <footer>
   &copy; 2025 <strong>Deloitte.</strong> &nbsp;&nbsp;ArchIA — Security Architecture Review &nbsp;&nbsp;Uso interno
