@@ -46,6 +46,23 @@
 
   function authHeaders() { return { "Authorization": "Bearer " + API_TOKEN }; }
 
+  // ---- Upload status helpers ----
+  function setUploadStatus(html) {
+    var el = $("uploadStatus");
+    if (!el) return;
+    el.style.display = "flex";
+    el.innerHTML = html;
+  }
+  function spinner(msg) {
+    return '<div class="spinner"></div><span class="status-text">' + escHtml(msg) + '</span>';
+  }
+  function checkIcon(msg) {
+    return '<div class="check"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="status-text ok">' + escHtml(msg) + '</span>';
+  }
+  function errorIcon(msg) {
+    return '<div class="x-icon" style="font-size:11px;color:#fff;font-weight:700">✕</div><span class="status-text err">' + escHtml(msg) + '</span>';
+  }
+
   // ---- API Logger ----
   function log(type, data) {
     const entries = $("logEntries");
