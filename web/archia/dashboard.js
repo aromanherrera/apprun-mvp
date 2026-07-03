@@ -105,21 +105,6 @@
     }
   }
 
-  // ---- Test connection ----
-  $("btnTestConn").addEventListener("click", async function() {
-    const el = $("connResult");
-    el.style.color = "var(--gray-700)";
-    el.textContent = "Verificando…";
-    try {
-      const r = await apiFetch(API_BASE + "/datasource/listfiles/", { headers: authHeaders() });
-      el.style.color = "var(--green-dark)";
-      el.textContent = "✓ API accesible (HTTP " + r.status + ")";
-    } catch(e) {
-      el.style.color = "var(--red)";
-      el.textContent = "✗ No se puede conectar";
-    }
-  });
-
   // ---- Type selection ----
   window.selectType = function(type) {
     // Clear previous selection
@@ -308,6 +293,7 @@
     });
     $("resultSpinner").style.display = "none";
     $("resultBox").style.display = "block";
+    $("resultBox").className = "result-body";
     $("resultBox").innerHTML = html;
   }
 

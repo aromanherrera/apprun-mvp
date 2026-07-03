@@ -6,18 +6,20 @@
 <title>ArchIA — Security Architecture Review | Deloitte</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,600;0,700;1,300&display=swap" rel="stylesheet"/>
 <style>
   :root {
     --green: #86BC25;
     --green-dark: #6a9a1a;
-    --green-light: #f2f7e8;
+    --green-light: #f4f9eb;
     --black: #000000;
     --gray-900: #1a1a1a;
     --gray-700: #53565A;
+    --gray-500: #75787B;
     --gray-400: #97999B;
+    --gray-200: #D0D0CE;
     --gray-100: #F2F2F2;
-    --gray-50: #FAFAFA;
+    --gray-50: #F8F8F8;
     --white: #FFFFFF;
     --red: #C00000;
     --border: #E0E0E0;
@@ -26,136 +28,148 @@
   body{font-family:'Open Sans',system-ui,sans-serif;background:var(--gray-50);color:var(--gray-900);font-size:14px;line-height:1.6}
 
   /* ── HEADER ── */
-  header{background:var(--black);height:64px;display:flex;align-items:center;padding:0 32px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.4)}
-  .hd-logo{display:flex;align-items:baseline;text-decoration:none}
-  .hd-logo-text{font-weight:700;font-size:22px;color:var(--white);letter-spacing:-.3px}
-  .hd-logo-dot{color:var(--green);font-size:28px;line-height:1;margin-left:1px}
-  .hd-divider{width:1px;height:28px;background:#333;margin:0 24px}
-  .hd-product{font-size:15px;font-weight:600;color:var(--white)}
-  .hd-tagline{font-size:11px;color:var(--gray-400);margin-left:10px;font-weight:300;letter-spacing:.04em;text-transform:uppercase}
-  nav{margin-left:auto;display:flex;gap:4px}
-  nav a{color:var(--gray-400);font-size:13px;font-weight:600;text-decoration:none;padding:6px 14px;border-radius:4px;transition:color .15s,background .15s}
-  nav a:hover{color:var(--white);background:rgba(255,255,255,.08)}
-  nav a.active{color:var(--green);border-bottom:2px solid var(--green);border-radius:0;padding-bottom:4px}
+  header{background:var(--black);height:60px;display:flex;align-items:center;padding:0 40px;position:sticky;top:0;z-index:100}
+  .hd-logo{display:flex;align-items:baseline;text-decoration:none;gap:1px}
+  .hd-logo-text{font-weight:700;font-size:20px;color:var(--white);letter-spacing:-.2px}
+  .hd-logo-dot{color:var(--green);font-size:24px;line-height:1}
+  .hd-sep{width:1px;height:24px;background:rgba(255,255,255,.15);margin:0 28px}
+  .hd-product{font-size:14px;font-weight:600;color:var(--white);letter-spacing:.01em}
+  .hd-sub{font-size:11px;color:var(--gray-400);margin-left:10px;font-weight:300;letter-spacing:.08em;text-transform:uppercase}
+  nav{margin-left:auto;display:flex;gap:2px}
+  nav a{color:rgba(255,255,255,.55);font-size:12px;font-weight:600;text-decoration:none;padding:6px 16px;letter-spacing:.03em;text-transform:uppercase;border-bottom:2px solid transparent;transition:color .15s,border-color .15s}
+  nav a:hover{color:var(--white)}
+  nav a.active{color:var(--white);border-bottom-color:var(--green)}
 
-  /* ── HERO ── */
-  .hero{background:var(--black);padding:28px 32px 24px;border-bottom:3px solid var(--green)}
-  .hero h1{font-size:24px;font-weight:300;color:var(--white)}
-  .hero h1 strong{font-weight:700;color:var(--green)}
-  .hero p{font-size:13px;color:var(--gray-400);margin-top:6px;font-weight:300}
+  /* ── HERO BAND ── */
+  .hero{background:var(--black);padding:36px 40px 32px;border-bottom:3px solid var(--green)}
+  .hero-label{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--green);margin-bottom:10px}
+  .hero h1{font-size:26px;font-weight:300;color:var(--white);line-height:1.25}
+  .hero h1 strong{font-weight:700}
+  .hero p{font-size:13px;color:rgba(255,255,255,.45);margin-top:8px;font-weight:300;max-width:560px;line-height:1.7}
 
-  /* ── MAIN ── */
-  main{max-width:940px;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;gap:20px}
+  /* ── LAYOUT ── */
+  main{max-width:960px;margin:0 auto;padding:36px 40px;display:flex;flex-direction:column;gap:2px}
 
-  /* ── CARDS ── */
-  .card{background:var(--white);border:1px solid var(--border);border-radius:2px;padding:28px 32px;box-shadow:0 1px 4px rgba(0,0,0,.06);position:relative}
-  .card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--green);border-radius:2px 0 0 2px}
-  .step-label{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--green);margin-bottom:6px}
-  .card-title{font-size:17px;font-weight:700;color:var(--gray-900);margin-bottom:4px}
-  .card-sub{font-size:13px;color:var(--gray-700);margin-bottom:20px}
+  /* ── STEP BLOCK ── */
+  .step{background:var(--white);border:1px solid var(--border);border-top:none;position:relative}
+  .step:first-child{border-top:1px solid var(--border)}
+  .step-inner{padding:32px 36px}
+  .step-num{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--green);margin-bottom:8px;display:block}
+  .step-title{font-size:18px;font-weight:700;color:var(--black);margin-bottom:4px}
+  .step-desc{font-size:13px;color:var(--gray-500);margin-bottom:24px;line-height:1.6;max-width:580px}
 
-  /* ── ANALYSIS TYPE SELECTOR ── */
-  .type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-  .type-card{cursor:pointer;background:var(--white);border:2px solid var(--border);border-radius:2px;padding:28px 22px;text-align:center;transition:border-color .15s,box-shadow .15s,background .15s;display:flex;flex-direction:column;align-items:center;gap:14px;position:relative}
-  .type-card:hover:not(.disabled){border-color:var(--green);box-shadow:0 4px 16px rgba(134,188,37,.15)}
-  .type-card.selected{border-color:var(--green);background:var(--green-light);box-shadow:0 4px 16px rgba(134,188,37,.2)}
-  .type-card.disabled{cursor:not-allowed;opacity:.5}
-  .type-card .tc-icon{font-size:38px;line-height:1}
-  .type-card .tc-name{font-size:14px;font-weight:700;color:var(--gray-900);line-height:1.3}
-  .type-card .tc-desc{font-size:12px;color:var(--gray-700);line-height:1.5}
-  .type-card.selected .tc-name{color:var(--green-dark)}
-  .tc-badge{position:absolute;top:10px;right:10px;background:var(--gray-100);color:var(--gray-700);font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;letter-spacing:.04em;text-transform:uppercase}
-  .type-card.selected::after{content:'✓';position:absolute;top:10px;left:12px;width:20px;height:20px;background:var(--green);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;line-height:20px;text-align:center}
+  /* ── TYPE CARDS ── */
+  .type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--border)}
+  .type-card{cursor:pointer;background:var(--white);padding:28px 28px 26px;transition:background .15s;border-right:1px solid var(--border);position:relative;display:flex;flex-direction:column;gap:10px}
+  .type-card:last-child{border-right:none}
+  .type-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:transparent;transition:background .15s}
+  .type-card:hover:not(.disabled)::after{background:var(--green)}
+  .type-card.selected::after{background:var(--green)}
+  .type-card.selected{background:var(--green-light)}
+  .type-card.disabled{cursor:not-allowed;opacity:.45}
+  .tc-tag{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-400);margin-bottom:4px}
+  .type-card.selected .tc-tag{color:var(--green-dark)}
+  .tc-name{font-size:14px;font-weight:700;color:var(--black);line-height:1.3}
+  .tc-desc{font-size:12px;color:var(--gray-500);line-height:1.6}
+  .tc-badge{display:inline-block;background:var(--gray-100);color:var(--gray-500);font-size:10px;font-weight:700;padding:3px 10px;letter-spacing:.06em;text-transform:uppercase;margin-top:4px;width:fit-content}
+  .tc-check{display:none;width:18px;height:18px;background:var(--green);border-radius:50%;align-items:center;justify-content:center;position:absolute;top:14px;right:14px}
+  .tc-check svg{display:block}
+  .type-card.selected .tc-check{display:flex}
 
   /* ── DROP ZONE ── */
-  .drop{border:2px dashed var(--border);border-radius:2px;padding:36px 24px;text-align:center;color:var(--gray-400);font-size:14px;cursor:pointer;transition:border-color .15s,background .15s}
-  .drop:hover,.drop.over{border-color:var(--green);background:var(--green-light);color:var(--gray-700)}
+  .drop{border:1px solid var(--border);padding:40px 24px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;background:var(--gray-50)}
+  .drop:hover,.drop.over{border-color:var(--green);background:var(--green-light)}
   .drop input[type=file]{display:none}
-  .drop-icon{font-size:36px;display:block;margin-bottom:12px;opacity:.5}
-  .drop-hint{font-size:12px;color:var(--gray-400);margin-top:6px}
-  #fileInfo{display:none;margin-top:16px;background:var(--gray-50);border:1px solid var(--border);border-radius:2px;padding:12px 16px;font-size:13px;align-items:center;gap:10px}
-  #fileInfo .fname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gray-900);font-weight:600}
-  #fileInfo .fremove{cursor:pointer;color:var(--red);font-size:12px;flex-shrink:0;font-weight:600}
-  #uploadStatus{margin-top:14px;font-size:13px;display:none;align-items:center;gap:10px}
+  .drop-title{font-size:14px;font-weight:600;color:var(--gray-700);margin-bottom:4px}
+  .drop-sub{font-size:12px;color:var(--gray-400)}
+  .drop-cta{display:inline-block;margin-top:16px;padding:9px 20px;background:var(--black);color:var(--white);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:background .15s}
+  .drop:hover .drop-cta,.drop.over .drop-cta{background:var(--green-dark)}
 
-  /* ── STATUS ── */
-  .spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+  /* ── FILE INFO ── */
+  #fileInfo{display:none;margin-top:16px;background:var(--gray-50);border:1px solid var(--border);padding:12px 18px;font-size:13px;align-items:center;gap:12px}
+  #fileInfo .fname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gray-900);font-weight:600}
+  #fileInfo .fremove{cursor:pointer;color:var(--gray-500);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;flex-shrink:0;text-decoration:none;transition:color .15s}
+  #fileInfo .fremove:hover{color:var(--red)}
+  #uploadStatus{margin-top:12px;font-size:13px;display:none;align-items:center;gap:10px}
+
+  /* ── STATUS INDICATORS ── */
+  .spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
   @keyframes spin{to{transform:rotate(360deg)}}
-  .check{width:20px;height:20px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;color:#fff}
-  .x-icon{width:20px;height:20px;background:var(--red);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;color:#fff}
-  .status-text{color:var(--gray-700)}
+  .check{width:18px;height:18px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .x-icon{width:18px;height:18px;background:var(--red);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .status-text{color:var(--gray-700);font-size:13px}
   .status-text.ok{color:var(--green-dark);font-weight:600}
   .status-text.err{color:var(--red)}
 
   /* ── OPTION BUTTONS ── */
-  .opt-btn{cursor:pointer;padding:11px 22px;border-radius:2px;border:1.5px solid var(--border);background:var(--white);color:var(--gray-700);font-size:13px;font-weight:600;font-family:'Open Sans',sans-serif;transition:all .15s}
+  .opt-row{display:flex;gap:0;flex-wrap:wrap;border:1px solid var(--border)}
+  .opt-btn{cursor:pointer;padding:12px 24px;border:none;border-right:1px solid var(--border);background:var(--white);color:var(--gray-700);font-size:13px;font-weight:600;font-family:'Open Sans',sans-serif;transition:background .15s,color .15s;position:relative;letter-spacing:.01em}
+  .opt-btn:last-child{border-right:none}
   .opt-btn:disabled{opacity:.35;cursor:not-allowed}
-  .opt-btn:not(:disabled):not(.selected):hover{border-color:var(--green);color:var(--gray-900)}
-  .opt-btn.selected{background:var(--green);border-color:var(--green);color:var(--white);box-shadow:0 2px 8px rgba(134,188,37,.35)}
-  .opt-btn.selected::after{content:" ✓"}
+  .opt-btn::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:transparent;transition:background .15s}
+  .opt-btn:not(:disabled):hover::before{background:var(--gray-200)}
+  .opt-btn.selected::before{background:var(--green)}
+  .opt-btn.selected{background:var(--green-light);color:var(--green-dark)}
 
-  /* ── CTA BUTTON ── */
-  #btnPlaybook{width:100%;padding:16px;font-size:15px;font-weight:700;border-radius:2px;border:none;cursor:pointer;background:var(--black);color:var(--white);letter-spacing:.04em;text-transform:uppercase;transition:background .15s;font-family:'Open Sans',sans-serif}
-  #btnPlaybook:hover:not(:disabled){background:var(--gray-900)}
+  /* ── EXECUTE BUTTON ── */
+  #btnPlaybook{width:100%;padding:16px;font-size:13px;font-weight:700;border:none;cursor:pointer;background:var(--black);color:var(--white);letter-spacing:.1em;text-transform:uppercase;transition:background .15s;font-family:'Open Sans',sans-serif}
+  #btnPlaybook:hover:not(:disabled){background:#222}
   #btnPlaybook:disabled{background:var(--gray-100);color:var(--gray-400);cursor:not-allowed}
 
-  /* ── RESULT ── */
+  /* ── RESULTS ── */
   #resultCard{display:none}
-  .result-running{display:flex;align-items:center;gap:12px;color:var(--gray-700);font-size:14px;padding:20px 0}
-  .result-section-title{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green-dark);margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--green)}
-  .result-section-body{background:var(--gray-50);border:1px solid var(--border);border-radius:2px;padding:24px;font-size:14px;line-height:1.8;word-break:break-word;max-height:560px;overflow-y:auto;color:var(--gray-900)}
-  .result-section-body h1,.result-section-body h2,.result-section-body h3{color:var(--black);margin:18px 0 8px;font-weight:700}
-  .result-section-body h1{font-size:18px}.result-section-body h2{font-size:16px}.result-section-body h3{font-size:14px}
-  .result-section-body p{margin:8px 0}
-  .result-section-body strong{color:var(--black)}
-  .result-section-body ul,.result-section-body ol{margin:8px 0;padding-left:22px}
-  .result-section-body li{margin:4px 0}
-  .result-section-body table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px}
-  .result-section-body th{background:var(--black);color:var(--white);padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
-  .result-section-body td{padding:10px 12px;border:1px solid var(--border);vertical-align:top}
-  .result-section-body tr:nth-child(even) td{background:var(--gray-50)}
-  .result-section-body code{background:var(--gray-100);padding:2px 6px;border-radius:2px;font-family:monospace;font-size:12px}
-  .result-section-body hr{border:none;border-top:1px solid var(--border);margin:16px 0}
+  .result-running{display:flex;align-items:center;gap:12px;color:var(--gray-700);font-size:13px;padding:24px 0}
+  .result-section-title{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--green-dark);margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--green)}
+  .result-body{background:var(--gray-50);border:1px solid var(--border);padding:28px;font-size:14px;line-height:1.8;word-break:break-word;max-height:580px;overflow-y:auto;color:var(--gray-900)}
+  .result-body h1,.result-body h2,.result-body h3{color:var(--black);margin:20px 0 8px;font-weight:700}
+  .result-body h1{font-size:18px}.result-body h2{font-size:16px}.result-body h3{font-size:14px}
+  .result-body p{margin:8px 0}
+  .result-body strong{color:var(--black)}
+  .result-body ul,.result-body ol{margin:8px 0;padding-left:22px}
+  .result-body li{margin:4px 0}
+  .result-body table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px}
+  .result-body th{background:var(--black);color:var(--white);padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+  .result-body td{padding:10px 14px;border:1px solid var(--border);vertical-align:top}
+  .result-body tr:nth-child(even) td{background:var(--white)}
+  .result-body code{background:var(--gray-100);padding:2px 6px;font-family:monospace;font-size:12px}
+  .result-body hr{border:none;border-top:1px solid var(--border);margin:18px 0}
 
-  /* ── GHOST BUTTON ── */
-  button.ghost{cursor:pointer;background:var(--white);border:1.5px solid var(--border);color:var(--gray-700);border-radius:2px;padding:8px 16px;font-size:13px;font-weight:600;font-family:'Open Sans',sans-serif;transition:border-color .15s,color .15s}
-  button.ghost:hover{border-color:var(--gray-700);color:var(--black)}
-
-  /* ── CONN TEST ── */
-  #btnTestConn{cursor:pointer;background:transparent;border:1.5px solid var(--border);color:var(--gray-700);border-radius:2px;padding:6px 14px;font-size:12px;font-weight:600;font-family:'Open Sans',sans-serif;transition:border-color .15s}
-  #btnTestConn:hover{border-color:var(--green);color:var(--green-dark)}
+  /* ── GHOST / RESET BUTTON ── */
+  .btn-ghost{cursor:pointer;background:var(--white);border:1px solid var(--border);color:var(--gray-700);padding:9px 20px;font-size:12px;font-weight:700;font-family:'Open Sans',sans-serif;letter-spacing:.06em;text-transform:uppercase;transition:border-color .15s,color .15s}
+  .btn-ghost:hover{border-color:var(--gray-700);color:var(--black)}
 
   /* ── DEBUG PANELS ── */
-  #logPanel{max-width:940px;margin:0 auto 12px;padding:0 24px}
-  #logPanel details{background:var(--gray-900);border:1px solid #333;border-radius:2px}
+  #logPanel{max-width:960px;margin:0 auto 12px;padding:0 40px}
+  #logPanel details{background:var(--gray-900);border:1px solid #2a2a2a}
   #logPanel summary{padding:10px 14px;font-size:11px;font-weight:700;color:#86BC25;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;user-select:none;font-family:'Open Sans',sans-serif}
   #logEntries{padding:0 14px 14px;display:flex;flex-direction:column;gap:10px;max-height:380px;overflow-y:auto}
-  .log-entry{font-size:11px;font-family:monospace;border-radius:2px;overflow:hidden}
+  .log-entry{font-size:11px;font-family:monospace;overflow:hidden}
   .log-entry .log-head{padding:6px 10px;display:flex;gap:8px;align-items:baseline}
   .log-entry .log-method{font-weight:700;color:#fff}
   .log-entry .log-url{color:#86BC25;word-break:break-all}
-  .log-entry .log-time{margin-left:auto;color:#666;white-space:nowrap}
+  .log-entry .log-time{margin-left:auto;color:#555;white-space:nowrap}
   .log-entry .log-body{padding:6px 10px;border-top:1px solid rgba(255,255,255,.06);white-space:pre-wrap;word-break:break-all;line-height:1.5;color:#aaa;max-height:140px;overflow-y:auto}
-  .log-req{background:#111}.log-res-ok{background:#1a2e0a}
-  .log-res-err,.log-net-err{background:#2e0a0a}
+  .log-req{background:#111}.log-res-ok{background:#182a08}
+  .log-res-err,.log-net-err{background:#2a0808}
   .log-res-err .log-url,.log-net-err .log-url{color:#f87171}
   #btnClearLog{float:right;font-size:11px;background:transparent;border:none;color:#555;cursor:pointer;padding:2px 6px}
   #btnClearLog:hover{color:#f87171}
-  #errorPanel{max-width:940px;margin:0 auto 32px;padding:0 24px}
-  #errorPanel details{background:#1a0a0a;border:1px solid #3a1a1a;border-radius:2px}
+  #errorPanel{max-width:960px;margin:0 auto 40px;padding:0 40px}
+  #errorPanel details{background:#180808;border:1px solid #2e1010}
   #errorPanel summary{padding:10px 14px;font-size:11px;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;user-select:none;font-family:'Open Sans',sans-serif}
-  #errorEntries{padding:0 14px 14px;display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto}
-  .err-entry{font-size:11px;font-family:monospace;background:#1a0808;border:1px solid #3a1a1a;border-radius:2px;padding:8px 10px}
-  .err-entry .err-time{color:#6b4a4a;margin-right:8px}
+  #errorEntries{padding:0 14px 14px;display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto}
+  .err-entry{font-size:11px;font-family:monospace;background:#200a0a;border:1px solid #3a1212;padding:8px 10px}
+  .err-entry .err-time{color:#6b4040;margin-right:8px}
   .err-entry .err-type{font-weight:700;color:#f87171;margin-right:6px}
   .err-entry .err-msg{color:#fca5a5;word-break:break-all;white-space:pre-wrap}
   .err-entry .err-stack{color:#7a4444;margin-top:4px;white-space:pre-wrap;font-size:10px;max-height:80px;overflow-y:auto}
-  #btnClearErrors{float:right;font-size:11px;background:transparent;border:none;color:#6b4a4a;cursor:pointer;padding:2px 6px}
+  #btnClearErrors{float:right;font-size:11px;background:transparent;border:none;color:#6b4040;cursor:pointer;padding:2px 6px}
   #btnClearErrors:hover{color:#f87171}
   #errorBadge{display:none;background:#C00000;color:#fff;border-radius:999px;font-size:10px;padding:1px 6px;margin-left:6px;font-weight:700}
 
   /* ── FOOTER ── */
-  footer{background:var(--black);color:var(--gray-400);text-align:center;font-size:11px;padding:20px 24px;margin-top:40px;letter-spacing:.03em}
+  footer{background:var(--black);color:rgba(255,255,255,.35);text-align:center;font-size:11px;padding:22px 40px;letter-spacing:.04em}
+  footer strong{color:rgba(255,255,255,.6);font-weight:600}
 </style>
 </head>
 <body>
@@ -164,125 +178,136 @@
   <a class="hd-logo" href="dashboard.html">
     <span class="hd-logo-text">Deloitte</span><span class="hd-logo-dot">.</span>
   </a>
-  <div class="hd-divider"></div>
+  <div class="hd-sep"></div>
   <span class="hd-product">ArchIA</span>
-  <span class="hd-tagline">Security Architecture Review</span>
+  <span class="hd-sub">Security Architecture Review</span>
   <nav>
-    <a href="dashboard.html" class="active">Panel</a>
+    <a href="dashboard.html" class="active">Análisis</a>
     <a href="historico.html">Histórico</a>
   </nav>
 </header>
 
 <div class="hero">
+  <div class="hero-label">Solución de análisis automatizado</div>
   <h1>Análisis de <strong>Arquitectura de Seguridad</strong></h1>
-  <p>Selecciona el tipo de análisis, sube la documentación y obtén recomendaciones automáticas basadas en IA.</p>
+  <p>Selecciona el tipo de análisis, adjunta la documentación y obtén recomendaciones automáticas basadas en inteligencia artificial.</p>
 </div>
 
 <main>
 
-  <!-- STEP 1: ANALYSIS TYPE -->
-  <div class="card">
-    <div class="step-label">Paso 1</div>
-    <div class="card-title">Seleccionar tipo de análisis</div>
-    <div class="card-sub">Elige el tipo de análisis que deseas realizar sobre la documentación aportada.</div>
-    <div class="type-grid">
+  <!-- STEP 1 -->
+  <div class="step">
+    <div class="step-inner">
+      <span class="step-num">Paso 1 — Tipo de análisis</span>
+      <div class="step-title">Seleccionar modalidad</div>
+      <div class="step-desc">Elige el tipo de análisis que deseas realizar sobre la documentación aportada.</div>
+      <div class="type-grid">
 
-      <div class="type-card" id="typeArquitectura" onclick="selectType('arquitectura')">
-        <span class="tc-icon">🏗️</span>
-        <span class="tc-name">Análisis de arquitectura</span>
-        <span class="tc-desc">Revisión de diseño y marcos de control de seguridad sobre documentación de arquitectura.</span>
+        <div class="type-card" id="typeArquitectura" onclick="selectType('arquitectura')">
+          <div class="tc-check">
+            <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="tc-tag">Arquitectura</div>
+          <div class="tc-name">Análisis de arquitectura</div>
+          <div class="tc-desc">Revisión de diseño y marcos de control de seguridad sobre documentación de arquitectura de sistemas.</div>
+        </div>
+
+        <div class="type-card" id="typeFormulario" onclick="selectType('formulario')">
+          <div class="tc-check">
+            <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="tc-tag">Formulario</div>
+          <div class="tc-name">Análisis de formulario</div>
+          <div class="tc-desc">Revisión automatizada de cuestionarios y formularios de evaluación de seguridad.</div>
+        </div>
+
+        <div class="type-card disabled" id="typeEvidencias">
+          <div class="tc-tag">Evidencias</div>
+          <div class="tc-name">Análisis de evidencias</div>
+          <div class="tc-desc">Revisión y validación de evidencias de cumplimiento normativo y seguridad.</div>
+          <div class="tc-badge">Próximamente</div>
+        </div>
+
       </div>
-
-      <div class="type-card" id="typeFormulario" onclick="selectType('formulario')">
-        <span class="tc-icon">📋</span>
-        <span class="tc-name">Análisis de formulario</span>
-        <span class="tc-desc">Revisión automatizada de cuestionarios y formularios de seguridad.</span>
-      </div>
-
-      <div class="type-card disabled" id="typeEvidencias">
-        <span class="tc-badge">Próximamente</span>
-        <span class="tc-icon">🔍</span>
-        <span class="tc-name">Análisis de evidencias</span>
-        <span class="tc-desc">Revisión y validación de evidencias de cumplimiento de seguridad.</span>
-      </div>
-
     </div>
   </div>
 
-  <!-- STEP 2: FILE UPLOAD (hidden until type selected) -->
-  <div class="card" id="stepUpload" style="display:none">
-    <div class="step-label">Paso 2</div>
-    <div class="card-title">Subir documentación</div>
-    <div class="card-sub" id="uploadDesc">Adjunta el documento a analizar.</div>
+  <!-- STEP 2: FILE UPLOAD -->
+  <div class="step" id="stepUpload" style="display:none">
+    <div class="step-inner">
+      <span class="step-num">Paso 2 — Documentación</span>
+      <div class="step-title">Adjuntar documento</div>
+      <div class="step-desc" id="uploadDesc">Adjunta el documento a analizar. Formatos admitidos: .doc, .docx, .pdf</div>
 
-    <div style="margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <button id="btnTestConn">Verificar conexión API</button>
-      <span id="connResult" style="font-size:12px;color:var(--gray-700)"></span>
+      <div class="drop" id="dropZone">
+        <div class="drop-title">Arrastra el documento aquí</div>
+        <div class="drop-sub">o utiliza el botón para seleccionar desde tu equipo</div>
+        <div class="drop-cta">Seleccionar archivo</div>
+        <input type="file" id="fileInput" accept=".doc,.docx,.pdf"/>
+      </div>
+
+      <div id="fileInfo" style="display:none">
+        <span class="fname" id="fileName"></span>
+        <a class="fremove" id="btnRemove">Eliminar</a>
+      </div>
+
+      <div id="uploadStatus" style="display:none"></div>
     </div>
-
-    <div class="drop" id="dropZone">
-      <span class="drop-icon">📄</span>
-      <div>Arrastra el documento aquí o <strong>haz clic para seleccionar</strong></div>
-      <div class="drop-hint">Formatos admitidos: .doc, .docx, .pdf</div>
-      <input type="file" id="fileInput" accept=".doc,.docx,.pdf"/>
-    </div>
-
-    <div id="fileInfo" style="display:none">
-      <span style="font-size:20px">📄</span>
-      <span class="fname" id="fileName"></span>
-      <span class="fremove" id="btnRemove">✕ Quitar</span>
-    </div>
-
-    <div id="uploadStatus" style="display:none"></div>
   </div>
 
   <!-- STEP 3: OPTIONS (arquitectura only) -->
-  <div class="card" id="stepOpciones" style="display:none">
-    <div class="step-label">Paso 3</div>
-    <div class="card-title">Configurar módulos de análisis</div>
-    <div class="card-sub">Selecciona los módulos a incluir. El análisis de marcos de controles siempre está activo.</div>
-    <div style="display:flex;gap:12px;flex-wrap:wrap">
-      <button class="opt-btn selected" id="optMarcos" disabled>Marcos de controles</button>
-      <button class="opt-btn" id="optArqPub" disabled onclick="toggleOpt(this)">Arquitectura de publicación</button>
-      <button class="opt-btn" id="optArqNav" disabled onclick="toggleOpt(this)">Arquitectura de navegación</button>
+  <div class="step" id="stepOpciones" style="display:none">
+    <div class="step-inner">
+      <span class="step-num">Paso 3 — Configuración</span>
+      <div class="step-title">Módulos de análisis</div>
+      <div class="step-desc">Selecciona los módulos a incluir en el análisis. El módulo de marcos de controles está siempre activo.</div>
+      <div class="opt-row">
+        <button class="opt-btn selected" id="optMarcos" disabled>Marcos de controles</button>
+        <button class="opt-btn" id="optArqPub" disabled onclick="toggleOpt(this)">Arquitectura de publicación</button>
+        <button class="opt-btn" id="optArqNav" disabled onclick="toggleOpt(this)">Arquitectura de navegación</button>
+      </div>
     </div>
   </div>
 
   <!-- STEP EXECUTE -->
-  <div class="card" id="stepEjecutar" style="display:none">
-    <div class="step-label" id="executeStepLabel">Paso 4</div>
-    <div class="card-title">Ejecutar análisis</div>
-    <div class="card-sub">Inicia el proceso de análisis automatizado. El tiempo de procesamiento puede variar según la complejidad del documento.</div>
-    <button id="btnPlaybook" disabled>INICIAR ANÁLISIS</button>
-    <div id="playbookStatus" style="margin-top:14px;font-size:13px;color:var(--gray-700);min-height:20px"></div>
+  <div class="step" id="stepEjecutar" style="display:none">
+    <div class="step-inner">
+      <span class="step-num" id="executeStepLabel">Paso 4 — Ejecución</span>
+      <div class="step-title">Iniciar análisis</div>
+      <div class="step-desc">El proceso de análisis puede tardar varios minutos en función de la complejidad del documento.</div>
+      <button id="btnPlaybook" disabled>Iniciar análisis</button>
+      <div id="playbookStatus" style="margin-top:12px;font-size:13px;color:var(--gray-500);min-height:18px"></div>
+    </div>
   </div>
 
-  <!-- RESULT -->
-  <div class="card" id="resultCard" style="display:none">
-    <div class="step-label">Resultados</div>
-    <div class="card-title">Informe de análisis</div>
-    <div id="resultSpinner" class="result-running" style="display:none">
-      <div class="spinner"></div>
-      <span>Procesando análisis… Este proceso puede tardar varios minutos.</span>
-    </div>
-    <div class="result-section-body" id="resultBox" style="display:none"></div>
-    <div style="margin-top:16px;display:flex;gap:10px">
-      <button class="ghost" id="btnReset">↺ Nuevo análisis</button>
+  <!-- RESULTS -->
+  <div class="step" id="resultCard" style="display:none">
+    <div class="step-inner">
+      <span class="step-num">Resultados</span>
+      <div class="step-title">Informe de análisis</div>
+      <div id="resultSpinner" class="result-running" style="display:none">
+        <div class="spinner"></div>
+        <span>Procesando análisis. Este proceso puede tardar varios minutos.</span>
+      </div>
+      <div class="result-body" id="resultBox" style="display:none"></div>
+      <div style="margin-top:20px">
+        <button class="btn-ghost" id="btnReset">Nuevo análisis</button>
+      </div>
     </div>
   </div>
 
 </main>
 
 <div id="logPanel">
-  <details open>
-    <summary>🔍 Log de llamadas API <button id="btnClearLog" onclick="event.stopPropagation();document.getElementById('logEntries').innerHTML=''">Limpiar</button></summary>
+  <details>
+    <summary>Log de llamadas API <button id="btnClearLog" onclick="event.stopPropagation();document.getElementById('logEntries').innerHTML=''">Limpiar</button></summary>
     <div id="logEntries"></div>
   </details>
 </div>
 
 <div id="errorPanel">
   <details id="errorDetails">
-    <summary>⚠ Consola de errores <span id="errorBadge">0</span>
+    <summary>Consola de errores <span id="errorBadge">0</span>
       <button id="btnClearErrors" onclick="event.stopPropagation();document.getElementById('errorEntries').innerHTML='';document.getElementById('errorBadge').style.display='none';document.getElementById('errorBadge').textContent='0'">Limpiar</button>
     </summary>
     <div id="errorEntries"><span style="color:#4a3030;font-size:11px;font-family:monospace;padding:4px 0;display:block">Sin errores registrados.</span></div>
@@ -290,7 +315,7 @@
 </div>
 
 <footer>
-  &copy; 2025 <strong>Deloitte.</strong> &nbsp;·&nbsp; ArchIA — Security Architecture Review &nbsp;·&nbsp; Uso interno
+  &copy; 2025 <strong>Deloitte.</strong> &nbsp;&nbsp;ArchIA — Security Architecture Review &nbsp;&nbsp;Uso interno
 </footer>
 
 <script src="dashboard.js"></script>
