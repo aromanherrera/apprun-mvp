@@ -407,17 +407,38 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
   // ================================================================
   // RESULTS HTML BUILDER
   // ================================================================
+  function stripSummarySection(text) {
+    // Remove markdown sections whose heading contains summary-like keywords (Resumen, Estadísticas, Totales)
+    // Also remove standalone bullet lines that are just "Label: number"
+    var lines = (text || "").split("\n");
+    var out = [];
+    var inSummary = false;
+    for (var i = 0; i < lines.length; i++) {
+      var l = lines[i];
+      var isHeading = /^#{1,3}\s+/.test(l);
+      if (isHeading) {
+        var headingText = l.replace(/^#+\s+/, "").toLowerCase();
+        inSummary = /resumen|estadístic|totales|aplicabilidad|summary/.test(headingText);
+        if (inSummary) continue;
+      }
+      if (inSummary) continue;
+      out.push(l);
+    }
+    return out.join("\n");
+  }
+
   function buildResultsHtml(stored, multiSection) {
     var allHtml = "";
     stored.forEach(function(r, i) {
-      var sectionHtml = r.text ? renderMarkdown(r.text) : '<p style="color:var(--red)">Error al procesar este módulo.</p>';
+      var bodyText = r.text ? stripSummarySection(r.text) : null;
+      var sectionHtml = bodyText ? renderMarkdown(bodyText) : '<p style="color:var(--red)">Error al procesar este módulo.</p>';
       if (multiSection && stored.length > 1) {
         allHtml += '<div class="result-section-label">' + escHtml(r.label) + '</div>';
       }
       allHtml += '<div class="result-body">' + sectionHtml + '</div>';
       if (i < stored.length - 1) allHtml += '<hr style="border:none;border-top:1px solid var(--border);margin:24px 0">';
     });
-    // Build stat cards from all text combined
+    // Build stat cards from all text combined (uses original text with summary)
     var combinedText = stored.map(function(r){ return r.text || ""; }).join("\n");
     var statHtml = buildStatCards(combinedText);
     return statHtml + allHtml;
@@ -825,20 +846,40 @@ async function _generateWord(src) {
 
     function buildExecSummary() {
       var elems=[secHeading("2","Resumen ejecutivo")];
-      // Stat cards table
+      // Stat cards big-number table (replaces bullet summary)
       if (stats.length) {
         elems.push(spacer());
         var st=buildStatTable(stats);
         if(st) { elems.push(st); elems.push(spacer()); }
       }
-      // First few lines per module
+      // First non-summary lines per module
       results.forEach(function(r) {
         if(!r.text) return;
         if(results.length>1) elems.push(par([new D.TextRun({text:r.label,font:"Arial",size:24,bold:true,color:BLACK})],{spacing:{before:240,after:80}}));
-        var summaryLines=r.text.split("\n").filter(function(l){return l.trim()&&!l.trim().startsWith("|")&&!/^---/.test(l.trim());}).slice(0,6);
-        summaryLines.forEach(function(l){ elems.push(par(inlineRuns(l),{spacing:{before:40,after:40}})); });
+        // Skip lines inside summary/resumen sections and bare "label: number" bullet lines
+        var inSum=false;
+        var summaryLines=[];
+        r.text.split("\n").forEach(function(l){
+          var hm=/^#{1,3}\s+(.+)/.exec(l);
+          if(hm){ inSum=/resumen|estadístic|totales|aplicabilidad|summary/i.test(hm[1]); }
+          if(inSum) return;
+          if(/^[-*•]\s+.{4,60}:\s*\d+/.test(l.trim())) return; // bare stat bullet
+          if(l.trim()&&!l.trim().startsWith("|")&&!/^---/.test(l.trim())) summaryLines.push(l);
+        });
+        summaryLines.slice(0,6).forEach(function(l){ elems.push(par(inlineRuns(l),{spacing:{before:40,after:40}})); });
       });
       return elems;
+    }
+
+    function stripSummarySectionWord(text) {
+      var lines=(text||"").split("\n"), out=[], inSum=false;
+      lines.forEach(function(l){
+        var hm=/^#{1,3}\s+(.+)/.exec(l);
+        if(hm){ inSum=/resumen|estadístic|totales|aplicabilidad|summary/i.test(hm[1]); if(inSum) return; }
+        if(inSum) return;
+        out.push(l);
+      });
+      return out.join("\n");
     }
 
     function buildDetail() {
@@ -846,7 +887,7 @@ async function _generateWord(src) {
       results.forEach(function(r) {
         if(!r.text) return;
         if(results.length>1) elems.push(par([new D.TextRun({text:r.label,font:"Arial",size:24,bold:true,color:BLACK})],{spacing:{before:240,after:80}}));
-        elems=elems.concat(mdToDocx(r.text));
+        elems=elems.concat(mdToDocx(stripSummarySectionWord(r.text)));
       });
       return elems;
     }
