@@ -174,7 +174,7 @@
   function setFile(f) {
     try {
       if (window.__logError) window.__logError('INFO', 'Fichero seleccionado: ' + f.name + ' (' + f.size + ' bytes)');
-      var allowed = [".doc", ".docx", ".pdf"];
+      var allowed = [".doc", ".docx", ".pdf", ".md"];
       var ext = f.name.slice(f.name.lastIndexOf(".")).toLowerCase();
       if (!allowed.includes(ext)) {
         setUploadStatus(errorIcon("Formato no admitido: " + ext + ". Usa .doc, .docx o .pdf"));
