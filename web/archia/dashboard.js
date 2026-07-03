@@ -1,3 +1,7 @@
+// Auth guard
+if (!sessionStorage.getItem('archiaAuth')) { window.location.href = 'login.html'; }
+function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.href = 'login.html'; }
+
 // ---- Global error console ----
 (function() {
   var count = 0;
@@ -325,7 +329,16 @@
   // ================================================================
   $("btnPlaybook").addEventListener("click", async function() {
     if (!state.file || !state.uploaded) return;
-    state.projectName = ($("projectName").value || "").trim() || "Sin nombre";
+    var pname = ($("projectName").value || "").trim();
+    if (!pname) {
+      var pf = $("projectName");
+      pf.style.borderColor = "var(--red)";
+      pf.focus();
+      pf.scrollIntoView({ behavior: "smooth", block: "center" });
+      setTimeout(function(){ pf.style.borderColor = ""; }, 2000);
+      return;
+    }
+    state.projectName = pname;
     $("btnPlaybook").disabled = true;
     $("playbookStatus").textContent = "";
     $("resultCard").style.display = "block";

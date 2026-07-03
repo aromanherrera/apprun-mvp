@@ -3,142 +3,312 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>ArchIA – Configuración</title>
+<title>ArchIA — Configuración | Deloitte</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet"/>
 <style>
-  :root{color-scheme:dark}
-  body{margin:0;background:#0a0f0a;color:#e0f0e0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif}
-  header{padding:16px 20px;border-bottom:1px solid #1a2e1a;background:#0c120c;display:flex;align-items:center;gap:14px}
-  .logo{font-weight:700;font-size:18px}
-  .logo span{color:#22c55e}
-  a.back{margin-left:auto;color:#4ade80;font-size:13px;text-decoration:none;display:flex;align-items:center;gap:6px}
-  a.back:hover{color:#86efac}
-  main{max-width:560px;margin:32px auto;padding:0 16px}
-  .card{background:#0e180e;border:1px solid #1a2e1a;border-radius:12px;padding:24px;margin-bottom:20px}
-  h2{margin:0 0 6px;font-size:17px;color:#4ade80}
-  .subtitle{font-size:13px;color:#6b9e6b;margin:0 0 20px}
-  label{font-size:13px;color:#8db88d;display:block;margin-top:14px}
-  input{width:100%;padding:10px;margin-top:6px;border-radius:8px;border:1px solid #1e3a1e;background:#071007;color:#e0f0e0;box-sizing:border-box;font-size:14px}
-  input:focus{outline:none;border-color:#22c55e;box-shadow:0 0 0 2px rgba(34,197,94,.15)}
-  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
-  button{cursor:pointer;background:#166534;border:1px solid #14532d;color:#e0f0e0;border-radius:10px;padding:9px 16px;font-weight:600;font-size:14px}
-  button:hover{background:#15803d}
-  button.ghost{background:#0e180e;border-color:#1a2e1a}
-  button.ghost:hover{background:#162616}
-  button:disabled{opacity:.5;cursor:not-allowed}
-  .status-box{margin-top:16px;padding:12px 14px;border-radius:8px;font-size:13px;display:none}
-  .status-box.ok{background:#052e16;border:1px solid #166534;color:#4ade80;display:block}
-  .status-box.error{background:#1a0a0a;border:1px solid #7f1d1d;color:#f87171;display:block}
-  .status-box.loading{background:#0e180e;border:1px solid #1a2e1a;color:#8db88d;display:block}
-  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
-  .dot.green{background:#22c55e}
-  .dot.red{background:#ef4444}
-  .dot.grey{background:#4b5563;animation:pulse 1.2s ease-in-out infinite}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-  .saved-badge{display:none;background:#052e16;border:1px solid #166534;color:#4ade80;font-size:12px;padding:3px 10px;border-radius:999px;margin-left:10px;vertical-align:middle}
+  :root{
+    --green:#86BC25;--green-dark:#6a9a1a;--green-light:#f4f9eb;
+    --black:#000;--gray-900:#1a1a1a;--gray-700:#53565A;--gray-500:#75787B;
+    --gray-400:#97999B;--gray-200:#D0D0CE;--gray-100:#F2F2F2;--gray-50:#F8F8F8;
+    --white:#fff;--red:#C00000;--border:#E0E0E0;
+    --sidebar-w:260px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Open Sans',system-ui,sans-serif;background:var(--gray-50);color:var(--gray-900);font-size:14px;line-height:1.6}
+
+  header{background:var(--black);height:60px;display:flex;align-items:center;padding:0 32px;position:sticky;top:0;z-index:200}
+  .hd-logo{display:flex;align-items:baseline;text-decoration:none;gap:1px}
+  .hd-logo-text{font-weight:700;font-size:20px;color:var(--white);letter-spacing:-.2px}
+  .hd-logo-dot{color:var(--green);font-size:24px;line-height:1}
+  .hd-sep{width:1px;height:24px;background:rgba(255,255,255,.15);margin:0 24px}
+  .hd-product{font-size:14px;font-weight:600;color:var(--white)}
+  .hd-sub{font-size:11px;color:var(--gray-400);margin-left:10px;font-weight:300;letter-spacing:.08em;text-transform:uppercase}
+  nav{margin-left:auto;display:flex;gap:2px}
+  nav a{color:rgba(255,255,255,.5);font-size:12px;font-weight:600;text-decoration:none;padding:6px 14px;letter-spacing:.03em;text-transform:uppercase;border-bottom:2px solid transparent;transition:color .15s,border-color .15s}
+  nav a:hover{color:var(--white)}
+  nav a.active{color:var(--white);border-bottom-color:var(--green)}
+
+  .hero{background:var(--black);padding:28px 32px 24px;border-bottom:3px solid var(--green)}
+  .hero-label{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--green);margin-bottom:8px}
+  .hero h1{font-size:24px;font-weight:300;color:var(--white);line-height:1.25}
+  .hero h1 strong{font-weight:700}
+  .hero p{font-size:13px;color:rgba(255,255,255,.4);margin-top:6px;font-weight:300;line-height:1.7}
+
+  #appShell{display:flex;min-height:calc(100vh - 60px - 3px - 53px)}
+
+  #sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--white);border-right:1px solid var(--border);position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto;display:flex;flex-direction:column}
+  .sb-nav{flex:1;padding:16px 0}
+  .sb-nav-item{display:flex;align-items:center;gap:10px;padding:11px 20px;font-size:13px;font-weight:600;color:var(--gray-700);text-decoration:none;cursor:pointer;border-left:3px solid transparent;transition:background .1s,color .1s,border-color .1s}
+  .sb-nav-item:hover{background:var(--gray-50);color:var(--black)}
+  .sb-nav-item.active{color:var(--green-dark);background:var(--green-light);border-left-color:var(--green)}
+  .sb-nav-icon{width:18px;text-align:center;flex-shrink:0}
+  .sb-footer{border-top:1px solid var(--border);padding:14px 20px;display:flex;flex-direction:column;gap:8px}
+  .sb-footer-link{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--gray-500);text-decoration:none;cursor:pointer;letter-spacing:.02em;transition:color .15s;background:none;border:none;font-family:'Open Sans',sans-serif;padding:0;text-align:left}
+  .sb-footer-link:hover{color:var(--black)}
+  .sb-footer-link.logout:hover{color:var(--red)}
+
+  #mainArea{flex:1;min-width:0}
+  .cfg-wrap{padding:32px 40px;max-width:800px}
+  .cfg-section{background:var(--white);border:1px solid var(--border);margin-bottom:28px}
+  .cfg-section-header{padding:20px 28px 18px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:16px}
+  .cfg-section-icon{width:40px;height:40px;background:var(--green-light);border:1px solid rgba(134,188,37,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;color:var(--green-dark)}
+  .cfg-section-info{flex:1}
+  .cfg-section-title{font-size:15px;font-weight:700;color:var(--black)}
+  .cfg-section-desc{font-size:12px;color:var(--gray-500);margin-top:3px;line-height:1.55}
+  .cfg-section-body{padding:20px 28px 24px}
+
+  .multi-drop{border:1px dashed var(--gray-200);padding:28px 20px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;background:var(--gray-50)}
+  .multi-drop:hover,.multi-drop.over{border-color:var(--green);background:var(--green-light)}
+  .multi-drop input[type=file]{display:none}
+  .multi-drop-title{font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:3px}
+  .multi-drop-sub{font-size:11px;color:var(--gray-400)}
+  .multi-drop-cta{display:inline-block;margin-top:12px;padding:7px 16px;background:var(--black);color:var(--white);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:background .15s}
+  .multi-drop:hover .multi-drop-cta,.multi-drop.over .multi-drop-cta{background:var(--green-dark)}
+
+  .file-list{margin-top:14px;display:flex;flex-direction:column;gap:6px}
+  .file-item{display:flex;align-items:center;gap:10px;background:var(--gray-50);border:1px solid var(--border);padding:9px 14px;font-size:12px}
+  .file-item-icon{color:var(--green-dark);flex-shrink:0;font-size:15px;line-height:1}
+  .file-item-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gray-900);font-weight:600}
+  .file-item-status{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;flex-shrink:0}
+  .file-item-status.uploading{color:var(--gray-400)}
+  .file-item-status.ok{color:var(--green-dark)}
+  .file-item-status.err{color:var(--red)}
+  .file-item-remove{cursor:pointer;color:var(--gray-400);font-size:12px;background:none;border:none;padding:0 2px;line-height:1;transition:color .15s;flex-shrink:0}
+  .file-item-remove:hover{color:var(--red)}
+
+  .spinner-sm{display:inline-block;width:11px;height:11px;border:2px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  footer{background:var(--black);color:rgba(255,255,255,.3);text-align:center;font-size:11px;padding:18px 32px;letter-spacing:.04em}
+  footer strong{color:rgba(255,255,255,.55);font-weight:600}
 </style>
 </head>
 <body>
+
 <header>
-  <div class="logo">Arch<span>IA</span></div>
-  <span style="color:#6b9e6b;font-size:13px">Configuración</span>
-  <a class="back" href="dashboard.html">← Volver al panel</a>
+  <a class="hd-logo" href="dashboard.html">
+    <span class="hd-logo-text">Deloitte</span><span class="hd-logo-dot">.</span>
+  </a>
+  <div class="hd-sep"></div>
+  <span class="hd-product">ArchIA</span>
+  <span class="hd-sub">Security Architecture Review</span>
+  <nav>
+    <a href="dashboard.html">Análisis</a>
+    <a href="historico.html">Histórico</a>
+    <a href="settings.html" class="active">Configuración</a>
+  </nav>
 </header>
 
-<main>
-  <div class="card">
-    <h2>Conexión con la API de agentes</h2>
-    <p class="subtitle">Introduce la URL base y el token de acceso para conectar ArchIA con el backend real. Si no los tienes aún, el panel funciona en modo simulado.</p>
+<div class="hero">
+  <div class="hero-label">Administración</div>
+  <h1>Configuración de <strong>documentación de referencia</strong></h1>
+  <p>Gestiona los documentos base que se utilizan como referencia en los análisis de arquitectura de seguridad.</p>
+</div>
 
-    <label>API Base URL</label>
-    <input id="apiBaseInput" type="url" placeholder="https://tu-api.example.com" autocomplete="off" spellcheck="false"/>
+<div id="appShell">
 
-    <label>Token de acceso (Bearer)</label>
-    <input id="apiTokenInput" type="password" placeholder="••••••••••••••••" autocomplete="off"/>
-
-    <div id="statusBox" class="status-box"></div>
-
-    <div class="toolbar">
-      <button id="btnTest">Probar conexión</button>
-      <button id="btnSave">Guardar<span class="saved-badge" id="savedBadge">¡Guardado!</span></button>
-      <button class="ghost" id="btnClear">Borrar configuración</button>
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <nav class="sb-nav">
+      <a class="sb-nav-item" href="dashboard.html">
+        <span class="sb-nav-icon">&#9654;</span> Panel de análisis
+      </a>
+      <a class="sb-nav-item" href="historico.html">
+        <span class="sb-nav-icon">&#9776;</span> Histórico
+      </a>
+      <a class="sb-nav-item active" href="settings.html">
+        <span class="sb-nav-icon">&#9881;</span> Configuración
+      </a>
+    </nav>
+    <div class="sb-footer">
+      <button class="sb-footer-link logout" onclick="doLogout()">
+        <span>&#10148;</span> Cerrar sesión
+      </button>
     </div>
   </div>
 
-  <div class="card" style="font-size:13px;color:#6b9e6b">
-    <h2 style="font-size:14px;margin-bottom:8px">Contrato de API esperado</h2>
-    <code style="display:block;white-space:pre;color:#4ade80;font-size:12px;line-height:1.7;background:#071007;padding:12px;border-radius:8px;border:1px solid #1a2e1a;overflow-x:auto">POST /auth/login            {email,password} → {token, user}
-POST /projects              {name} → {project_id}
-POST /projects/:id/files    multipart → {file_id, name}
-POST /projects/:id/analyze  {} → {job_id}
-GET  /jobs/:id              → {status, progress, recommendations}
-POST /projects/:id/report   {...} → {report_id, download_url}</code>
-    <p style="margin:10px 0 0">Todas las peticiones autenticadas envían <code style="color:#4ade80">Authorization: Bearer &lt;token&gt;</code>.</p>
-  </div>
-</main>
+  <!-- MAIN AREA -->
+  <div id="mainArea">
+    <div class="cfg-wrap">
 
-<script src="archia.js"></script>
+      <!-- MARCO DE CONTROLES -->
+      <div class="cfg-section">
+        <div class="cfg-section-header">
+          <div class="cfg-section-icon">&#9646;</div>
+          <div class="cfg-section-info">
+            <div class="cfg-section-title">Marco de controles</div>
+            <div class="cfg-section-desc">Documentos que definen los marcos normativos y de control de seguridad (ISO 27001, NIST, ENS, etc.) utilizados como referencia en los análisis.</div>
+          </div>
+        </div>
+        <div class="cfg-section-body">
+          <div class="multi-drop" id="dropMarcos">
+            <div class="multi-drop-title">Arrastra documentos aquí</div>
+            <div class="multi-drop-sub">Formatos: .doc, .docx, .pdf, .md &nbsp;·&nbsp; Puedes seleccionar varios a la vez</div>
+            <div class="multi-drop-cta">Seleccionar archivos</div>
+            <input type="file" id="inputMarcos" multiple accept=".doc,.docx,.pdf,.md"/>
+          </div>
+          <div class="file-list" id="listMarcos"></div>
+        </div>
+      </div>
+
+      <!-- ARQUITECTURAS DE REFERENCIA -->
+      <div class="cfg-section">
+        <div class="cfg-section-header">
+          <div class="cfg-section-icon">&#9633;</div>
+          <div class="cfg-section-info">
+            <div class="cfg-section-title">Arquitecturas de referencia</div>
+            <div class="cfg-section-desc">Documentos que describen arquitecturas de seguridad de referencia para comparar y validar las arquitecturas analizadas.</div>
+          </div>
+        </div>
+        <div class="cfg-section-body">
+          <div class="multi-drop" id="dropArquitecturas">
+            <div class="multi-drop-title">Arrastra documentos aquí</div>
+            <div class="multi-drop-sub">Formatos: .doc, .docx, .pdf, .md &nbsp;·&nbsp; Puedes seleccionar varios a la vez</div>
+            <div class="multi-drop-cta">Seleccionar archivos</div>
+            <input type="file" id="inputArquitecturas" multiple accept=".doc,.docx,.pdf,.md"/>
+          </div>
+          <div class="file-list" id="listArquitecturas"></div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /mainArea -->
+
+</div><!-- /appShell -->
+
+<footer>
+  &copy; 2025 <strong>Deloitte.</strong> &nbsp;&nbsp;ArchIA — Security Architecture Review &nbsp;&nbsp;Uso interno
+</footer>
+
 <script>
-(function () {
-  const $ = id => document.getElementById(id);
-  const session = ArchIA.requireSession();
+if (!sessionStorage.getItem('archiaAuth')) { window.location.href = 'login.html'; }
 
-  $("apiBaseInput").value = ArchIA.getApiBase();
-  $("apiTokenInput").value = session.token || "";
+function doLogout() {
+  sessionStorage.removeItem('archiaAuth');
+  window.location.href = 'login.html';
+}
 
-  function showStatus(type, html) {
-    const box = $("statusBox");
-    box.className = "status-box " + type;
-    box.innerHTML = html;
+(function() {
+  var API_BASE  = "https://api1-soarplus-pre.es.deloitte.com";
+  var API_TOKEN = "sk-UmL4haDNvWZdQ4a8ZxKb3Q";
+  var STORE_KEY = "archiaRefDocs";
+
+  function authHeaders() { return {"Authorization": "Bearer " + API_TOKEN}; }
+
+  function loadStore() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEY) || '{"marcos":[],"arquitecturas":[]}'); }
+    catch(e) { return {marcos:[], arquitecturas:[]}; }
+  }
+  function saveStore(s) { localStorage.setItem(STORE_KEY, JSON.stringify(s)); }
+
+  function esc(s) {
+    return (s||'').replace(/[&<>"']/g, function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
   }
 
-  $("btnTest").onclick = async () => {
-    const base = $("apiBaseInput").value.trim();
-    const token = $("apiTokenInput").value.trim();
-    if (!base) { showStatus("error", '<span class="dot red"></span>Introduce una API Base URL antes de probar.'); return; }
+  window.removeFile = function(category, idx) {
+    var store = loadStore();
+    store[category].splice(idx, 1);
+    saveStore(store);
+    renderList(category === 'marcos' ? 'listMarcos' : 'listArquitecturas', store[category], category);
+  };
 
-    $("btnTest").disabled = true;
-    showStatus("loading", '<span class="dot grey"></span>Probando conexión…');
+  function renderList(containerId, files, category) {
+    var el = document.getElementById(containerId);
+    el.innerHTML = '';
+    if (!files || !files.length) return;
+    files.forEach(function(f, i) {
+      var div = document.createElement('div');
+      div.className = 'file-item';
+      div.innerHTML =
+        '<span class="file-item-icon">&#128196;</span>' +
+        '<span class="file-item-name">' + esc(f.name) + '</span>' +
+        '<span class="file-item-status ok">Subido</span>' +
+        '<button class="file-item-remove" title="Eliminar" onclick="removeFile(\'' + esc(category) + '\',' + i + ')">&#10005;</button>';
+      el.appendChild(div);
+    });
+  }
 
-    try {
-      const url = base.replace(/\/+$/, "") + "/health";
-      const headers = token ? { "Authorization": "Bearer " + token } : {};
-      const res = await fetch(url, { method: "GET", headers, signal: AbortSignal.timeout(8000) });
-      if (res.ok) {
-        const ct = res.headers.get("content-type") || "";
-        let body = "";
-        try { body = ct.includes("json") ? JSON.stringify(await res.json()) : await res.text(); } catch {}
-        showStatus("ok", `<span class="dot green"></span><strong>Conexión OK</strong> – HTTP ${res.status}${body ? `<br/><span style="opacity:.8;font-size:12px">${escapeHtml(body.slice(0, 200))}</span>` : ""}`);
-      } else {
-        showStatus("error", `<span class="dot red"></span><strong>Error HTTP ${res.status}</strong> – El servidor respondió pero con error. Comprueba la URL y el token.`);
-      }
-    } catch (e) {
-      const msg = e.name === "TimeoutError" ? "Tiempo de espera agotado (8 s). Verifica que la URL sea accesible." : e.message;
-      showStatus("error", `<span class="dot red"></span><strong>No se pudo conectar</strong><br/><span style="font-size:12px">${escapeHtml(msg)}</span>`);
-    } finally {
-      $("btnTest").disabled = false;
+  function addFileItem(containerId, name) {
+    var el = document.getElementById(containerId);
+    var div = document.createElement('div');
+    div.className = 'file-item';
+    div.setAttribute('data-name', name);
+    div.innerHTML =
+      '<span class="file-item-icon">&#128196;</span>' +
+      '<span class="file-item-name">' + esc(name) + '</span>' +
+      '<span class="file-item-status uploading"><span class="spinner-sm"></span>Subiendo…</span>';
+    el.appendChild(div);
+    return div;
+  }
+
+  function updateFileItem(div, status, category, idx) {
+    var statusEl = div.querySelector('.file-item-status');
+    if (!statusEl) return;
+    if (status === 'ok') {
+      statusEl.className = 'file-item-status ok';
+      statusEl.textContent = 'Subido';
+      var name = div.getAttribute('data-name');
+      div.innerHTML =
+        '<span class="file-item-icon">&#128196;</span>' +
+        '<span class="file-item-name">' + esc(name) + '</span>' +
+        '<span class="file-item-status ok">Subido</span>' +
+        '<button class="file-item-remove" title="Eliminar" onclick="removeFile(\'' + esc(category) + '\',' + idx + ')">&#10005;</button>';
+    } else {
+      statusEl.className = 'file-item-status err';
+      statusEl.textContent = 'Error al subir';
     }
-  };
-
-  $("btnSave").onclick = () => {
-    ArchIA.setApiBase($("apiBaseInput").value.trim());
-    ArchIA.setApiToken($("apiTokenInput").value.trim());
-    const badge = $("savedBadge");
-    badge.style.display = "inline-block";
-    setTimeout(() => { badge.style.display = "none"; }, 2500);
-  };
-
-  $("btnClear").onclick = () => {
-    if (!confirm("¿Borrar la configuración de API guardada?")) return;
-    ArchIA.setApiBase("");
-    ArchIA.setApiToken("");
-    $("apiBaseInput").value = "";
-    $("apiTokenInput").value = "";
-    showStatus("ok", '<span class="dot green"></span>Configuración borrada. El panel volverá a modo simulado.');
-  };
-
-  function escapeHtml(s) {
-    return (s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   }
+
+  async function uploadFile(file, category) {
+    var listId = category === 'marcos' ? 'listMarcos' : 'listArquitecturas';
+    var itemDiv = addFileItem(listId, file.name);
+    try {
+      var fd = new FormData();
+      fd.append('file', file);
+      var res = await fetch(API_BASE + '/datasource/uploadfile/', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: fd
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var store = loadStore();
+      store[category].push({name: file.name, ts: new Date().toISOString()});
+      saveStore(store);
+      var idx = store[category].length - 1;
+      updateFileItem(itemDiv, 'ok', category, idx);
+    } catch(e) {
+      updateFileItem(itemDiv, 'err', category, -1);
+    }
+  }
+
+  function handleFiles(files, category) {
+    for (var i = 0; i < files.length; i++) {
+      uploadFile(files[i], category);
+    }
+  }
+
+  function setupDrop(dropId, inputId, category) {
+    var drop = document.getElementById(dropId);
+    var input = document.getElementById(inputId);
+    drop.addEventListener('click', function(e) { if (e.target !== input) input.click(); });
+    input.addEventListener('change', function() {
+      if (input.files && input.files.length) { handleFiles(input.files, category); input.value = ''; }
+    });
+    drop.addEventListener('dragover', function(e) { e.preventDefault(); drop.classList.add('over'); });
+    drop.addEventListener('dragleave', function() { drop.classList.remove('over'); });
+    drop.addEventListener('drop', function(e) {
+      e.preventDefault(); drop.classList.remove('over');
+      if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files, category);
+    });
+  }
+
+  var store = loadStore();
+  renderList('listMarcos', store.marcos, 'marcos');
+  renderList('listArquitecturas', store.arquitecturas, 'arquitecturas');
+  setupDrop('dropMarcos', 'inputMarcos', 'marcos');
+  setupDrop('dropArquitecturas', 'inputArquitecturas', 'arquitecturas');
 })();
 </script>
 </body>

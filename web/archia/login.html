@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>ArchIA — Acceso | Deloitte</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Open Sans',system-ui,sans-serif;background:#0a0a0a;min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+
+  canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+  .login-wrap{position:relative;z-index:10;display:flex;flex-direction:column;align-items:center;gap:28px;width:100%;max-width:400px;padding:0 24px}
+
+  /* Logo pill */
+  .logo-pill{background:rgba(20,20,20,.95);border:1.5px solid rgba(134,188,37,.35);border-radius:999px;padding:14px 36px;display:flex;align-items:baseline;gap:2px;box-shadow:0 0 32px rgba(134,188,37,.15),0 0 80px rgba(134,188,37,.06)}
+  .logo-text{font-size:26px;font-weight:700;color:#fff;letter-spacing:-.3px}
+  .logo-dot{color:#86BC25;font-size:32px;line-height:1}
+  .logo-sub{font-size:13px;color:rgba(255,255,255,.4);letter-spacing:.03em;font-weight:300;text-align:center}
+
+  /* Card */
+  .card{width:100%;background:rgba(18,18,18,.9);border:1px solid rgba(134,188,37,.2);border-radius:12px;padding:36px 32px;backdrop-filter:blur(8px);box-shadow:0 0 40px rgba(134,188,37,.08),0 24px 64px rgba(0,0,0,.6)}
+
+  .field{margin-bottom:18px}
+  .field label{display:block;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:8px}
+  .input-wrap{position:relative;display:flex;align-items:center}
+  .input-icon{position:absolute;left:14px;color:rgba(255,255,255,.3);font-size:14px;pointer-events:none;line-height:1}
+  .field input{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:12px 14px 12px 40px;font-family:'Open Sans',sans-serif;font-size:14px;color:#fff;outline:none;transition:border-color .2s,background .2s}
+  .field input:focus{border-color:rgba(134,188,37,.6);background:rgba(134,188,37,.04)}
+  .field input::placeholder{color:rgba(255,255,255,.2)}
+  .eye-toggle{position:absolute;right:14px;cursor:pointer;color:rgba(255,255,255,.3);font-size:14px;background:none;border:none;padding:0;transition:color .15s}
+  .eye-toggle:hover{color:rgba(255,255,255,.6)}
+
+  #loginError{display:none;background:rgba(192,0,0,.15);border:1px solid rgba(192,0,0,.3);border-radius:6px;padding:10px 14px;font-size:12px;color:#f87171;margin-bottom:16px}
+
+  .btn-enter{width:100%;padding:14px;background:#86BC25;border:none;border-radius:6px;font-family:'Open Sans',sans-serif;font-size:14px;font-weight:700;color:#000;letter-spacing:.04em;cursor:pointer;transition:background .15s,box-shadow .15s;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px}
+  .btn-enter:hover{background:#9acc2e;box-shadow:0 0 20px rgba(134,188,37,.4)}
+  .btn-enter:active{background:#6a9a1a}
+  .btn-enter svg{flex-shrink:0}
+
+  .login-footer{font-size:11px;color:rgba(255,255,255,.2);letter-spacing:.04em;text-align:center}
+  .login-footer strong{color:rgba(255,255,255,.35)}
+</style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+
+<div class="login-wrap">
+
+  <div style="text-align:center">
+    <div class="logo-pill">
+      <span class="logo-text">ArchIA</span><span class="logo-dot">.</span>
+    </div>
+    <div class="logo-sub" style="margin-top:14px">Acceso a la plataforma</div>
+    <div class="logo-sub" style="margin-top:4px;font-size:11px;color:rgba(255,255,255,.2)">Deloitte · Security Architecture Review</div>
+  </div>
+
+  <div class="card">
+    <div id="loginError">Usuario o contraseña incorrectos.</div>
+
+    <div class="field">
+      <label for="username">Usuario</label>
+      <div class="input-wrap">
+        <span class="input-icon">&#9786;</span>
+        <input type="text" id="username" placeholder="usuario" autocomplete="username" spellcheck="false"/>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="password">Contraseña</label>
+      <div class="input-wrap">
+        <span class="input-icon">&#128274;</span>
+        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password"/>
+        <button class="eye-toggle" id="eyeToggle" tabindex="-1" onclick="togglePwd()">&#128065;</button>
+      </div>
+    </div>
+
+    <button class="btn-enter" id="btnLogin" onclick="doLogin()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3M10 11l3-3-3-3M13 8H6" stroke="#000" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Entrar
+    </button>
+  </div>
+
+  <div class="login-footer">&copy; 2025 <strong>Deloitte.</strong> &nbsp;·&nbsp; Uso interno</div>
+</div>
+
+<script>
+// ── Particle background ──────────────────────────────────────────────────────
+(function() {
+  var canvas = document.getElementById('bg');
+  var ctx = canvas.getContext('2d');
+  var W, H, particles = [];
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function rand(min, max) { return min + Math.random() * (max - min); }
+
+  for (var i = 0; i < 90; i++) {
+    particles.push({
+      x: rand(0, W), y: rand(0, H),
+      vx: rand(-.3, .3), vy: rand(-.3, .3),
+      size: rand(2, 5),
+      alpha: rand(.15, .55)
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    // connections
+    for (var i = 0; i < particles.length; i++) {
+      for (var j = i+1; j < particles.length; j++) {
+        var dx = particles[i].x - particles[j].x;
+        var dy = particles[i].y - particles[j].y;
+        var dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 130) {
+          ctx.beginPath();
+          ctx.strokeStyle = 'rgba(134,188,37,' + (0.12 * (1 - dist/130)) + ')';
+          ctx.lineWidth = .5;
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+    // dots (squares like the screenshot)
+    particles.forEach(function(p) {
+      ctx.fillStyle = 'rgba(134,188,37,' + p.alpha + ')';
+      ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < -10) p.x = W+10;
+      if (p.x > W+10) p.x = -10;
+      if (p.y < -10) p.y = H+10;
+      if (p.y > H+10) p.y = -10;
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+function togglePwd() {
+  var inp = document.getElementById('password');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doLogin();
+});
+
+function doLogin() {
+  var user = document.getElementById('username').value.trim();
+  var pass = document.getElementById('password').value;
+  var err  = document.getElementById('loginError');
+  if (user === 'demo' && pass === '1234') {
+    sessionStorage.setItem('archiaAuth', '1');
+    window.location.href = 'dashboard.html';
+  } else {
+    err.style.display = 'block';
+    document.getElementById('password').value = '';
+    document.getElementById('password').focus();
+    setTimeout(function(){ err.style.display = 'none'; }, 3000);
+  }
+}
+</script>
+</body>
+</html>

@@ -262,6 +262,7 @@
   <nav>
     <a href="dashboard.html" class="active">Análisis</a>
     <a href="historico.html">Histórico</a>
+    <a href="settings.html">Configuración</a>
   </nav>
 </header>
 
@@ -283,6 +284,14 @@
       </div>
     </div>
     <div class="sb-list" id="sbList"></div>
+    <div style="border-top:1px solid var(--border);padding:14px 20px;display:flex;flex-direction:column;gap:8px">
+      <a href="settings.html" style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--gray-500);text-decoration:none;transition:color .15s" onmouseover="this.style.color='var(--black)'" onmouseout="this.style.color='var(--gray-500)'">
+        <span>&#9881;</span> Configuración
+      </a>
+      <button onclick="doLogout()" style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--gray-500);background:none;border:none;cursor:pointer;font-family:'Open Sans',sans-serif;padding:0;text-align:left;transition:color .15s" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--gray-500)'">
+        <span>&#10148;</span> Cerrar sesión
+      </button>
+    </div>
   </div>
 
   <!-- MAIN AREA -->
