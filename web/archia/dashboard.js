@@ -31,23 +31,20 @@
   window.addEventListener('unhandledrejection', function(e) {
     var reason = e.reason;
     var msg = reason instanceof Error ? reason.message : String(reason);
-    var stack = reason instanceof Error ? reason.stack : undefined;
-    addError('PROMISE', msg, stack);
+    addError('PROMISE', msg, reason instanceof Error ? reason.stack : undefined);
   });
   window.__logError = addError;
 })();
 
 (function () {
-  const API_BASE = "https://api1-soarplus-pre.es.deloitte.com";
-  const API_TOKEN = "sk-UmL4haDNvWZdQ4a8ZxKb3Q";
+  const API_BASE    = "https://api1-soarplus-pre.es.deloitte.com";
+  const API_TOKEN   = "sk-UmL4haDNvWZdQ4a8ZxKb3Q";
   const POLL_INTERVAL = 4000;
 
   const $ = id => document.getElementById(id);
-  const state = { file: null, uploaded: false, polling: null };
+  const state = { file: null, uploaded: false, polling: null, analysisType: null };
 
-  function authHeaders() {
-    return { "Authorization": "Bearer " + API_TOKEN };
-  }
+  function authHeaders() { return { "Authorization": "Bearer " + API_TOKEN }; }
 
   // ---- API Logger ----
   function log(type, data) {
@@ -55,9 +52,8 @@
     if (!entries) return;
     const div = document.createElement("div");
     div.className = "log-entry " + type;
-    const time = new Date().toLocaleTimeString("es-ES", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    let headHtml = "";
-    let bodyHtml = "";
+    const time = new Date().toLocaleTimeString("es-ES", { hour12:false, hour:"2-digit", minute:"2-digit", second:"2-digit" });
+    let headHtml = "", bodyHtml = "";
     if (type === "log-req") {
       headHtml = '<span class="log-method">' + escHtml(data.method) + '</span><span class="log-url">' + escHtml(data.url) + '</span><span class="log-time">' + time + '</span>';
       const parts = [];
@@ -82,7 +78,7 @@
     if (options.body instanceof FormData) {
       const parts = [];
       for (const [k, v] of options.body.entries()) {
-        parts.push(k + ": " + (v instanceof File ? "[File: " + v.name + ", " + (v.size/1024).toFixed(0) + " KB, " + v.type + "]" : String(v)));
+        parts.push(k + ": " + (v instanceof File ? "[File: " + v.name + ", " + (v.size/1024).toFixed(0) + " KB]" : String(v)));
       }
       loggedBody = "FormData {\n  " + parts.join("\n  ") + "\n}";
     } else if (options.body) {
@@ -101,11 +97,7 @@
       const ms = Date.now() - t0;
       let hint = "";
       if (e instanceof TypeError && e.message.includes("fetch")) {
-        hint = "\n\nPosibles causas:\n" +
-          "1. CORS: el servidor no permite peticiones desde este origen (" + location.origin + ")\n" +
-          "2. Certificado SSL no confiable (abre " + url.split('/').slice(0,3).join('/') + " en el navegador y acepta el cert)\n" +
-          "3. API no accesible desde esta red\n" +
-          "4. Preflight OPTIONS bloqueado (requiere cabecera Access-Control-Allow-Origin)";
+        hint = "\n\nPosible causa: CORS. Usa Chrome con --disable-web-security o accede vía GitHub Pages.";
       }
       log("log-net-err", { label: "NET ERROR [" + e.constructor.name + "]", url, ms, error: e.message + hint });
       if (window.__logError) window.__logError("NET ERROR", e.message + hint, e.stack);
@@ -113,46 +105,59 @@
     }
   }
 
-  // ---- UI helpers ----
-  function setUploadStatus(html) {
-    const el = $("uploadStatus");
-    el.style.display = "flex";
-    el.innerHTML = html;
-  }
-  function spinner(text) {
-    return '<div class="spinner"></div><span class="status-text">' + text + '</span>';
-  }
-  function checkIcon(text) {
-    return '<div class="check">&#10003;</div><span class="status-text ok">' + text + '</span>';
-  }
-  function errorIcon(text) {
-    return '<div class="x-icon">&#10007;</div><span class="status-text err">' + text + '</span>';
-  }
-
   // ---- Test connection ----
-  document.getElementById("btnTestConn").addEventListener("click", async function() {
-    var el = document.getElementById("connResult");
-    el.style.color = "#6b9e6b";
-    el.textContent = "Probando…";
+  $("btnTestConn").addEventListener("click", async function() {
+    const el = $("connResult");
+    el.style.color = "var(--gray-700)";
+    el.textContent = "Verificando…";
     try {
-      var r = await apiFetch(API_BASE + "/datasource/listfiles/", { headers: authHeaders() });
-      el.style.color = "#4ade80";
+      const r = await apiFetch(API_BASE + "/datasource/listfiles/", { headers: authHeaders() });
+      el.style.color = "var(--green-dark)";
       el.textContent = "✓ API accesible (HTTP " + r.status + ")";
     } catch(e) {
-      el.style.color = "#f87171";
-      el.textContent = "✗ No se puede conectar — abre http://localhost:8080 (no el fichero directamente)";
+      el.style.color = "var(--red)";
+      el.textContent = "✗ No se puede conectar";
     }
   });
+
+  // ---- Type selection ----
+  window.selectType = function(type) {
+    // Clear previous selection
+    ["typeArquitectura","typeFormulario"].forEach(function(id) {
+      $(id).classList.remove("selected");
+    });
+    $(type === "arquitectura" ? "typeArquitectura" : "typeFormulario").classList.add("selected");
+    state.analysisType = type;
+
+    // Reset sub-steps
+    resetSubSteps();
+
+    // Show upload step
+    $("stepUpload").style.display = "block";
+
+    if (type === "arquitectura") {
+      $("uploadDesc").textContent = "Adjunta el documento de arquitectura a analizar. Formatos admitidos: .doc, .docx, .pdf";
+      $("stepOpciones").style.display = "none"; // shown after upload confirms
+      $("executeStepLabel").textContent = "Paso 4";
+    } else {
+      $("uploadDesc").textContent = "Adjunta el cuestionario o formulario de seguridad a analizar. Formatos admitidos: .doc, .docx, .pdf";
+      $("stepOpciones").style.display = "none";
+      $("executeStepLabel").textContent = "Paso 3";
+    }
+
+    $("stepEjecutar").style.display = "none"; // shown after upload confirms
+    $("stepUpload").scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   // ---- File selection ----
   const dropZone = $("dropZone");
   const fileInput = $("fileInput");
 
   dropZone.addEventListener("click", () => fileInput.click());
-  ["dragenter", "dragover"].forEach(function(ev) {
+  ["dragenter","dragover"].forEach(function(ev) {
     dropZone.addEventListener(ev, function(e) { e.preventDefault(); dropZone.classList.add("over"); });
   });
-  ["dragleave", "drop"].forEach(function(ev) {
+  ["dragleave","drop"].forEach(function(ev) {
     dropZone.addEventListener(ev, function(e) { e.preventDefault(); dropZone.classList.remove("over"); });
   });
   dropZone.addEventListener("drop", function(e) {
@@ -162,12 +167,11 @@
   fileInput.addEventListener("change", function() {
     if (fileInput.files[0]) setFile(fileInput.files[0]);
   });
-
-  $("btnRemove").addEventListener("click", resetAll);
+  $("btnRemove").addEventListener("click", resetSubSteps);
 
   function setFile(f) {
     try {
-      if (window.__logError) window.__logError('INFO', 'Fichero seleccionado: ' + f.name + ' (' + f.size + ' bytes, type=' + (f.type||'unknown') + ')');
+      if (window.__logError) window.__logError('INFO', 'Fichero seleccionado: ' + f.name + ' (' + f.size + ' bytes)');
       var allowed = [".doc", ".docx", ".pdf"];
       var ext = f.name.slice(f.name.lastIndexOf(".")).toLowerCase();
       if (!allowed.includes(ext)) {
@@ -200,9 +204,7 @@
         headers: authHeaders(),
         body: fd
       });
-      if (!res.ok) {
-        throw new Error("HTTP " + res.status + (res.text ? " – " + res.text.slice(0, 120) : ""));
-      }
+      if (!res.ok) throw new Error("HTTP " + res.status + (res.text ? " – " + res.text.slice(0, 120) : ""));
       setUploadStatus(spinner("Fichero enviado. Verificando disponibilidad…"));
       startPolling(f.name);
     } catch (e) {
@@ -210,14 +212,12 @@
     }
   }
 
-  // ---- Poll until file appears in listfiles ----
+  // ---- Poll until file appears ----
   function startPolling(filename) {
     clearInterval(state.polling);
     state.polling = setInterval(async function() {
       try {
-        var res = await apiFetch(API_BASE + "/datasource/listfiles/", {
-          headers: authHeaders()
-        });
+        var res = await apiFetch(API_BASE + "/datasource/listfiles/", { headers: authHeaders() });
         if (!res.ok) return;
         var data = null;
         try { data = JSON.parse(res.text); } catch (_) {}
@@ -225,11 +225,19 @@
           clearInterval(state.polling);
           state.uploaded = true;
           setUploadStatus(checkIcon("Fichero disponible en la plataforma: " + filename));
+
+          // Show options step only for arquitectura
+          if (state.analysisType === "arquitectura") {
+            $("stepOpciones").style.display = "block";
+            $("optArqPub").disabled = false;
+            $("optArqNav").disabled = false;
+          }
+
+          // Always show execute step
+          $("stepEjecutar").style.display = "block";
           $("btnPlaybook").disabled = false;
-          $("optMarcos").disabled = false;
-          $("optArqPub").disabled = false;
         }
-      } catch (_) { /* seguir intentando */ }
+      } catch (_) {}
     }, POLL_INTERVAL);
   }
 
@@ -242,45 +250,68 @@
     });
   }
 
-  // ---- Playbook ----
+  // ---- Playbook execute ----
   $("btnPlaybook").addEventListener("click", async function() {
     if (!state.file || !state.uploaded) return;
     $("btnPlaybook").disabled = true;
     $("playbookStatus").textContent = "";
-
-    var doArq = $("optArqPub").classList.contains("selected");
-    var query = "incluye en la variable {documentos} el fichero denominado " + state.file.name;
-
     $("resultCard").style.display = "block";
     $("resultBox").style.display = "none";
     $("resultSpinner").style.display = "flex";
+    $("resultCard").scrollIntoView({ behavior: "smooth", block: "start" });
 
-    // Lanzar en paralelo, recoger resultados
+    if (state.analysisType === "formulario") {
+      await runFormulario();
+    } else {
+      await runArquitectura();
+    }
+
+    $("btnPlaybook").disabled = false;
+  });
+
+  // ---- Formulario flow ----
+  async function runFormulario() {
+    var query = "poner en {cuestionario} el fichero con el nombre " + state.file.name;
+    var results = await Promise.allSettled([
+      invokePlaybook("sep-01scoping-secarch", query)
+    ]);
+    renderResults(results, ["Análisis de formulario"]);
+  }
+
+  // ---- Arquitectura flow ----
+  async function runArquitectura() {
+    var query = "incluye en la variable {documentos} el fichero denominado " + state.file.name;
+    var doArqPub = $("optArqPub").classList.contains("selected");
+    var doArqNav = $("optArqNav").classList.contains("selected");
+
     var jobs = [invokePlaybook("analisis-de-diseno-inicial-de-arquitectura", query)];
-    if (doArq) jobs.push(invokePlaybook("revarquitectura", query));
+    var labels = ["Marcos de controles"];
+
+    if (doArqPub) { jobs.push(invokePlaybook("revarquitectura", query)); labels.push("Arquitectura de publicación"); }
+    if (doArqNav) { jobs.push(invokePlaybook("revarquitectura", query)); labels.push("Arquitectura de navegación"); }
 
     var results = await Promise.allSettled(jobs);
+    renderResults(results, labels);
+  }
 
-    // Construir HTML final con ambos resultados
+  function renderResults(results, labels) {
     var html = "";
-    var labels = ["Marcos de controles", "Arquitectura de publicación"];
     results.forEach(function(r, i) {
       if (results.length > 1) {
-        html += '<div class="result-section-title"' + (i > 0 ? ' style="margin-top:24px"' : '') + '>' + labels[i] + '</div>';
+        html += '<div class="result-section-title"' + (i > 0 ? ' style="margin-top:28px"' : '') + '>' + labels[i] + '</div>';
       }
       if (r.status === "fulfilled") {
         html += r.value;
       } else {
-        html += '<span style="color:#f87171">Error: ' + escHtml(r.reason && r.reason.message || String(r.reason)) + '</span>';
+        html += '<span style="color:var(--red)">Error: ' + escHtml(r.reason && r.reason.message || String(r.reason)) + '</span>';
       }
     });
-
     $("resultSpinner").style.display = "none";
     $("resultBox").style.display = "block";
     $("resultBox").innerHTML = html;
-    $("btnPlaybook").disabled = false;
-  });
+  }
 
+  // ---- Invoke playbook → returns HTML string ----
   async function invokePlaybook(playbookName, query) {
     var res = await apiFetch(
       API_BASE + "/playbooks/invoke/" + playbookName,
@@ -291,17 +322,14 @@
       }
     );
     if (!res.ok) throw new Error("HTTP " + res.status + " – " + res.text.slice(0, 200));
-
     var json;
     try { json = JSON.parse(res.text); } catch(_) { throw new Error("Respuesta no es JSON: " + res.text.slice(0, 200)); }
-
     var taskId = json.id || json.task_id || json.taskId || (json.status && json.status.id) || null;
     if (!taskId) throw new Error("No se encontró ID de tarea: " + JSON.stringify(json).slice(0, 300));
-
     return pollTask(taskId);
   }
 
-  // ---- Poll task until completed — returns HTML string ----
+  // ---- Poll task → returns HTML string ----
   function pollTask(taskId) {
     return new Promise(function(resolve, reject) {
       var url = API_BASE + "/agents/callagent-orchestrator/task/" + taskId;
@@ -309,10 +337,7 @@
       var maxAttempts = 120;
 
       function scheduleNext() {
-        if (attempts >= maxAttempts) {
-          reject(new Error("Tiempo de espera agotado (ID: " + taskId + ")"));
-          return;
-        }
+        if (attempts >= maxAttempts) { reject(new Error("Tiempo de espera agotado (ID: " + taskId + ")")); return; }
         setTimeout(checkTask, 5000);
       }
 
@@ -321,42 +346,62 @@
         try {
           var res = await apiFetch(url, { headers: authHeaders() });
           if (!res.ok) { scheduleNext(); return; }
-
           var data;
           try { data = JSON.parse(res.text); } catch(_) { scheduleNext(); return; }
-
           var statusObj = data.status || data;
           var taskState = (statusObj.state || statusObj.status || "").toLowerCase();
-
           if (taskState === "working" || taskState === "pending" || taskState === "running" || taskState === "") {
-            scheduleNext();
-            return;
+            scheduleNext(); return;
           }
-
           if (taskState === "completed" || taskState === "done" || taskState === "success") {
             var text = extractText(statusObj);
-            resolve(text ? renderMarkdown(text) : '<pre style="white-space:pre-wrap;font-size:12px;color:#6b9e6b">' + escHtml(JSON.stringify(data, null, 2)) + '</pre>');
+            resolve(text ? renderMarkdown(text) : '<pre style="white-space:pre-wrap;font-size:12px;color:var(--gray-700)">' + escHtml(JSON.stringify(data, null, 2)) + '</pre>');
             return;
           }
-
           if (taskState === "failed" || taskState === "error") {
-            var errText = extractText(statusObj) || JSON.stringify(data, null, 2);
-            reject(new Error(errText));
-            return;
+            reject(new Error(extractText(statusObj) || JSON.stringify(data, null, 2))); return;
           }
-
           scheduleNext();
-        } catch(e) {
-          scheduleNext();
-        }
+        } catch(e) { scheduleNext(); }
       }
-
       checkTask();
     });
   }
 
+  // ---- Reset ----
+  $("btnReset").addEventListener("click", resetAll);
+
+  function resetSubSteps() {
+    clearInterval(state.polling);
+    state.file = null;
+    state.uploaded = false;
+    fileInput.value = "";
+    $("fileInfo").style.display = "none";
+    $("uploadStatus").style.display = "none";
+    $("uploadStatus").innerHTML = "";
+    dropZone.style.display = "";
+    $("btnPlaybook").disabled = true;
+    $("playbookStatus").textContent = "";
+    $("stepOpciones").style.display = "none";
+    $("stepEjecutar").style.display = "none";
+    $("resultCard").style.display = "none";
+    $("resultSpinner").style.display = "none";
+    $("resultBox").style.display = "none";
+    $("resultBox").innerHTML = "";
+    ["optArqPub","optArqNav"].forEach(function(id) {
+      var el = $(id); if (el) { el.disabled = true; el.classList.remove("selected"); }
+    });
+  }
+
+  function resetAll() {
+    resetSubSteps();
+    state.analysisType = null;
+    ["typeArquitectura","typeFormulario"].forEach(function(id) { $(id).classList.remove("selected"); });
+    $("stepUpload").style.display = "none";
+  }
+
+  // ---- Helpers ----
   function extractText(statusObj) {
-    // status.message.parts[].text donde kind === "text"
     var msg = statusObj.message;
     if (!msg) return null;
     var parts = msg.parts || msg.content || [];
@@ -368,36 +413,6 @@
     if (texts.length) return texts.join("\n\n");
     if (typeof msg === "string") return msg;
     return null;
-  }
-
-  // ---- Copy ----
-  $("btnCopy").addEventListener("click", function() {
-    var text = $("resultBox").textContent;
-    navigator.clipboard.writeText(text).then(function() {
-      $("btnCopy").textContent = "✓ Copiado";
-      setTimeout(function() { $("btnCopy").innerHTML = "&#128203; Copiar"; }, 2000);
-    }).catch(function() {});
-  });
-
-  // ---- Reset ----
-  $("btnReset").addEventListener("click", resetAll);
-
-  function resetAll() {
-    clearInterval(state.polling);
-    state.file = null;
-    state.uploaded = false;
-    fileInput.value = "";
-    $("fileInfo").style.display = "none";
-    $("uploadStatus").style.display = "none";
-    $("uploadStatus").innerHTML = "";
-    dropZone.style.display = "";
-    $("btnPlaybook").disabled = true;
-    $("playbookStatus").textContent = "";
-    $("resultCard").style.display = "none";
-    $("resultSpinner").style.display = "none";
-    $("resultBox").style.display = "none";
-    $("resultBox").innerHTML = "";
-    var arqBtn = $("optArqPub"); arqBtn.disabled = true; arqBtn.classList.remove("selected");
   }
 
   function escHtml(s) {
@@ -415,24 +430,13 @@
   }
 
   function renderMarkdown(md) {
-    var lines = md.split("\n");
-    var out = [];
-    var inTable = false;
-    var tableRows = [];
+    var lines = md.split("\n"), out = [], inTable = false, tableRows = [];
     function flushTable() {
       if (!tableRows.length) return;
-      var header = tableRows[0];
-      var body = tableRows.slice(2);
-      var html = "<table><thead><tr>" +
-        header.map(function(c){ return "<th>" + inlineRender(c) + "</th>"; }).join("") +
-        "</tr></thead><tbody>";
-      body.forEach(function(row) {
-        html += "<tr>" + row.map(function(c){ return "<td>" + inlineRender(c) + "</td>"; }).join("") + "</tr>";
-      });
-      html += "</tbody></table>";
-      out.push(html);
-      tableRows = [];
-      inTable = false;
+      var header = tableRows[0], body = tableRows.slice(2);
+      var html = "<table><thead><tr>" + header.map(function(c){ return "<th>" + inlineRender(c) + "</th>"; }).join("") + "</tr></thead><tbody>";
+      body.forEach(function(row){ html += "<tr>" + row.map(function(c){ return "<td>" + inlineRender(c) + "</td>"; }).join("") + "</tr>"; });
+      html += "</tbody></table>"; out.push(html); tableRows = []; inTable = false;
     }
     lines.forEach(function(line) {
       if (line.trim().startsWith("|")) {
@@ -453,6 +457,7 @@
     if (inTable) flushTable();
     return out.join("\n").replace(/<\/ul>\n<ul>/g,"").replace(/<\/ol>\n<ol>/g,"");
   }
+
 })();
 
 function toggleOpt(btn) {
