@@ -290,7 +290,8 @@
         <span>Procesando análisis. Este proceso puede tardar varios minutos.</span>
       </div>
       <div class="result-body" id="resultBox" style="display:none"></div>
-      <div style="margin-top:20px">
+      <div style="margin-top:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <button id="btnDownloadWord" style="display:none;cursor:pointer;background:var(--green);border:none;color:#fff;padding:10px 24px;font-size:12px;font-weight:700;font-family:'Open Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;transition:background .15s" onclick="downloadWordReport()">Descargar informe Word</button>
         <button class="btn-ghost" id="btnReset">Nuevo análisis</button>
       </div>
     </div>
@@ -318,6 +319,7 @@
   &copy; 2025 <strong>Deloitte.</strong> &nbsp;&nbsp;ArchIA — Security Architecture Review &nbsp;&nbsp;Uso interno
 </footer>
 
+<script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
 <script src="dashboard.js"></script>
 </body>
 </html>

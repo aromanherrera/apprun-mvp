@@ -42,7 +42,8 @@
   const POLL_INTERVAL = 4000;
 
   const $ = id => document.getElementById(id);
-  const state = { file: null, uploaded: false, polling: null, analysisType: null };
+  const state = { file: null, uploaded: false, polling: null, analysisType: null, lastResults: [] };
+  window._archiaState = state;
 
   function authHeaders() { return { "Authorization": "Bearer " + API_TOKEN }; }
 
@@ -183,6 +184,7 @@
         return;
       }
       state.file = f;
+      state.filename = f.name;
       state.uploaded = false;
       $("fileName").textContent = f.name + "  (" + (f.size / 1024).toFixed(0) + " KB)";
       $("fileInfo").style.display = "flex";
@@ -298,23 +300,27 @@
 
   function renderResults(results, labels) {
     var html = "";
+    state.lastResults = [];
     results.forEach(function(r, i) {
       if (results.length > 1) {
         html += '<div class="result-section-title"' + (i > 0 ? ' style="margin-top:28px"' : '') + '>' + labels[i] + '</div>';
       }
       if (r.status === "fulfilled") {
-        html += r.value;
+        html += r.value.html;
+        state.lastResults.push({ label: labels[i], text: r.value.text });
       } else {
         html += '<span style="color:var(--red)">Error: ' + escHtml(r.reason && r.reason.message || String(r.reason)) + '</span>';
+        state.lastResults.push({ label: labels[i], text: null });
       }
     });
     $("resultSpinner").style.display = "none";
     $("resultBox").style.display = "block";
     $("resultBox").className = "result-body";
     $("resultBox").innerHTML = html;
+    $("btnDownloadWord").style.display = state.lastResults.some(function(r){ return r.text; }) ? "inline-block" : "none";
   }
 
-  // ---- Invoke playbook → returns HTML string ----
+  // ---- Invoke playbook → returns {html, text} ----
   async function invokePlaybook(playbookName, query) {
     var res = await apiFetch(
       API_BASE + "/playbooks/invoke/" + playbookName,
@@ -332,7 +338,7 @@
     return pollTask(taskId);
   }
 
-  // ---- Poll task → returns HTML string ----
+  // ---- Poll task → returns {html, text} ----
   function pollTask(taskId) {
     return new Promise(function(resolve, reject) {
       var url = API_BASE + "/agents/callagent-orchestrator/task/" + taskId;
@@ -358,7 +364,8 @@
           }
           if (taskState === "completed" || taskState === "done" || taskState === "success") {
             var text = extractText(statusObj);
-            resolve(text ? renderMarkdown(text) : '<pre style="white-space:pre-wrap;font-size:12px;color:var(--gray-700)">' + escHtml(JSON.stringify(data, null, 2)) + '</pre>');
+            var html = text ? renderMarkdown(text) : '<pre style="white-space:pre-wrap;font-size:12px;color:var(--gray-700)">' + escHtml(JSON.stringify(data, null, 2)) + '</pre>';
+            resolve({ html: html, text: text || JSON.stringify(data, null, 2) });
             return;
           }
           if (taskState === "failed" || taskState === "error") {
@@ -391,6 +398,7 @@
     $("resultSpinner").style.display = "none";
     $("resultBox").style.display = "none";
     $("resultBox").innerHTML = "";
+    var btnW = $("btnDownloadWord"); if (btnW) btnW.style.display = "none";
     ["optArqPub","optArqNav"].forEach(function(id) {
       var el = $(id); if (el) { el.disabled = true; el.classList.remove("selected"); }
     });
@@ -465,4 +473,331 @@
 
 function toggleOpt(btn) {
   btn.classList.toggle("selected");
+}
+
+// ---- Word report generation ----
+async function downloadWordReport() {
+  if (!window.docx) { alert("Librería Word no disponible. Recarga la página e inténtalo de nuevo."); return; }
+
+  var btn = document.getElementById("btnDownloadWord");
+  btn.textContent = "Generando…";
+  btn.disabled = true;
+
+  try {
+    var D = window.docx;
+    var GREEN   = "86BC25";
+    var BLACK   = "000000";
+    var DGRAY   = "53565A";
+    var LGRAY   = "F2F2F2";
+    var WHITE   = "FFFFFF";
+    var MGRAY   = "D0D0CE";
+
+    var s            = window._archiaState || {};
+    var analysisType = s.analysisType;
+    var filename     = s.filename || "documento";
+    var results      = s.lastResults || [];
+    var date         = new Date().toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
+    var isFormulario = analysisType === "formulario";
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+    function txt(text, opts) {
+      return new D.TextRun(Object.assign({ text: text || "", font: "Arial", size: 20, color: DGRAY }, opts || {}));
+    }
+    function par(children, opts) {
+      return new D.Paragraph(Object.assign({ children: Array.isArray(children) ? children : [children] }, opts || {}));
+    }
+    function spacer(lines) {
+      lines = lines || 1;
+      var arr = [];
+      for (var i = 0; i < lines; i++) arr.push(par([txt("")]));
+      return arr;
+    }
+
+    // ── inline markdown → TextRun[] ──────────────────────────────────────────
+    function inlineRuns(raw, baseOpts) {
+      var base = Object.assign({ font: "Arial", size: 20, color: DGRAY }, baseOpts || {});
+      var runs = [];
+      var regex = /\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`|([^*`]+)/g;
+      var m;
+      raw = (raw || "").replace(/^[-*]\s+/, "");
+      while ((m = regex.exec(raw)) !== null) {
+        if (m[1]) runs.push(new D.TextRun(Object.assign({}, base, { text: m[1], bold: true })));
+        else if (m[2]) runs.push(new D.TextRun(Object.assign({}, base, { text: m[2], italics: true })));
+        else if (m[3]) runs.push(new D.TextRun(Object.assign({}, base, { text: m[3], font: "Courier New", size: 18 })));
+        else if (m[4]) runs.push(new D.TextRun(Object.assign({}, base, { text: m[4] })));
+      }
+      return runs.length ? runs : [new D.TextRun(Object.assign({}, base, { text: raw }))];
+    }
+
+    // ── table builder ────────────────────────────────────────────────────────
+    function buildTable(headers, rows) {
+      var noBorder = { style: D.BorderStyle.NIL, size: 0, color: "auto" };
+      var cellBorder = { style: D.BorderStyle.SINGLE, size: 4, color: MGRAY };
+
+      function headerCell(text) {
+        return new D.TableCell({
+          children: [par([new D.TextRun({ text: text, font: "Arial", size: 18, bold: true, color: WHITE })],
+            { spacing: { before: 80, after: 80 } })],
+          shading: { fill: BLACK, type: D.ShadingType.CLEAR, color: "auto" },
+          margins: { top: 80, bottom: 80, left: 120, right: 120 },
+          borders: { top: noBorder, bottom: noBorder, left: noBorder, right: { style: D.BorderStyle.SINGLE, size: 4, color: WHITE } }
+        });
+      }
+      function dataCell(text, shade) {
+        return new D.TableCell({
+          children: [par(inlineRuns(text, { size: 18 }), { spacing: { before: 60, after: 60 } })],
+          shading: shade ? { fill: LGRAY, type: D.ShadingType.CLEAR, color: "auto" } : undefined,
+          margins: { top: 60, bottom: 60, left: 120, right: 120 },
+          borders: { top: cellBorder, bottom: cellBorder, left: cellBorder, right: cellBorder }
+        });
+      }
+
+      var tableRows = [
+        new D.TableRow({
+          tableHeader: true,
+          children: headers.map(headerCell)
+        })
+      ];
+      rows.forEach(function(row, ri) {
+        tableRows.push(new D.TableRow({
+          children: row.map(function(cell) { return dataCell(cell, ri % 2 === 1); })
+        }));
+      });
+
+      return new D.Table({
+        width: { size: 100, type: D.WidthType.PERCENTAGE },
+        rows: tableRows,
+        margins: { top: 0, bottom: 0, left: 0, right: 0 }
+      });
+    }
+
+    // ── markdown → docx elements ─────────────────────────────────────────────
+    function mdToDocx(md) {
+      var lines = (md || "").split("\n");
+      var elements = [];
+      var tableLines = [];
+
+      function flushTable() {
+        if (!tableLines.length) return;
+        var headers = tableLines[0].split("|").slice(1,-1).map(function(c){ return c.trim(); });
+        var dataRows = tableLines.slice(2).map(function(l) {
+          return l.split("|").slice(1,-1).map(function(c){ return c.trim(); });
+        }).filter(function(r){ return r.some(function(c){ return c; }); });
+        elements.push(buildTable(headers, dataRows));
+        elements = elements.concat(spacer(1));
+        tableLines = [];
+      }
+
+      lines.forEach(function(line) {
+        if (line.trim().startsWith("|")) { tableLines.push(line); return; }
+        if (tableLines.length) flushTable();
+
+        if (/^### /.test(line)) {
+          elements.push(par([new D.TextRun({ text: line.slice(4), font: "Arial", size: 22, bold: true, color: BLACK })],
+            { spacing: { before: 240, after: 80 } }));
+          return;
+        }
+        if (/^## /.test(line)) {
+          elements.push(par([new D.TextRun({ text: line.slice(3), font: "Arial", size: 26, bold: true, color: BLACK })],
+            { spacing: { before: 320, after: 120 },
+              border: { bottom: { color: GREEN, size: 8, style: D.BorderStyle.SINGLE, space: 4 } } }));
+          return;
+        }
+        if (/^# /.test(line)) {
+          elements.push(par([new D.TextRun({ text: line.slice(2), font: "Arial", size: 30, bold: true, color: BLACK })],
+            { spacing: { before: 400, after: 160 } }));
+          return;
+        }
+        if (/^---+$/.test(line.trim())) {
+          elements.push(par([new D.TextRun({ text: "" })],
+            { border: { bottom: { color: MGRAY, size: 4, style: D.BorderStyle.SINGLE } }, spacing: { before: 120, after: 120 } }));
+          return;
+        }
+        if (/^[-*] /.test(line)) {
+          elements.push(par(inlineRuns(line.slice(2)),
+            { bullet: { level: 0 }, spacing: { before: 40, after: 40 } }));
+          return;
+        }
+        if (/^\d+\. /.test(line)) {
+          elements.push(par(inlineRuns(line.replace(/^\d+\. /, "")),
+            { numbering: { reference: "default-numbering", level: 0 }, spacing: { before: 40, after: 40 } }));
+          return;
+        }
+        if (line.trim() === "") { elements.push(par([txt("")])); return; }
+        elements.push(par(inlineRuns(line), { spacing: { before: 40, after: 40 } }));
+      });
+      if (tableLines.length) flushTable();
+      return elements;
+    }
+
+    // ── section heading (for main numbered sections) ─────────────────────────
+    function sectionHeading(num, title) {
+      return par([
+        new D.TextRun({ text: num + ".  ", font: "Arial", size: 32, bold: true, color: GREEN }),
+        new D.TextRun({ text: title, font: "Arial", size: 32, bold: true, color: BLACK })
+      ], {
+        spacing: { before: 560, after: 200 },
+        border: { bottom: { color: GREEN, size: 12, style: D.BorderStyle.SINGLE, space: 6 } }
+      });
+    }
+
+    // ── intro text ───────────────────────────────────────────────────────────
+    function buildIntro() {
+      var typeLabel = isFormulario ? "análisis de formulario de seguridad" : "análisis de arquitectura de seguridad";
+      var modulesText = "";
+      if (!isFormulario) {
+        var modules = results.map(function(r){ return r.label; });
+        modulesText = " Los módulos ejecutados han sido: " + modules.join(", ") + ".";
+      }
+      return [
+        sectionHeading("1", "Introducción"),
+        par([txt("El presente documento recoge los resultados del " + typeLabel + " realizado sobre el fichero ")],
+          { spacing: { before: 80, after: 40 } }),
+        par([txt(filename, { bold: true, color: BLACK }), txt(" con fecha " + date + "." + modulesText)],
+          { spacing: { before: 0, after: 80 } }),
+        par([txt(isFormulario
+          ? "El análisis ha sido ejecutado de forma automatizada mediante la plataforma ArchIA de Deloitte, evaluando el contenido del cuestionario y generando la tabla de aplicabilidad de controles correspondiente."
+          : "El análisis ha sido ejecutado de forma automatizada mediante la plataforma ArchIA de Deloitte, revisando el diseño y los marcos de control de seguridad aplicables a la arquitectura documentada. El informe presenta un resumen ejecutivo de hallazgos y el detalle técnico de cada módulo analizado.")],
+          { spacing: { before: 80, after: 80 } })
+      ];
+    }
+
+    // ── executive summary ────────────────────────────────────────────────────
+    function buildExecutiveSummary() {
+      var elems = [sectionHeading("2", "Resumen ejecutivo")];
+      results.forEach(function(r) {
+        if (!r.text) return;
+        if (results.length > 1) {
+          elems.push(par([new D.TextRun({ text: r.label, font: "Arial", size: 24, bold: true, color: BLACK })],
+            { spacing: { before: 280, after: 100 } }));
+        }
+        // First ~8 non-empty lines as summary
+        var summaryLines = r.text.split("\n").filter(function(l){ return l.trim() && !l.trim().startsWith("|") && !/^---/.test(l.trim()); }).slice(0, 8);
+        summaryLines.forEach(function(l) {
+          elems.push(par(inlineRuns(l), { spacing: { before: 40, after: 40 } }));
+        });
+      });
+      return elems;
+    }
+
+    // ── detail section ───────────────────────────────────────────────────────
+    function buildDetail() {
+      var elems = [sectionHeading("3", "Detalle del análisis")];
+      results.forEach(function(r) {
+        if (!r.text) return;
+        if (results.length > 1) {
+          elems.push(par([new D.TextRun({ text: r.label, font: "Arial", size: 24, bold: true, color: BLACK })],
+            { spacing: { before: 280, after: 100 } }));
+        }
+        elems = elems.concat(mdToDocx(r.text));
+      });
+      return elems;
+    }
+
+    // ── formulario: only applicability table ─────────────────────────────────
+    function buildFormularioDoc() {
+      var r = results[0];
+      var elems = [sectionHeading("1", "Tabla de aplicabilidad")];
+      if (r && r.text) elems = elems.concat(mdToDocx(r.text));
+      return elems;
+    }
+
+    // ── header / footer ──────────────────────────────────────────────────────
+    var docHeader = new D.Header({
+      children: [
+        new D.Paragraph({
+          children: [
+            new D.TextRun({ text: "Deloitte.", font: "Arial", size: 18, bold: true, color: BLACK }),
+            new D.TextRun({ text: "  ArchIA — Security Architecture Review", font: "Arial", size: 16, color: DGRAY })
+          ],
+          border: { bottom: { color: GREEN, size: 8, style: D.BorderStyle.SINGLE, space: 4 } },
+          spacing: { after: 80 }
+        })
+      ]
+    });
+    var docFooter = new D.Footer({
+      children: [
+        new D.Paragraph({
+          children: [
+            new D.TextRun({ text: "© 2025 Deloitte.  Uso interno  ·  ", font: "Arial", size: 16, color: MGRAY }),
+            new D.TextRun({ children: [D.PageNumber.CURRENT], font: "Arial", size: 16, color: MGRAY })
+          ],
+          alignment: D.AlignmentType.RIGHT,
+          border: { top: { color: MGRAY, size: 4, style: D.BorderStyle.SINGLE, space: 4 } },
+          spacing: { before: 80 }
+        })
+      ]
+    });
+
+    // ── cover page ───────────────────────────────────────────────────────────
+    var coverChildren = [
+      par([txt("")], { spacing: { before: 0, after: 0 } }),
+      par([txt("")], { spacing: { before: 0, after: 0 } }),
+      par([txt("")], { spacing: { before: 0, after: 0 } }),
+      par([txt("")], { spacing: { before: 0, after: 0 } }),
+      par([txt("")], { spacing: { before: 0, after: 0 } }),
+      par([txt("")], { spacing: { before: 0, after: 0 } }),
+      par([new D.TextRun({ text: "Deloitte.", font: "Arial", size: 72, bold: true, color: BLACK })],
+        { alignment: D.AlignmentType.LEFT, spacing: { before: 0, after: 160 } }),
+      par([new D.TextRun({ text: "ArchIA", font: "Arial", size: 72, bold: true, color: GREEN })],
+        { alignment: D.AlignmentType.LEFT, spacing: { before: 0, after: 80 } }),
+      par([new D.TextRun({ text: "Security Architecture Review", font: "Arial", size: 32, bold: false, color: DGRAY })],
+        { alignment: D.AlignmentType.LEFT, spacing: { before: 0, after: 400 } }),
+      par([new D.TextRun({ text: (isFormulario ? "Análisis de formulario de seguridad" : "Análisis de arquitectura de seguridad"), font: "Arial", size: 26, bold: true, color: BLACK })],
+        { alignment: D.AlignmentType.LEFT, spacing: { before: 0, after: 120 } }),
+      par([new D.TextRun({ text: filename, font: "Arial", size: 22, color: DGRAY })],
+        { alignment: D.AlignmentType.LEFT, spacing: { before: 0, after: 80 } }),
+      par([new D.TextRun({ text: date, font: "Arial", size: 20, color: DGRAY })],
+        { alignment: D.AlignmentType.LEFT, spacing: { before: 0, after: 0 } }),
+      par([txt("")], { pageBreakBefore: true })
+    ];
+
+    // ── assemble body ─────────────────────────────────────────────────────────
+    var bodyChildren;
+    if (isFormulario) {
+      bodyChildren = coverChildren.concat(buildFormularioDoc());
+    } else {
+      bodyChildren = coverChildren
+        .concat(buildIntro())
+        .concat(spacer(1))
+        .concat(buildExecutiveSummary())
+        .concat(spacer(1))
+        .concat(buildDetail());
+    }
+
+    var doc = new D.Document({
+      numbering: {
+        config: [{
+          reference: "default-numbering",
+          levels: [{ level: 0, format: D.LevelFormat.DECIMAL, text: "%1.", alignment: D.AlignmentType.START,
+            style: { paragraph: { indent: { left: 360, hanging: 360 } } } }]
+        }]
+      },
+      sections: [{
+        properties: {
+          page: { margin: { top: 1080, right: 1080, bottom: 1080, left: 1080 } }
+        },
+        headers: { default: docHeader },
+        footers: { default: docFooter },
+        children: bodyChildren
+      }]
+    });
+
+    var blob = await D.Packer.toBlob(doc);
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "ArchIA_" + (isFormulario ? "Formulario" : "Arquitectura") + "_" + filename.replace(/\.[^.]+$/, "") + "_" + new Date().toISOString().slice(0,10) + ".docx";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+  } catch(e) {
+    alert("Error generando el informe: " + e.message);
+    if (window.__logError) window.__logError("WORD ERROR", e.message, e.stack);
+  } finally {
+    btn.textContent = "Descargar informe Word";
+    btn.disabled = false;
+  }
 }
