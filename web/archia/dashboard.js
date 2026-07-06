@@ -155,9 +155,12 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     var projects = loadProjects();
     var sidebar = $("sidebar");
     var sbList = $("sbList");
-    if (!projects.length) { sidebar.classList.add("hidden"); return; }
     sidebar.classList.remove("hidden");
     sbList.innerHTML = "";
+    if (!projects.length) {
+      sbList.innerHTML = '<div class="sb-empty">Aún no hay proyectos guardados.<br>Ejecuta tu primer análisis para verlo aquí.</div>';
+      return;
+    }
     projects.forEach(function(proj, pi) {
       var div = document.createElement("div");
       div.className = "sb-project";
@@ -289,7 +292,23 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     try {
       var fd = new FormData(); fd.append("file", f);
       var res = await apiFetch(API_BASE + "/datasource/uploadfile/", { method:"POST", headers:authHeaders(), body:fd });
-      if (!res.ok) throw new Error("HTTP " + res.status);
+      if (!res.ok) {
+        // If upload failed, check if file already exists on the platform
+        var listRes = await apiFetch(API_BASE + "/datasource/listfiles/", { headers:authHeaders() });
+        var data = null; try { data = JSON.parse(listRes.text); } catch(_) {}
+        if (listRes.ok && fileFoundInList(data, f.name)) {
+          // File already uploaded — treat as success
+          setUploadStatus(checkIcon("Fichero ya disponible en la plataforma: " + f.name));
+          state.uploaded = true;
+          if (state.analysisType === "arquitectura") {
+            $("stepOpciones").style.display = "block";
+            $("optArqPub").disabled = false; $("optArqNav").disabled = false;
+          }
+          $("stepEjecutar").style.display = "block"; $("btnPlaybook").disabled = false;
+          return;
+        }
+        throw new Error("HTTP " + res.status);
+      }
       setUploadStatus(spinner("Fichero enviado. Verificando disponibilidad…"));
       startPolling(f.name);
     } catch(e) { setUploadStatus(errorIcon("Error al subir: " + e.message)); }
