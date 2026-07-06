@@ -466,10 +466,47 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
   // ================================================================
   // STAT CARDS (big numbers)
   // ================================================================
+  function countStatusesFromMarkdown(text) {
+    // Parse markdown tables and count values in the status/estado column
+    var counts = { si: 0, no: 0, na: 0, parcial: 0 };
+    var lines = (text || "").split("\n");
+    var inTable = false;
+    var statusColIdx = -1;
+    var headerParsed = false;
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line.startsWith("|")) {
+        if (inTable) { inTable = false; statusColIdx = -1; headerParsed = false; }
+        continue;
+      }
+      var cells = line.split("|").slice(1, -1).map(function(c){ return c.trim(); });
+      if (!headerParsed) {
+        // Find status column from header
+        inTable = true; headerParsed = true;
+        statusColIdx = -1;
+        cells.forEach(function(c, idx) {
+          var cl = c.toLowerCase().replace(/\*/g,"").trim();
+          if (/estado|status|aplicabilidad|result/.test(cl)) statusColIdx = idx;
+        });
+        continue;
+      }
+      if (/^[\s|:-]+$/.test(line)) continue; // separator row
+      if (statusColIdx < 0 || statusColIdx >= cells.length) continue;
+      var val = cells[statusColIdx].toLowerCase().replace(/\*/g,"").replace(/\[|\]/g,"").trim();
+      if (val === "sí" || val === "si" || val === "yes" || val === "aplicable" || val === "✓") counts.si++;
+      else if (val === "no" || val === "no aplica" || val === "no aplican") counts.no++;
+      else if (val === "n/a" || val === "na") counts.na++;
+      else if (val === "parcial" || val === "partial") counts.parcial++;
+      else if (val) counts.si++; // unknown non-empty status → count as identified control
+    }
+    return counts;
+  }
+
   function buildStatCards(text) {
     var cards = [];
 
-    // Priority 1: count status badges from rendered table
+    // Priority 1: count status badges from rendered HTML
     var tmp = document.createElement("div");
     tmp.innerHTML = renderMarkdown(text);
     var si      = tmp.querySelectorAll(".badge-si,.badge-aplicable").length;
@@ -478,15 +515,22 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     var parcial = tmp.querySelectorAll(".badge-parcial").length;
     var badgeTotal = si + no + na + parcial;
 
+    // Priority 2: if badges didn't render, scan raw markdown table cells
+    if (badgeTotal === 0) {
+      var raw = countStatusesFromMarkdown(text);
+      si = raw.si; no = raw.no; na = raw.na; parcial = raw.parcial;
+      badgeTotal = si + no + na + parcial;
+    }
+
     if (badgeTotal > 0) {
       function pct(n) { return badgeTotal > 0 ? Math.round(n / badgeTotal * 100) + "%" : ""; }
-      cards.push({ cls:"sc-total",   num:badgeTotal, label:"Total controles",  pct:"" });
-      if (si)      cards.push({ cls:"sc-si",      num:si,      label:"Aplicables",  pct:pct(si) });
-      if (no)      cards.push({ cls:"sc-no",      num:no,      label:"No aplican",  pct:pct(no) });
-      if (na)      cards.push({ cls:"sc-na",      num:na,      label:"N/A",         pct:pct(na) });
-      if (parcial) cards.push({ cls:"sc-parcial", num:parcial, label:"Parcial",     pct:pct(parcial) });
+      cards.push({ cls:"sc-total",   num:badgeTotal, label:"Total controles", pct:"" });
+      if (si)      cards.push({ cls:"sc-si",      num:si,      label:"Aplicables", pct:pct(si) });
+      if (no)      cards.push({ cls:"sc-no",      num:no,      label:"No aplican", pct:pct(no) });
+      if (na)      cards.push({ cls:"sc-na",      num:na,      label:"N/A",        pct:pct(na) });
+      if (parcial) cards.push({ cls:"sc-parcial", num:parcial, label:"Parcial",    pct:pct(parcial) });
     } else {
-      // Priority 2: regex "Label: number" patterns from summary text
+      // Priority 3: regex "Label: number" patterns from summary text
       var re = /(?:[-*•]\s+)?\*{0,2}([^:\n*]{4,60}?)\*{0,2}:\s*\*{0,2}(\d+)\*{0,2}/g;
       var m; var seen = new Set();
       while ((m = re.exec(text)) !== null) {
@@ -494,7 +538,8 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
         var val = parseInt(m[2]);
         if (label.split(" ").length > 8 || seen.has(label)) continue;
         seen.add(label);
-        cards.push({ cls: cards.length === 0 ? "sc-total" : (cards.length === 1 ? "sc-si" : (cards.length === 2 ? "sc-no" : (cards.length === 3 ? "sc-na" : "sc-parcial"))), num: val, label: label, pct: "" });
+        var clsList = ["sc-total","sc-si","sc-no","sc-na","sc-parcial"];
+        cards.push({ cls: clsList[Math.min(cards.length, clsList.length-1)], num: val, label: label, pct: "" });
         if (cards.length >= 5) break;
       }
     }
