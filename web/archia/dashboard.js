@@ -464,51 +464,42 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
   }
 
   // ================================================================
-  // STAT CARDS (big numbers extracted from text)
+  // STAT CARDS (big numbers)
   // ================================================================
   function buildStatCards(text) {
-    // Extract "Label: number" patterns from summary lines
-    var stats = [];
-    var re = /(?:[-*•]\s+)?\*{0,2}([^:\n*]{4,60}?)\*{0,2}:\s*\*{0,2}(\d+)\*{0,2}/g;
-    var m;
-    var seen = new Set();
-    while ((m = re.exec(text)) !== null) {
-      var label = m[1].trim().replace(/^["']|["']$/g,"");
-      var val = parseInt(m[2]);
-      // Skip if label looks like a sentence or is a duplicate
-      if (label.split(" ").length > 8) continue;
-      if (seen.has(label)) continue;
-      seen.add(label);
-      stats.push({ label: label, value: val });
-    }
-    if (!stats.length) return "";
+    var cards = [];
 
-    // Also count badges from rendered HTML
+    // Priority 1: count status badges from rendered table
     var tmp = document.createElement("div");
     tmp.innerHTML = renderMarkdown(text);
-    var si = tmp.querySelectorAll(".badge-si,.badge-aplicable").length;
-    var no = tmp.querySelectorAll(".badge-no").length;
-    var na = tmp.querySelectorAll(".badge-na").length;
+    var si      = tmp.querySelectorAll(".badge-si,.badge-aplicable").length;
+    var no      = tmp.querySelectorAll(".badge-no").length;
+    var na      = tmp.querySelectorAll(".badge-na").length;
     var parcial = tmp.querySelectorAll(".badge-parcial").length;
     var badgeTotal = si + no + na + parcial;
 
-    // Prefer badge-derived counts if available, else use text-extracted stats
-    var cards = [];
     if (badgeTotal > 0) {
-      var total = badgeTotal;
-      function pct(n) { return total > 0 ? Math.round(n/total*100)+"%" : ""; }
-      cards.push({ cls:"sc-total", num: total, label:"Total\ncontroles" });
-      if (si)      cards.push({ cls:"sc-si",      num:si,      label:"Aplicables",     pct:pct(si) });
-      if (no)      cards.push({ cls:"sc-no",      num:no,      label:"No aplican",     pct:pct(no) });
-      if (na)      cards.push({ cls:"sc-na",      num:na,      label:"N/A",            pct:pct(na) });
-      if (parcial) cards.push({ cls:"sc-parcial", num:parcial, label:"Parcial",        pct:pct(parcial) });
+      function pct(n) { return badgeTotal > 0 ? Math.round(n / badgeTotal * 100) + "%" : ""; }
+      cards.push({ cls:"sc-total",   num:badgeTotal, label:"Total controles",  pct:"" });
+      if (si)      cards.push({ cls:"sc-si",      num:si,      label:"Aplicables",  pct:pct(si) });
+      if (no)      cards.push({ cls:"sc-no",      num:no,      label:"No aplican",  pct:pct(no) });
+      if (na)      cards.push({ cls:"sc-na",      num:na,      label:"N/A",         pct:pct(na) });
+      if (parcial) cards.push({ cls:"sc-parcial", num:parcial, label:"Parcial",     pct:pct(parcial) });
     } else {
-      // Use text-extracted stats (max 5)
-      stats.slice(0, 5).forEach(function(s, i) {
-        var cls = i === 0 ? "sc-total" : (i === 1 ? "sc-si" : (i === 2 ? "sc-na" : "sc-parcial"));
-        cards.push({ cls: cls, num: s.value, label: s.label, pct: "" });
-      });
+      // Priority 2: regex "Label: number" patterns from summary text
+      var re = /(?:[-*•]\s+)?\*{0,2}([^:\n*]{4,60}?)\*{0,2}:\s*\*{0,2}(\d+)\*{0,2}/g;
+      var m; var seen = new Set();
+      while ((m = re.exec(text)) !== null) {
+        var label = m[1].trim().replace(/^["'""]/g,"").replace(/["'""]$/g,"");
+        var val = parseInt(m[2]);
+        if (label.split(" ").length > 8 || seen.has(label)) continue;
+        seen.add(label);
+        cards.push({ cls: cards.length === 0 ? "sc-total" : (cards.length === 1 ? "sc-si" : (cards.length === 2 ? "sc-no" : (cards.length === 3 ? "sc-na" : "sc-parcial"))), num: val, label: label, pct: "" });
+        if (cards.length >= 5) break;
+      }
     }
+
+    if (!cards.length) return "";
 
     var html = '<div class="stat-row">';
     cards.forEach(function(c) {
