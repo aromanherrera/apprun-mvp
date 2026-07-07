@@ -138,14 +138,68 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     var projects = loadProjects();
     var name = run.projectName || "Sin nombre";
     var proj = projects.find(function(p) { return p.name === name; });
-    if (!proj) { proj = { name: name, runs: [] }; projects.unshift(proj); }
+    if (!proj) { proj = { name: name, runs: [], phases: {} }; projects.unshift(proj); }
+    if (!proj.phases) proj.phases = {};
+    // Mark phase as done
+    var phaseKey = run.analysisType === "arquitectura" ? "arquitectura" : (run.analysisType === "evidencias" ? "evidencias" : "formulario");
+    proj.phases[phaseKey] = run.date;
+    // If formulario done, unlock evidencias
+    if (phaseKey === "evidencias") proj.phases.informe = run.date;
     proj.runs.unshift(run);
-    // Keep max 5 runs per project
     if (proj.runs.length > 5) proj.runs = proj.runs.slice(0, 5);
-    // Keep max 20 projects
     if (projects.length > 20) projects = projects.slice(0, 20);
     saveProjects(projects);
     renderSidebar();
+    renderProgressBar(proj);
+  }
+
+  // ================================================================
+  // PHASE PROGRESS BAR
+  // ================================================================
+  var PHASES = [
+    { key: "arquitectura", label: "Análisis de\narquitectura", optional: true },
+    { key: "formulario",   label: "Formulario\nde triaje",    optional: false },
+    { key: "evidencias",   label: "Análisis de\nevidencias",  optional: false },
+    { key: "informe",      label: "Generación\nde informe",   optional: false }
+  ];
+
+  function renderProgressBar(proj) {
+    var bar = document.getElementById("phaseBar");
+    var inner = document.getElementById("phaseBarInner");
+    if (!bar || !inner) return;
+    if (!proj) { bar.style.display = "none"; return; }
+    bar.style.display = "block";
+    var phases = proj.phases || {};
+    // Determine active phase: first phase not yet done (skip optional if not started)
+    var activeKey = null;
+    for (var i = 0; i < PHASES.length; i++) {
+      if (!phases[PHASES[i].key]) {
+        if (PHASES[i].optional && i === 0 && !phases.arquitectura) {
+          // opcional no iniciada → skip, go to next
+          if (!phases.formulario) { activeKey = PHASES[i].key; break; }
+        } else {
+          activeKey = PHASES[i].key; break;
+        }
+      }
+    }
+    // Build nodes
+    var checkSvg = '<svg width="12" height="10" viewBox="0 0 12 10" fill="none"><path d="M1 5l4 4 6-8" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    inner.innerHTML = "";
+    PHASES.forEach(function(ph, idx) {
+      var done = !!phases[ph.key];
+      var active = ph.key === activeKey;
+      var cls = "phase-step" + (done ? " done" : "") + (active ? " active" : "") + (done && ph.key !== "informe" ? " clickable" : "");
+      var nodeContent = done ? checkSvg : (idx + 1);
+      var labelLines = ph.label.split("\n").join("<br>");
+      var optHtml = ph.optional ? '<div class="phase-optional">Opcional</div>' : '';
+      var step = document.createElement("div");
+      step.className = cls;
+      step.innerHTML =
+        '<div class="phase-node">' + nodeContent + '</div>' +
+        '<div class="phase-label">' + labelLines + '</div>' +
+        optHtml;
+      inner.appendChild(step);
+    });
   }
 
   // ================================================================
@@ -166,7 +220,17 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       div.className = "sb-project";
       var nameDiv = document.createElement("div");
       nameDiv.className = "sb-project-name";
-      nameDiv.innerHTML = '<span>' + escHtml(proj.name) + '</span><span class="sb-chevron">&#9656;</span>';
+      // Phase mini-indicator
+      var ph = proj.phases || {};
+      var doneCount = ["arquitectura","formulario","evidencias","informe"].filter(function(k){ return !!ph[k]; }).length;
+      var total = 4;
+      var phaseDots = '';
+      ["arquitectura","formulario","evidencias","informe"].forEach(function(k) {
+        var isDone = !!ph[k];
+        var isOpt = k === "arquitectura";
+        phaseDots += '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:3px;background:' + (isDone ? 'var(--green)' : (isOpt ? 'var(--gray-200)' : 'var(--gray-200)')) + ';border:1px solid ' + (isDone ? 'var(--green)' : 'var(--gray-200)') + '"></span>';
+      });
+      nameDiv.innerHTML = '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(proj.name) + '</span><span style="display:flex;align-items:center;gap:0;flex-shrink:0">' + phaseDots + '</span><span class="sb-chevron" style="margin-left:6px">&#9656;</span>';
       nameDiv.onclick = function() { div.classList.toggle("open"); };
       div.appendChild(nameDiv);
       var runsDiv = document.createElement("div");
@@ -196,6 +260,17 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
   function showHistoryRun(run) {
     $("wizardView").style.display = "none";
     $("historyView").style.display = "block";
+    // Show phase bar for this project
+    var projects = loadProjects();
+    var proj = projects.find(function(p){ return p.name === (run.projectName || "Sin nombre"); });
+    renderProgressBar(proj || null);
+    // Show "start evidencias" button only after formulario is done
+    var btnEv = $("btnStartEvidencias");
+    if (btnEv) {
+      var hasFormulario = proj && proj.phases && proj.phases.formulario && !proj.phases.evidencias;
+      btnEv.style.display = hasFormulario ? "inline-block" : "none";
+      if (hasFormulario) btnEv.dataset.projName = proj.name;
+    }
     var dateStr = run.date ? new Date(run.date).toLocaleDateString("es-ES", {day:"2-digit",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"}) : "";
     var typeLabel = run.analysisType === "formulario" ? "Análisis de formulario" : "Análisis de arquitectura";
     var modules = (run.modules || []).join(", ") || "—";
@@ -238,6 +313,17 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
   // ================================================================
   // TYPE SELECTION
   // ================================================================
+  window._archiaSelectEvidencias = function() {
+    // Reuse formulario flow but mark as evidencias analysis type
+    state.analysisType = "evidencias";
+    ["typeArquitectura","typeFormulario"].forEach(function(id){ $(id).classList.remove("selected"); });
+    resetSubSteps();
+    $("stepUpload").style.display = "block";
+    $("uploadDesc").textContent = "Adjunta las evidencias de cumplimiento de controles. Formatos: .doc, .docx, .pdf, .md";
+    $("executeStepLabel").textContent = "Paso 3 — Ejecución";
+    $("stepUpload").scrollIntoView({ behavior:"smooth", block:"start" });
+  };
+
   window.selectType = function(type) {
     ["typeArquitectura","typeFormulario"].forEach(function(id){ $(id).classList.remove("selected"); });
     $(type === "arquitectura" ? "typeArquitectura" : "typeFormulario").classList.add("selected");
@@ -365,8 +451,8 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     $("resultSpinner").style.display = "flex";
     $("resultCard").scrollIntoView({ behavior:"smooth", block:"start" });
 
-    if (state.analysisType === "formulario") await runFormulario();
-    else await runArquitectura();
+    if (state.analysisType === "arquitectura") await runArquitectura();
+    else await runFormulario(); // formulario + evidencias use same playbook flow
 
     $("btnPlaybook").disabled = false;
   });
@@ -421,6 +507,10 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     $("resultBox").innerHTML = html;
     var hasData = stored.some(function(r){ return r.text; });
     $("btnDownloadWord").style.display = hasData ? "inline-block" : "none";
+    // Update phase bar
+    var projects = loadProjects();
+    var proj = projects.find(function(p){ return p.name === (state.projectName || "Sin nombre"); });
+    renderProgressBar(proj || null);
   }
 
   // ================================================================
@@ -716,10 +806,22 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     return out.join("\n").replace(/<\/ul>\n<ul>/g,"").replace(/<\/ol>\n<ol>/g,"");
   }
 
+  // Show phase bar when project name matches a saved project
+  var pnInput = $("projectName");
+  if (pnInput) {
+    pnInput.addEventListener("input", function() {
+      var name = pnInput.value.trim();
+      var projects = loadProjects();
+      var proj = projects.find(function(p){ return p.name.toLowerCase() === name.toLowerCase(); });
+      renderProgressBar(proj || null);
+    });
+  }
+
   // ================================================================
   // INIT
   // ================================================================
   renderSidebar();
+  renderProgressBar(null);
 
 })();
 
@@ -727,6 +829,20 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
 // GLOBAL FUNCTIONS (called from HTML onclick)
 // ================================================================
 function toggleOpt(btn) { btn.classList.toggle("selected"); }
+
+function startEvidencias() {
+  // Pre-fill project name from the active history run and switch to wizard with evidencias type
+  var btn = document.getElementById("btnStartEvidencias");
+  var projName = btn ? btn.dataset.projName : "";
+  document.getElementById("historyView").style.display = "none";
+  document.getElementById("wizardView").style.display = "block";
+  if (projName) {
+    var pn = document.getElementById("projectName");
+    if (pn) pn.value = projName;
+  }
+  // Select formulario type (evidencias reuses the same upload + playbook flow for now)
+  if (typeof window._archiaSelectEvidencias === "function") window._archiaSelectEvidencias();
+}
 
 function downloadWordReport() {
   _generateWord(window._archiaState);

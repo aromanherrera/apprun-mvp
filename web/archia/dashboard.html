@@ -236,6 +236,23 @@
   #errorBadge{display:none;background:#C00000;color:#fff;border-radius:999px;font-size:10px;padding:1px 5px;margin-left:5px;font-weight:700}
   .debug-wrap details[open] summary{border-bottom:1px solid #333}
 
+  /* ── PHASE PROGRESS BAR ── */
+  .phase-bar{background:var(--white);border-bottom:1px solid var(--border);padding:20px 40px}
+  .phase-bar-inner{display:flex;align-items:flex-start;gap:0;position:relative;max-width:680px}
+  .phase-bar-inner::before{content:'';position:absolute;top:16px;left:16px;right:16px;height:2px;background:var(--border);z-index:0}
+  .phase-step{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;position:relative;z-index:1;cursor:default}
+  .phase-step.clickable{cursor:pointer}
+  .phase-node{width:32px;height:32px;border-radius:50%;border:2px solid var(--border);background:var(--white);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--gray-400);transition:all .25s;position:relative}
+  .phase-step.done .phase-node{background:var(--green);border-color:var(--green);color:var(--white)}
+  .phase-step.active .phase-node{background:var(--white);border-color:var(--green);color:var(--green);box-shadow:0 0 0 4px rgba(134,188,37,.15)}
+  .phase-step.active .phase-node::after{content:'';position:absolute;inset:-5px;border-radius:50%;border:2px solid rgba(134,188,37,.3);animation:phase-pulse 1.8s ease-in-out infinite}
+  @keyframes phase-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0;transform:scale(1.35)}}
+  .phase-label{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-400);text-align:center;line-height:1.35;max-width:90px}
+  .phase-step.done .phase-label{color:var(--green-dark)}
+  .phase-step.active .phase-label{color:var(--black)}
+  .phase-optional{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-400);background:var(--gray-100);padding:1px 5px;margin-top:-4px}
+  .phase-step.done .phase-connector,.phase-step.active .phase-connector{background:var(--green)}
+
   /* ── FOOTER ── */
   footer{background:var(--black);color:rgba(255,255,255,.3);text-align:center;font-size:11px;padding:18px 32px;letter-spacing:.04em}
   footer strong{color:rgba(255,255,255,.55);font-weight:600}
@@ -272,6 +289,11 @@
   <p>Selecciona el tipo de análisis, adjunta la documentación y obtén recomendaciones basadas en inteligencia artificial.</p>
 </div>
 
+<!-- PHASE PROGRESS BAR -->
+<div class="phase-bar" id="phaseBar" style="display:none">
+  <div class="phase-bar-inner" id="phaseBarInner"></div>
+</div>
+
 <div id="appShell">
 
   <!-- SIDEBAR -->
@@ -303,8 +325,9 @@
         <button class="hv-back" id="btnHvBack">&#8592; Volver al análisis</button>
         <div class="hv-meta" id="hvMeta"></div>
         <div id="hvContent"></div>
-        <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap">
+        <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
           <button class="btn-green" id="btnHvDownload" onclick="downloadWordFromHistory()">Descargar informe Word</button>
+          <button class="btn-ghost" id="btnStartEvidencias" style="display:none" onclick="startEvidencias()">Iniciar análisis de evidencias</button>
         </div>
       </div>
 
@@ -330,24 +353,18 @@
             <span class="step-num">Paso 1 — Tipo de análisis</span>
             <div class="step-title">Seleccionar modalidad</div>
             <div class="step-desc">Elige el tipo de análisis que deseas realizar sobre la documentación aportada.</div>
-            <div class="type-grid">
+            <div class="type-grid" style="grid-template-columns:repeat(2,1fr);max-width:560px">
               <div class="type-card" id="typeArquitectura" onclick="selectType('arquitectura')">
                 <div class="tc-check"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-                <div class="tc-tag">Arquitectura</div>
+                <div class="tc-tag">Opcional · Fase 1</div>
                 <div class="tc-name">Análisis de arquitectura</div>
-                <div class="tc-desc">Revisión de diseño y marcos de control de seguridad sobre documentación de arquitectura de sistemas.</div>
+                <div class="tc-desc">Revisión de diseño y marcos de control de seguridad sobre documentación de arquitectura.</div>
               </div>
               <div class="type-card" id="typeFormulario" onclick="selectType('formulario')">
                 <div class="tc-check"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-                <div class="tc-tag">Formulario</div>
-                <div class="tc-name">Análisis de formulario</div>
-                <div class="tc-desc">Revisión automatizada de cuestionarios y formularios de evaluación de seguridad.</div>
-              </div>
-              <div class="type-card disabled" id="typeEvidencias">
-                <div class="tc-tag">Evidencias</div>
-                <div class="tc-name">Análisis de evidencias</div>
-                <div class="tc-desc">Revisión y validación de evidencias de cumplimiento normativo y seguridad.</div>
-                <div class="tc-badge">Próximamente</div>
+                <div class="tc-tag">Obligatorio · Fase 2</div>
+                <div class="tc-name">Formulario de triaje</div>
+                <div class="tc-desc">Revisión del cuestionario de seguridad para identificar los controles aplicables al proyecto.</div>
               </div>
             </div>
           </div>
