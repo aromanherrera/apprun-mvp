@@ -174,7 +174,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     if (projects.length > 20) projects = projects.slice(0, 20);
     saveProjects(projects);
     renderSidebar();
-    renderProgressBar(proj);
+    renderProgressBar(proj.name);
   }
 
   // ================================================================
@@ -187,14 +187,14 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     { key: "informe",      label: "Generación\nde informe",   optional: false }
   ];
 
-  function renderProgressBar(proj) {
+  function renderProgressBar(projName) {
     var bar = document.getElementById("phaseBar");
     var inner = document.getElementById("phaseBarInner");
     if (!bar || !inner) return;
+    var proj = projName ? loadProjects().find(function(p){ return p.name === projName; }) : null;
     if (!proj) { bar.style.display = "none"; return; }
-    // Always use fresh data from localStorage to avoid stale phases
-    var fresh = loadProjects().find(function(p){ return p.name === proj.name; });
-    var phases = (fresh || proj).phases || {};
+    bar.style.display = "block";
+    var phases = proj.phases || {};
 
     // Active phase logic:
     // Arquitectura is OPTIONAL — it never blocks progression.
@@ -299,7 +299,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     // Show phase bar for this project
     var projects = loadProjects();
     var proj = projects.find(function(p){ return p.name === (run.projectName || "Sin nombre"); });
-    renderProgressBar(proj || null);
+    renderProgressBar(proj ? proj.name : null);
     // Show next-phase button based on project state
     var btnEv = $("btnStartEvidencias");
     if (btnEv && proj && proj.phases) {
@@ -564,7 +564,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     // Update phase bar
     var projects = loadProjects();
     var proj = projects.find(function(p){ return p.name === (state.projectName || "Sin nombre"); });
-    renderProgressBar(proj || null);
+    renderProgressBar(proj ? proj.name : null);
   }
 
   // ================================================================
@@ -867,7 +867,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       var name = pnInput.value.trim();
       var projects = loadProjects();
       var proj = projects.find(function(p){ return p.name.toLowerCase() === name.toLowerCase(); });
-      renderProgressBar(proj || null);
+      renderProgressBar(proj ? proj.name : null);
     });
   }
 
