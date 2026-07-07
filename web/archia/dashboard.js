@@ -129,7 +129,20 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
   // LOCAL STORAGE — HISTORY
   // ================================================================
   function loadProjects() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch(_) { return []; }
+    var projects;
+    try { projects = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch(_) { projects = []; }
+    // Retroactively populate phases from existing runs for projects saved before phases feature
+    projects.forEach(function(proj) {
+      if (!proj.phases) proj.phases = {};
+      (proj.runs || []).forEach(function(run) {
+        var t = run.analysisType;
+        var d = run.date || new Date().toISOString();
+        if ((t === "arquitectura" || (run.modules && run.modules.some(function(m){ return /arquitectura|marcos/i.test(m); }))) && !proj.phases.arquitectura) proj.phases.arquitectura = d;
+        if ((t === "formulario" || (run.modules && run.modules.some(function(m){ return /triaje|formulario|scoping/i.test(m); }))) && !proj.phases.formulario) proj.phases.formulario = d;
+        if (t === "evidencias" && !proj.phases.evidencias) proj.phases.evidencias = d;
+      });
+    });
+    return projects;
   }
   function saveProjects(projects) {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(projects)); } catch(_) {}
