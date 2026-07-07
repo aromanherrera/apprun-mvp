@@ -131,17 +131,28 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
   function loadProjects() {
     var projects;
     try { projects = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch(_) { projects = []; }
-    // Retroactively populate phases from existing runs for projects saved before phases feature
+    // Retroactively populate phases from existing runs and persist back
+    var dirty = false;
     projects.forEach(function(proj) {
-      if (!proj.phases) proj.phases = {};
+      if (!proj.phases) { proj.phases = {}; dirty = true; }
       (proj.runs || []).forEach(function(run) {
         var t = run.analysisType;
         var d = run.date || new Date().toISOString();
-        if ((t === "arquitectura" || (run.modules && run.modules.some(function(m){ return /arquitectura|marcos/i.test(m); }))) && !proj.phases.arquitectura) proj.phases.arquitectura = d;
-        if ((t === "formulario" || (run.modules && run.modules.some(function(m){ return /triaje|formulario|scoping/i.test(m); }))) && !proj.phases.formulario) proj.phases.formulario = d;
-        if (t === "evidencias" && !proj.phases.evidencias) proj.phases.evidencias = d;
+        if (!proj.phases.arquitectura && (t === "arquitectura" || (run.modules && run.modules.some(function(m){ return /arquitectura|marcos/i.test(m); })))) {
+          proj.phases.arquitectura = d; dirty = true;
+        }
+        if (!proj.phases.formulario && (t === "formulario" || t === "evidencias" || (run.modules && run.modules.some(function(m){ return /triaje|formulario|scoping/i.test(m); })))) {
+          // Only set formulario from formulario/triaje runs, not evidencias
+          if (t === "formulario" || (run.modules && run.modules.some(function(m){ return /triaje|formulario|scoping/i.test(m); }))) {
+            proj.phases.formulario = d; dirty = true;
+          }
+        }
+        if (!proj.phases.evidencias && t === "evidencias") {
+          proj.phases.evidencias = d; dirty = true;
+        }
       });
     });
+    if (dirty) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(projects)); } catch(_) {} }
     return projects;
   }
   function saveProjects(projects) {
@@ -181,8 +192,9 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     var inner = document.getElementById("phaseBarInner");
     if (!bar || !inner) return;
     if (!proj) { bar.style.display = "none"; return; }
-    bar.style.display = "block";
-    var phases = proj.phases || {};
+    // Always use fresh data from localStorage to avoid stale phases
+    var fresh = loadProjects().find(function(p){ return p.name === proj.name; });
+    var phases = (fresh || proj).phases || {};
 
     // Active phase logic:
     // Arquitectura is OPTIONAL — it never blocks progression.
