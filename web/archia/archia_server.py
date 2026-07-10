@@ -255,11 +255,14 @@ def list_wafs():
 # ── CROWDSTRIKE HELPERS ──────────────────────────────────────────────
 def _cs_token():
     import requests as req_lib
-    r = req_lib.post(CS_BASE_URL + "/oauth2/token", data={
-        "client_id": CS_CLIENT_ID,
-        "client_secret": CS_CLIENT_SECRET,
-        "grant_type": "client_credentials"
-    }, timeout=15)
+    r = req_lib.post(CS_BASE_URL + "/oauth2/token",
+        data="client_id=" + CS_CLIENT_ID + "&client_secret=" + CS_CLIENT_SECRET,
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+            "User-Agent": "PostmanRuntime/7.43.0"
+        },
+        timeout=15)
     print(f"[CS] Token response status: {r.status_code}")
     if r.status_code != 201:
         print(f"[CS] Token error body: {r.text}")
