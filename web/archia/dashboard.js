@@ -242,40 +242,102 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
   // ================================================================
   // RISK CALCULATION
   // ================================================================
-  function calculateRisks(run) {
-    if (!run || run.analysisType !== "formulario") return null;
-    var combinedText = (run.results || []).map(function(r){ return r.text || ""; }).join("\n");
-    // Count controls: try badges first, then raw markdown
+
+  // Shared control-count extractor — same 3-tier logic as buildStatCards
+  function extractControlCounts(text) {
+    // Tier 1: badge classes in rendered HTML
     var tmp = document.createElement("div");
-    tmp.innerHTML = renderMarkdown(combinedText);
+    tmp.innerHTML = renderMarkdown(text);
     var si = tmp.querySelectorAll(".badge-si,.badge-aplicable").length;
     var no = tmp.querySelectorAll(".badge-no").length;
     var na = tmp.querySelectorAll(".badge-na").length;
     var parcial = tmp.querySelectorAll(".badge-parcial").length;
-    if (si + no + na + parcial === 0) {
-      var raw = countStatusesFromMarkdown(combinedText);
-      si = raw.si; no = raw.no; na = raw.na; parcial = raw.parcial;
+    if (si + no + na + parcial > 0) return { si: si, no: no, na: na, parcial: parcial, total: si + no + na + parcial };
+
+    // Tier 2: raw markdown table scan
+    var raw = countStatusesFromMarkdown(text);
+    if (raw.si + raw.no + raw.na + raw.parcial > 0)
+      return { si: raw.si, no: raw.no, na: raw.na, parcial: raw.parcial, total: raw.si + raw.no + raw.na + raw.parcial };
+
+    // Tier 3: regex "Label: number" — extract first number as total
+    var re = /(?:[-*•]\s+)?\*{0,2}([^:\n*]{4,60}?)\*{0,2}:\s*\*{0,2}(\d+)\*{0,2}/g;
+    var m, seen = {}, totalFallback = 0, labels = [];
+    while ((m = re.exec(text)) !== null) {
+      var lbl = m[1].trim(); var val = parseInt(m[2]);
+      if (lbl.split(" ").length > 8 || seen[lbl]) continue;
+      seen[lbl] = true; labels.push({ lbl: lbl, val: val }); totalFallback += val;
+      if (labels.length >= 5) break;
     }
-    var total = si + no + na + parcial;
+    if (labels.length) {
+      // Best guess: first entry = total, rest = sub-counts
+      var guessTotal = labels[0].val;
+      return { si: guessTotal, no: 0, na: 0, parcial: 0, total: guessTotal };
+    }
+    return { si: 0, no: 0, na: 0, parcial: 0, total: 0 };
+  }
+
+  // Store counts + inherente on run for persistence (called once on first display)
+  function ensureRiskStored(run) {
+    if (run.riesgoInherente !== undefined) return; // already computed
+    var text = (run.results || []).map(function(r){ return r.text || ""; }).join("\n");
+    var c = extractControlCounts(text);
+    if (!c.total) return;
+    var applicable = c.si + c.parcial;
+    // Inherente: más controles aplicables → mayor superficie de riesgo (escala 0-4)
+    run.riesgoInherente = Math.round(Math.min(4, applicable / c.total * 4) * 10) / 10;
+    run.controlTotal = c.total;
+    run.controlApplicable = applicable;
+    // Persist
+    var projects = loadProjects();
+    var saved = false;
+    projects.forEach(function(p) {
+      (p.runs || []).forEach(function(r) {
+        if (r.id === run.id) {
+          r.riesgoInherente = run.riesgoInherente;
+          r.controlTotal = run.controlTotal;
+          r.controlApplicable = run.controlApplicable;
+          saved = true;
+        }
+      });
+    });
+    if (saved) saveProjects(projects);
+  }
+
+  function calculateRisks(run) {
+    if (!run || run.analysisType !== "formulario") return null;
+
+    // Ensure inherente is stored; use cached values when available
+    ensureRiskStored(run);
+
+    var inherente = run.riesgoInherente;
+    var total = run.controlTotal || 0;
+    var applicable = run.controlApplicable || 0;
+
+    // If still no data, try parsing now (edge case for very old runs)
+    if (inherente === undefined) {
+      var text = (run.results || []).map(function(r){ return r.text || ""; }).join("\n");
+      var c = extractControlCounts(text);
+      if (!c.total) return null;
+      total = c.total;
+      applicable = c.si + c.parcial;
+      inherente = Math.round(Math.min(4, applicable / total * 4) * 10) / 10;
+    }
     if (!total) return null;
 
-    // Inherente: risk controls (NO + PARCIAL) scaled 0–4
-    var inherente = Math.round(Math.min(4, (no * 1.0 + parcial * 0.6) / total * 4) * 10) / 10;
-
-    // Validations summary
+    // Validations
     var validations = run.validations || {};
     var answered = 0, cumpleCount = 0;
     Object.keys(validations).forEach(function(k) {
-      var v = validations[k];
-      if (!v) return;
+      var v = validations[k]; if (!v) return;
       if (v.compliance) { answered++; if (v.compliance === "cumple") cumpleCount++; }
-      else if (v.method && v.method !== "conectar") answered++; // evidencia set but pending result
+      else if (v.method && v.method !== "conectar") answered++;
     });
 
     var pctRespondidos = Math.round(answered / total * 100);
     var pctCumplimiento = answered > 0 ? Math.round(cumpleCount / answered * 100) : 0;
-    // Residual: cada control validado como cumple reduce el riesgo; no_cumple lo mantiene
-    var residual = Math.round(Math.max(0, inherente * (1 - (cumpleCount / total) * 0.9)) * 10) / 10;
+    // Residual: baja al validar como cumple, se mantiene con no_cumple o sin validar
+    var divisor = Math.max(applicable, 1);
+    var residual = Math.round(Math.max(0, inherente * (1 - (cumpleCount / divisor) * 0.9)) * 10) / 10;
 
     return { inherente: inherente, residual: residual, pctRespondidos: pctRespondidos, pctCumplimiento: pctCumplimiento, answered: answered, total: total };
   }
@@ -456,6 +518,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       });
     });
     if (!savedRun) { alert("No se encontró el análisis. Recarga la página."); return; }
+    ensureRiskStored(savedRun);
     saveProjects(projects);
 
     // Update button in table
@@ -574,7 +637,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     // Render results
     var html = buildResultsHtml(run.results || [], false, run);
     $("hvContent").innerHTML = html;
-    if (run.analysisType === "formulario") updateRiskCards(run);
+    if (run.analysisType === "formulario") { ensureRiskStored(run); updateRiskCards(run); }
     // Store for Word export
     window._archiaHistoryRun = run;
     $("historyView").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -800,7 +863,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     $("resultBox").innerHTML = html;
     if (state.analysisType === "formulario") {
       var freshRun = loadRunById(state.currentRunId);
-      if (freshRun) updateRiskCards(freshRun);
+      if (freshRun) { ensureRiskStored(freshRun); updateRiskCards(freshRun); }
     }
     var hasData = stored.some(function(r){ return r.text; });
     $("btnDownloadWord").style.display = hasData ? "inline-block" : "none";
