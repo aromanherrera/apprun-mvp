@@ -47,7 +47,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
   var STORAGE_KEY = "archiaProjects";
 
   var $ = function(id) { return document.getElementById(id); };
-  var state = { file: null, filename: null, uploaded: false, polling: null, analysisType: null, lastResults: [], projectName: "" };
+  var state = { file: null, filename: null, uploaded: false, polling: null, analysisType: null, lastResults: [], projectName: "", currentRunId: null };
   window._archiaState = state;
 
   function authHeaders() { return { "Authorization": "Bearer " + API_TOKEN }; }
@@ -173,6 +173,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     if (proj.runs.length > 5) proj.runs = proj.runs.slice(0, 5);
     if (projects.length > 20) projects = projects.slice(0, 20);
     saveProjects(projects);
+    state.currentRunId = run.id;
     renderSidebar();
     renderProgressBar(proj.name);
   }
@@ -237,6 +238,242 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       if (conn) conn.style.width = linePct + "%";
     }, 50);
   }
+
+  // ================================================================
+  // RISK CALCULATION
+  // ================================================================
+  function calculateRisks(run) {
+    if (!run || run.analysisType !== "formulario") return null;
+    var combinedText = (run.results || []).map(function(r){ return r.text || ""; }).join("\n");
+    // Count controls: try badges first, then raw markdown
+    var tmp = document.createElement("div");
+    tmp.innerHTML = renderMarkdown(combinedText);
+    var si = tmp.querySelectorAll(".badge-si,.badge-aplicable").length;
+    var no = tmp.querySelectorAll(".badge-no").length;
+    var na = tmp.querySelectorAll(".badge-na").length;
+    var parcial = tmp.querySelectorAll(".badge-parcial").length;
+    if (si + no + na + parcial === 0) {
+      var raw = countStatusesFromMarkdown(combinedText);
+      si = raw.si; no = raw.no; na = raw.na; parcial = raw.parcial;
+    }
+    var total = si + no + na + parcial;
+    if (!total) return null;
+
+    // Inherente: risk controls (NO + PARCIAL) scaled 0–4
+    var inherente = Math.round(Math.min(4, (no * 1.0 + parcial * 0.6) / total * 4) * 10) / 10;
+
+    // Validations summary
+    var validations = run.validations || {};
+    var answered = 0, cumpleCount = 0;
+    Object.keys(validations).forEach(function(k) {
+      var v = validations[k];
+      if (!v) return;
+      if (v.compliance) { answered++; if (v.compliance === "cumple") cumpleCount++; }
+      else if (v.method && v.method !== "conectar") answered++; // evidencia set but pending result
+    });
+
+    var pctRespondidos = Math.round(answered / total * 100);
+    var pctCumplimiento = answered > 0 ? Math.round(cumpleCount / answered * 100) : 0;
+    // Residual: cada control validado como cumple reduce el riesgo; no_cumple lo mantiene
+    var residual = Math.round(Math.max(0, inherente * (1 - (cumpleCount / total) * 0.9)) * 10) / 10;
+
+    return { inherente: inherente, residual: residual, pctRespondidos: pctRespondidos, pctCumplimiento: pctCumplimiento, answered: answered, total: total };
+  }
+
+  function riskColor(val) {
+    if (val <= 1) return "#3a6b0e";
+    if (val <= 2) return "#92640a";
+    if (val <= 3) return "#c45d00";
+    return "#8b1a1a";
+  }
+  function riskBarColor(val) {
+    if (val <= 1) return "#4a9b1a";
+    if (val <= 2) return "#d97706";
+    if (val <= 3) return "#e85800";
+    return "#c00000";
+  }
+
+  function buildRiskCardsHtml(risks) {
+    if (!risks) return "";
+    function pctCard(label, val, sub, extraCls) {
+      return '<div class="risk-card rc-pct' + (extraCls ? " " + extraCls : "") + '">' +
+        '<div class="risk-label">' + escHtml(label) + '</div>' +
+        '<div class="risk-val" style="color:var(--black)">' + val + '%</div>' +
+        '<div class="risk-sub">' + escHtml(sub) + '</div>' +
+        '<div class="risk-bar-track"><div class="risk-bar-fill" style="width:' + val + '%;background:var(--green)"></div></div>' +
+        '</div>';
+    }
+    function riskNumCard(label, val, cls) {
+      var color = riskColor(val);
+      var barColor = riskBarColor(val);
+      var barPct = (val / 4 * 100).toFixed(0);
+      return '<div class="risk-card ' + cls + '">' +
+        '<div class="risk-label">' + escHtml(label) + '</div>' +
+        '<div class="risk-val" style="color:' + color + '">' + val.toFixed(1) + '</div>' +
+        '<div class="risk-sub">Escala 0 – 4</div>' +
+        '<div class="risk-bar-track"><div class="risk-bar-fill" style="width:' + barPct + '%;background:' + barColor + '"></div></div>' +
+        '</div>';
+    }
+    return '<div class="risk-cards-row">' +
+      pctCard("Requisitos respondidos", risks.pctRespondidos, risks.answered + " de " + risks.total) +
+      riskNumCard("Riesgo inherente", risks.inherente, "rc-danger") +
+      riskNumCard("Riesgo residual", risks.residual, "rc-residual") +
+      pctCard("Cumplimiento", risks.pctCumplimiento, risks.answered ? risks.answered + " respondidos" : "Sin validar") +
+      '</div>';
+  }
+
+  function updateRiskCards(run) {
+    var container = document.getElementById("riskCardsSection");
+    if (!container) return;
+    var risks = calculateRisks(run);
+    container.innerHTML = risks ? buildRiskCardsHtml(risks) : "";
+  }
+
+  // ================================================================
+  // VALIDATION DRAWER (global, exposed via window)
+  // ================================================================
+  window._valState = { runId: null, controlKey: null, compliance: null };
+  window._valEvidFiles = [];
+
+  function loadRunById(runId) {
+    var found = null;
+    loadProjects().forEach(function(p) {
+      (p.runs || []).forEach(function(r) { if (r.id === runId) found = r; });
+    });
+    return found;
+  }
+
+  window.openValDrawerFromBtn = function(btn) {
+    openValDrawer(Number(btn.dataset.runid) || btn.dataset.runid, btn.dataset.key, btn.dataset.label || btn.dataset.key);
+  };
+
+  function openValDrawer(runId, controlKey, controlLabel) {
+    var drawer = document.getElementById("valDrawer");
+    var overlay = document.getElementById("valOverlay");
+    if (!drawer) return;
+    window._valState = { runId: runId, controlKey: controlKey, compliance: null };
+
+    var run = loadRunById(runId);
+    var existing = run && run.validations && run.validations[controlKey] ? run.validations[controlKey] : null;
+
+    document.getElementById("valDrawerTitle").textContent = controlLabel || controlKey;
+
+    var method = existing ? (existing.method || "manual") : "manual";
+    setValMethod(method);
+
+    // Fill manual panel
+    document.getElementById("valManualNotes").value = (existing && existing.method === "manual") ? (existing.notes || "") : "";
+    var comp = (existing && existing.compliance) || null;
+    window._valState.compliance = comp;
+    var btnC = document.getElementById("valBtnCumple");
+    var btnN = document.getElementById("valBtnNoCumple");
+    if (btnC) btnC.className = "val-comp-btn" + (comp === "cumple" ? " sel-cumple" : "");
+    if (btnN) btnN.className = "val-comp-btn" + (comp === "no_cumple" ? " sel-no_cumple" : "");
+
+    // Fill evidencia panel
+    window._valEvidFiles = (existing && existing.evidenceFiles) ? existing.evidenceFiles.slice() : [];
+    updateEvidFileListUI();
+    document.getElementById("valEvidNotes").value = (existing && existing.method === "evidencia") ? (existing.notes || "") : "";
+
+    drawer.classList.add("open");
+    overlay.classList.add("open");
+  }
+  window.openValDrawer = openValDrawer;
+
+  window.closeValDrawer = function() {
+    var drawer = document.getElementById("valDrawer");
+    var overlay = document.getElementById("valOverlay");
+    if (drawer) drawer.classList.remove("open");
+    if (overlay) overlay.classList.remove("open");
+  };
+
+  window.setValMethod = function(method) {
+    document.querySelectorAll(".val-tab").forEach(function(t) {
+      t.classList.toggle("active", t.dataset.method === method);
+    });
+    document.getElementById("valPanelManual").style.display = method === "manual" ? "" : "none";
+    document.getElementById("valPanelEvidencia").style.display = method === "evidencia" ? "" : "none";
+    document.getElementById("valPanelConectar").style.display = method === "conectar" ? "" : "none";
+    window._valState.currentMethod = method;
+  };
+  function setValMethod(m) { window.setValMethod(m); }
+
+  window.setValCompliance = function(val) {
+    window._valState.compliance = window._valState.compliance === val ? null : val;
+    var c = window._valState.compliance;
+    var btnC = document.getElementById("valBtnCumple");
+    var btnN = document.getElementById("valBtnNoCumple");
+    if (btnC) btnC.className = "val-comp-btn" + (c === "cumple" ? " sel-cumple" : "");
+    if (btnN) btnN.className = "val-comp-btn" + (c === "no_cumple" ? " sel-no_cumple" : "");
+  };
+
+  window.handleEvidFiles = function(input) {
+    for (var i = 0; i < input.files.length; i++) {
+      var fname = input.files[i].name;
+      if (window._valEvidFiles.indexOf(fname) === -1) window._valEvidFiles.push(fname);
+    }
+    updateEvidFileListUI();
+    input.value = "";
+  };
+
+  window.removeEvidFile = function(idx) {
+    window._valEvidFiles.splice(idx, 1);
+    updateEvidFileListUI();
+  };
+
+  function updateEvidFileListUI() {
+    var list = document.getElementById("valEvidFileList");
+    if (!list) return;
+    list.innerHTML = window._valEvidFiles.map(function(f, i) {
+      return '<div class="val-file-item"><span>📄 ' + escHtml(f) + '</span><button class="val-file-remove" onclick="removeEvidFile(' + i + ')">×</button></div>';
+    }).join("");
+  }
+
+  window.saveValidation = function() {
+    var st = window._valState;
+    var method = st.currentMethod || "manual";
+    var validation = { method: method, compliance: null, notes: "", evidenceFiles: [], updatedAt: new Date().toISOString() };
+
+    if (method === "manual") {
+      if (!st.compliance) { alert("Selecciona si el control Cumple o No cumple."); return; }
+      validation.compliance = st.compliance;
+      validation.notes = (document.getElementById("valManualNotes").value || "").trim();
+    } else if (method === "evidencia") {
+      validation.notes = (document.getElementById("valEvidNotes").value || "").trim();
+      validation.evidenceFiles = window._valEvidFiles.slice();
+    }
+    // "conectar" → saved as placeholder
+
+    var projects = loadProjects();
+    var savedRun = null;
+    projects.forEach(function(p) {
+      (p.runs || []).forEach(function(r) {
+        if (r.id === st.runId) {
+          if (!r.validations) r.validations = {};
+          r.validations[st.controlKey] = validation;
+          savedRun = r;
+        }
+      });
+    });
+    if (!savedRun) { alert("No se encontró el análisis. Recarga la página."); return; }
+    saveProjects(projects);
+
+    // Update button in table
+    var btns = document.querySelectorAll(".val-btn[data-key]");
+    btns.forEach(function(btn) {
+      if (btn.dataset.key === st.controlKey) {
+        var lbl = validation.compliance === "cumple" ? "✓ Cumple" : (validation.compliance === "no_cumple" ? "✗ No cumple" : "📄 Con evidencia");
+        btn.textContent = lbl;
+        btn.className = "val-btn" + (validation.compliance ? " val-btn-" + validation.compliance : "");
+        // Row highlight
+        var row = btn.closest("tr");
+        if (row) row.className = validation.compliance === "cumple" ? "val-row-cumple" : (validation.compliance === "no_cumple" ? "val-row-nocumple" : "");
+      }
+    });
+
+    updateRiskCards(savedRun);
+    window.closeValDrawer();
+  };
 
   // ================================================================
   // SIDEBAR RENDERING
@@ -335,8 +572,9 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       '<div class="hv-meta-item"><div class="hv-meta-label">Módulos</div><div class="hv-meta-val">' + escHtml(modules) + '</div></div>' +
       '<div class="hv-meta-item"><div class="hv-meta-label">Fecha</div><div class="hv-meta-val">' + dateStr + '</div></div>';
     // Render results
-    var html = buildResultsHtml(run.results || [], false);
+    var html = buildResultsHtml(run.results || [], false, run);
     $("hvContent").innerHTML = html;
+    if (run.analysisType === "formulario") updateRiskCards(run);
     // Store for Word export
     window._archiaHistoryRun = run;
     $("historyView").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -555,10 +793,15 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       results: stored
     });
 
-    var html = buildResultsHtml(stored, true);
+    var runCtx = { id: state.currentRunId, analysisType: state.analysisType, validations: {} };
+    var html = buildResultsHtml(stored, true, runCtx);
     $("resultSpinner").style.display = "none";
     $("resultBox").style.display = "block";
     $("resultBox").innerHTML = html;
+    if (state.analysisType === "formulario") {
+      var freshRun = loadRunById(state.currentRunId);
+      if (freshRun) updateRiskCards(freshRun);
+    }
     var hasData = stored.some(function(r){ return r.text; });
     $("btnDownloadWord").style.display = hasData ? "inline-block" : "none";
     // Update phase bar
@@ -590,21 +833,25 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     return out.join("\n");
   }
 
-  function buildResultsHtml(stored, multiSection) {
+  function buildResultsHtml(stored, multiSection, runCtx) {
+    var isFormulario = !!(runCtx && runCtx.analysisType === "formulario");
+    var mdOpts = isFormulario ? { isFormulario: true, runId: runCtx.id, validations: runCtx.validations || {} } : null;
     var allHtml = "";
     stored.forEach(function(r, i) {
       var bodyText = r.text ? stripSummarySection(r.text) : null;
-      var sectionHtml = bodyText ? renderMarkdown(bodyText) : '<p style="color:var(--red)">Error al procesar este módulo.</p>';
+      var sectionHtml = bodyText ? renderMarkdown(bodyText, mdOpts) : '<p style="color:var(--red)">Error al procesar este módulo.</p>';
       if (multiSection && stored.length > 1) {
         allHtml += '<div class="result-section-label">' + escHtml(r.label) + '</div>';
       }
       allHtml += '<div class="result-body">' + sectionHtml + '</div>';
       if (i < stored.length - 1) allHtml += '<hr style="border:none;border-top:1px solid var(--border);margin:24px 0">';
     });
-    // Build stat cards from all text combined (uses original text with summary)
+    // Stat cards (always shown)
     var combinedText = stored.map(function(r){ return r.text || ""; }).join("\n");
     var statHtml = buildStatCards(combinedText);
-    return statHtml + allHtml;
+    // Risk cards placeholder (only for formulario — populated after DOM insertion)
+    var riskPlaceholder = isFormulario ? '<div id="riskCardsSection"></div>' : "";
+    return statHtml + riskPlaceholder + allHtml;
   }
 
   // ================================================================
@@ -824,18 +1071,32 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     return inlineRender(v);
   }
 
-  function renderMarkdown(md) {
+  function renderMarkdown(md, opts) {
     var lines = (md||"").split("\n"), out = [], inTable = false, tableRows = [];
     function flushTable() {
       if (!tableRows.length) return;
       var header = tableRows[0], body = tableRows.slice(2);
+      var isFormulario = !!(opts && opts.isFormulario);
+      var runId = opts && opts.runId;
+      var validations = (opts && opts.validations) || {};
       var html = '<div class="tbl-wrap"><table><thead><tr>';
       html += header.map(function(c){ return "<th>"+inlineRender(c)+"</th>"; }).join("");
+      if (isFormulario) html += '<th style="width:110px">Validación</th>';
       html += "</tr></thead><tbody>";
-      body.forEach(function(row){
-        html += "<tr>" + row.map(function(c, ci){
+      body.forEach(function(row, rowIdx){
+        var controlKey = (row[0] || ("row-" + rowIdx)).trim();
+        var val = validations[controlKey] || null;
+        var compliance = val && val.compliance;
+        var rowCls = compliance === "cumple" ? " class=\"val-row-cumple\"" : (compliance === "no_cumple" ? " class=\"val-row-nocumple\"" : "");
+        html += "<tr" + rowCls + ">" + row.map(function(c, ci){
           return "<td>" + (ci > 0 ? statusBadge(c) : inlineRender(c)) + "</td>";
-        }).join("") + "</tr>";
+        }).join("");
+        if (isFormulario) {
+          var btnLbl = compliance === "cumple" ? "✓ Cumple" : (compliance === "no_cumple" ? "✗ No cumple" : (val && val.method === "evidencia" ? "📄 Con evidencia" : "Validar"));
+          var btnCls = compliance ? (" val-btn-" + compliance) : "";
+          html += '<td><button class="val-btn' + btnCls + '" data-key="' + escHtml(controlKey) + '" data-runid="' + escHtml(String(runId)) + '" data-label="' + escHtml(controlKey) + '" onclick="openValDrawerFromBtn(this)">' + escHtml(btnLbl) + '</button></td>';
+        }
+        html += "</tr>";
       });
       html += "</tbody></table></div>";
       out.push(html); tableRows = []; inTable = false;

@@ -256,6 +256,64 @@
   footer{background:var(--black);color:rgba(255,255,255,.3);text-align:center;font-size:11px;padding:18px 32px;letter-spacing:.04em}
   footer strong{color:rgba(255,255,255,.55);font-weight:600}
 
+  /* ── RISK CARDS ── */
+  .risk-cards-row{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--border);margin-bottom:24px;background:var(--white)}
+  .risk-card{padding:20px 18px 16px;border-right:1px solid var(--border);position:relative}
+  .risk-card:last-child{border-right:none}
+  .risk-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+  .risk-card.rc-pct::before{background:var(--green)}
+  .risk-card.rc-danger::before,.risk-card.rc-residual::before{background:var(--gray-200)}
+  .risk-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:6px;line-height:1.3}
+  .risk-val{font-size:40px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+  .risk-sub{font-size:11px;color:var(--gray-400);margin-top:4px}
+  .risk-bar-track{margin-top:10px;height:4px;background:var(--gray-100);overflow:hidden}
+  .risk-bar-fill{height:100%;transition:width .5s ease}
+
+  /* ── VALIDATION BUTTON IN TABLE ── */
+  .val-btn{padding:4px 10px;font-size:10px;font-weight:700;font-family:'Open Sans',sans-serif;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--border);background:var(--white);cursor:pointer;white-space:nowrap;transition:all .15s}
+  .val-btn:hover{border-color:var(--gray-700)}
+  .val-btn-cumple{border-color:#4a9b1a !important;background:#e8f5d0 !important;color:#3a6b0e !important}
+  .val-btn-no_cumple{border-color:#c00000 !important;background:#fde8e8 !important;color:#8b1a1a !important}
+  .val-row-cumple{background:rgba(74,155,26,.04) !important}
+  .val-row-nocumple{background:rgba(192,0,0,.03) !important}
+
+  /* ── VALIDATION DRAWER ── */
+  #valOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:400}
+  #valOverlay.open{display:block}
+  #valDrawer{position:fixed;top:0;right:-400px;width:360px;height:100vh;background:var(--white);border-left:1px solid var(--border);z-index:401;display:flex;flex-direction:column;transition:right .3s cubic-bezier(.4,0,.2,1);overflow:hidden}
+  #valDrawer.open{right:0}
+  .val-header{padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px}
+  #valDrawerTitle{flex:1;font-size:13px;font-weight:700;color:var(--black);line-height:1.4;word-break:break-word}
+  .val-close{background:none;border:none;cursor:pointer;color:var(--gray-400);font-size:20px;line-height:1;padding:0;transition:color .15s;flex-shrink:0}
+  .val-close:hover{color:var(--black)}
+  .val-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+  .val-tab{flex:1;padding:10px 4px;border:none;background:none;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-400);cursor:pointer;font-family:'Open Sans',sans-serif;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;margin-bottom:-1px}
+  .val-tab:hover{color:var(--black)}
+  .val-tab.active{color:var(--black);border-bottom-color:var(--green)}
+  .val-body{flex:1;overflow-y:auto;padding:20px}
+  .val-section-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin:16px 0 8px}
+  .val-section-label:first-child{margin-top:0}
+  .val-textarea{width:100%;border:1px solid var(--border);padding:10px 12px;font-family:'Open Sans',sans-serif;font-size:13px;color:var(--gray-900);resize:vertical;min-height:90px;outline:none;transition:border-color .15s;background:var(--gray-50);line-height:1.6}
+  .val-textarea:focus{border-color:var(--green);background:var(--white)}
+  .val-compliance-row{display:flex;gap:8px}
+  .val-comp-btn{flex:1;padding:11px 8px;border:1px solid var(--border);background:var(--white);font-size:12px;font-weight:700;font-family:'Open Sans',sans-serif;cursor:pointer;transition:all .15s;text-align:center}
+  .val-comp-btn:hover{border-color:var(--gray-700)}
+  .val-comp-btn.sel-cumple{border-color:#4a9b1a;background:#4a9b1a;color:var(--white)}
+  .val-comp-btn.sel-no_cumple{border-color:#c00000;background:#c00000;color:var(--white)}
+  .val-file-drop{border:1px dashed var(--border);padding:16px;text-align:center;cursor:pointer;font-size:12px;color:var(--gray-400);background:var(--gray-50);transition:border-color .15s,color .15s;line-height:1.6}
+  .val-file-drop:hover{border-color:var(--green);color:var(--green-dark)}
+  .val-file-list{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+  .val-file-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gray-700);background:var(--gray-50);padding:6px 10px;border:1px solid var(--border)}
+  .val-file-remove{background:none;border:none;cursor:pointer;color:var(--gray-400);font-size:14px;margin-left:auto;line-height:1;transition:color .15s}
+  .val-file-remove:hover{color:var(--red)}
+  .val-footer{padding:16px 20px;border-top:1px solid var(--border);flex-shrink:0}
+  .val-save-btn{width:100%;padding:12px;background:var(--black);color:var(--white);border:none;font-size:12px;font-weight:700;font-family:'Open Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:background .15s}
+  .val-save-btn:hover{background:#222}
+  .val-placeholder{text-align:center;padding:32px 16px;color:var(--gray-400)}
+  .val-placeholder .val-icon{font-size:36px;margin-bottom:12px}
+  .val-placeholder strong{color:var(--gray-700)}
+  .val-placeholder p{font-size:12px;line-height:1.65;margin-top:6px}
+
   /* ── HISTORY RESULT VIEW ── */
   #historyView{display:none;padding:28px 40px;background:var(--white);border-bottom:1px solid var(--border)}
   .hv-back{cursor:pointer;background:none;border:none;color:var(--gray-500);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-family:'Open Sans',sans-serif;display:flex;align-items:center;gap:6px;margin-bottom:20px;padding:0;transition:color .15s}
@@ -454,6 +512,56 @@
 <footer>
   &copy; 2025 <strong>Deloitte.</strong> &nbsp;&nbsp;ArchIA — Security Architecture Review &nbsp;&nbsp;Uso interno
 </footer>
+
+<!-- VALIDATION DRAWER -->
+<div id="valOverlay" onclick="closeValDrawer()"></div>
+<div id="valDrawer">
+  <div class="val-header">
+    <div id="valDrawerTitle">Validación de control</div>
+    <button class="val-close" onclick="closeValDrawer()">×</button>
+  </div>
+  <div class="val-tabs">
+    <button class="val-tab active" data-method="manual" onclick="setValMethod('manual')">Análisis manual</button>
+    <button class="val-tab" data-method="evidencia" onclick="setValMethod('evidencia')">Analizar evidencia</button>
+    <button class="val-tab" data-method="conectar" onclick="setValMethod('conectar')">Conectar</button>
+  </div>
+  <div class="val-body">
+    <!-- MANUAL PANEL -->
+    <div id="valPanelManual">
+      <div class="val-section-label">Notas del analista</div>
+      <textarea class="val-textarea" id="valManualNotes" placeholder="Documenta el análisis manual de este control…"></textarea>
+      <div class="val-section-label">Resultado de validación</div>
+      <div class="val-compliance-row">
+        <button class="val-comp-btn" id="valBtnCumple" onclick="setValCompliance('cumple')">✓ Cumple</button>
+        <button class="val-comp-btn" id="valBtnNoCumple" onclick="setValCompliance('no_cumple')">✗ No cumple</button>
+      </div>
+    </div>
+    <!-- EVIDENCIA PANEL -->
+    <div id="valPanelEvidencia" style="display:none">
+      <div class="val-section-label">Adjuntar evidencias</div>
+      <div class="val-file-drop" onclick="document.getElementById('valEvidFiles').click()">
+        Haz clic para seleccionar ficheros<br>
+        <span style="font-size:11px">PDF, Word, imágenes u otros formatos</span>
+      </div>
+      <input type="file" id="valEvidFiles" multiple style="display:none" onchange="handleEvidFiles(this)"/>
+      <div class="val-file-list" id="valEvidFileList"></div>
+      <div class="val-section-label">Observaciones</div>
+      <textarea class="val-textarea" id="valEvidNotes" placeholder="Añade contexto adicional sobre las evidencias adjuntas…"></textarea>
+    </div>
+    <!-- CONECTAR PANEL -->
+    <div id="valPanelConectar" style="display:none">
+      <div class="val-placeholder">
+        <div class="val-icon">🔌</div>
+        <strong>Conectar con tecnología</strong>
+        <p>Esta opción permitirá obtener evidencias de forma directa desde sistemas conectados: SIEM, GRC, Active Directory, herramientas de cumplimiento, etc.</p>
+        <p style="margin-top:10px;font-size:11px;color:var(--gray-400)">Funcionalidad en desarrollo</p>
+      </div>
+    </div>
+  </div>
+  <div class="val-footer">
+    <button class="val-save-btn" onclick="saveValidation()">Guardar validación</button>
+  </div>
+</div>
 
 <script src="docx.min.js"></script>
 <script src="dashboard.js"></script>
