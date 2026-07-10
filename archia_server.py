@@ -296,14 +296,27 @@ def check_crowdstrike():
             return jsonify({"error": "hostnames es obligatorio"}), 400
 
         token = _cs_token()
+        print(f"[CS] Token obtenido OK: {token[:20]}...")
 
         # Obtener grupos (con assignment_rule) y políticas en paralelo
         import threading
         groups_result, policies_result = [None], [None]
         def fetch_groups():
-            groups_result[0] = _cs_get("/devices/combined/host-groups/v1", token).get("resources", [])
+            try:
+                r = _cs_get("/devices/combined/host-groups/v1", token)
+                groups_result[0] = r.get("resources", [])
+                print(f"[CS] Grupos obtenidos: {len(groups_result[0])}")
+            except Exception as e:
+                print(f"[CS] ERROR grupos: {e}")
+                groups_result[0] = []
         def fetch_policies():
-            policies_result[0] = _cs_get("/policy/combined/prevention/v1", token).get("resources", [])
+            try:
+                r = _cs_get("/policy/combined/prevention/v1", token)
+                policies_result[0] = r.get("resources", [])
+                print(f"[CS] Políticas obtenidas: {len(policies_result[0])}")
+            except Exception as e:
+                print(f"[CS] ERROR políticas: {e}")
+                policies_result[0] = []
         t1, t2 = threading.Thread(target=fetch_groups), threading.Thread(target=fetch_policies)
         t1.start(); t2.start(); t1.join(); t2.join()
         all_groups   = groups_result[0]
