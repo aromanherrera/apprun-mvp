@@ -255,6 +255,8 @@ def list_wafs():
 # ── CROWDSTRIKE HELPERS ──────────────────────────────────────────────
 def _cs_token():
     import requests as req_lib
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     r = req_lib.post(CS_BASE_URL + "/oauth2/token",
         data="client_id=" + CS_CLIENT_ID + "&client_secret=" + CS_CLIENT_SECRET,
         headers={
@@ -264,6 +266,8 @@ def _cs_token():
             "User-Agent": "PostmanRuntime/7.46.0",
             "Connection": "keep-alive",
         },
+        proxies={"http": None, "https": None},  # bypass corporate proxy
+        verify=False,  # skip SSL inspection (corporate proxy)
         timeout=15)
     print(f"[CS] Token response status: {r.status_code}")
     if r.status_code != 201:
