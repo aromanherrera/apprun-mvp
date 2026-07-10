@@ -579,21 +579,40 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     if (compSection) compSection.style.display = "none";
 
     getCsToken().then(function(token) {
-      return csGet("/policy/combined/prevention/v1", token).then(function(polResp) {
-        var allPolicies = polResp.resources || [];
+      // Obtener políticas Y grupos en paralelo
+      return Promise.all([
+        csGet("/policy/combined/prevention/v1", token),
+        csGet("/devices/combined/host-groups/v1", token)
+      ]).then(function(responses) {
+        var allPolicies = responses[0].resources || [];
+        var allGroups   = responses[1].resources || [];
+
+        console.log("[CS] políticas:", allPolicies.length, "grupos:", allGroups.length);
+        if (allGroups.length) console.log("[CS] ejemplo grupo:", JSON.stringify(allGroups[0]).substring(0, 300));
 
         return Promise.all(hostnames.map(function(hostname) {
-          // Buscar en qué política aparece este hostname dentro del assignment_rule de sus grupos
-          var matchedPolicy = null;
           var hostUpper = hostname.toUpperCase();
-          allPolicies.forEach(function(p) {
-            if (matchedPolicy) return;
-            (p.groups || []).forEach(function(g) {
-              if (matchedPolicy) return;
-              var rule = (g.assignment_rule || "").toUpperCase();
-              if (rule.indexOf(hostUpper) !== -1) matchedPolicy = p;
-            });
+
+          // Buscar el hostname en el assignment_rule de los grupos
+          var matchedGroup = null;
+          allGroups.forEach(function(g) {
+            if (matchedGroup) return;
+            var rule = (g.assignment_rule || "").toUpperCase();
+            if (rule.indexOf(hostUpper) !== -1) matchedGroup = g;
           });
+
+          console.log("[CS] hostname:", hostname, "→ grupo encontrado:", matchedGroup ? matchedGroup.name : "ninguno");
+
+          // Encontrar la política que usa ese grupo
+          var matchedPolicy = null;
+          if (matchedGroup) {
+            allPolicies.forEach(function(p) {
+              if (matchedPolicy) return;
+              (p.groups || []).forEach(function(g) {
+                if (g.id === matchedGroup.id) matchedPolicy = p;
+              });
+            });
+          }
 
           if (!matchedPolicy) return { hostname: hostname, found: false };
 
