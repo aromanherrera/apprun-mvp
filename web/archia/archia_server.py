@@ -259,8 +259,10 @@ def _cs_token():
         data="client_id=" + CS_CLIENT_ID + "&client_secret=" + CS_CLIENT_SECRET,
         headers={
             "Content-Type": "application/x-www-form-urlencoded",
-            "Accept": "application/json",
-            "User-Agent": "PostmanRuntime/7.43.0"
+            "Accept": "*/*",
+            "Accept-Encoding": "gzip, deflate, br",
+            "User-Agent": "PostmanRuntime/7.46.0",
+            "Connection": "keep-alive",
         },
         timeout=15)
     print(f"[CS] Token response status: {r.status_code}")
