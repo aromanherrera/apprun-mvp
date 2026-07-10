@@ -258,7 +258,7 @@ def _cs_token():
     import urllib3
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     r = req_lib.post(CS_BASE_URL + "/oauth2/token",
-        data="client_id=" + CS_CLIENT_ID + "&client_secret=" + CS_CLIENT_SECRET,
+        data="grant_type=client_credentials&client_id=" + CS_CLIENT_ID + "&client_secret=" + CS_CLIENT_SECRET,
         headers={
             "Content-Type": "application/x-www-form-urlencoded",
             "Accept": "*/*",
