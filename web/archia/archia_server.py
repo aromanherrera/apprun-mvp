@@ -254,30 +254,32 @@ def list_wafs():
 
 # ── CROWDSTRIKE HELPERS ──────────────────────────────────────────────
 def _cs_token():
-    data = urllib.parse.urlencode({
+    import requests as req_lib
+    r = req_lib.post(CS_BASE_URL + "/oauth2/token", data={
         "client_id": CS_CLIENT_ID,
         "client_secret": CS_CLIENT_SECRET
-    }).encode()
-    req = urllib.request.Request(CS_BASE_URL + "/oauth2/token", data=data, method="POST")
-    with urllib.request.urlopen(req, timeout=15) as r:
-        return json.loads(r.read())["access_token"]
+    }, timeout=15)
+    print(f"[CS] Token response status: {r.status_code}")
+    if r.status_code != 201:
+        print(f"[CS] Token error body: {r.text}")
+        raise Exception(f"HTTP Error {r.status_code}: {r.text}")
+    return r.json()["access_token"]
 
 def _cs_get(path, token, params=None):
-    url = CS_BASE_URL + path
-    if params:
-        url += "?" + urllib.parse.urlencode(params)
-    req = urllib.request.Request(url, headers={"Authorization": "Bearer " + token})
-    with urllib.request.urlopen(req, timeout=15) as r:
-        return json.loads(r.read())
+    import requests as req_lib
+    r = req_lib.get(CS_BASE_URL + path, headers={"Authorization": "Bearer " + token},
+                    params=params, timeout=15)
+    if r.status_code not in (200, 201):
+        raise Exception(f"HTTP Error {r.status_code} on {path}: {r.text[:200]}")
+    return r.json()
 
 def _cs_post(path, token, body):
-    data = json.dumps(body).encode()
-    req = urllib.request.Request(
-        CS_BASE_URL + path, data=data, method="POST",
-        headers={"Authorization": "Bearer " + token, "Content-Type": "application/json"}
-    )
-    with urllib.request.urlopen(req, timeout=15) as r:
-        return json.loads(r.read())
+    import requests as req_lib
+    r = req_lib.post(CS_BASE_URL + path, headers={"Authorization": "Bearer " + token},
+                     json=body, timeout=15)
+    if r.status_code not in (200, 201):
+        raise Exception(f"HTTP Error {r.status_code} on {path}: {r.text[:200]}")
+    return r.json()
 
 
 # ── ENDPOINT: consultar equipos en CrowdStrike ───────────────────────
