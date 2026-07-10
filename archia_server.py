@@ -16,6 +16,8 @@ Variables de entorno necesarias (o edita CONFIGURACION más abajo):
 
 import json
 import os
+import urllib.request
+import urllib.parse
 import boto3
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -34,6 +36,11 @@ BEDROCK_MODEL = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 # BEDROCK_MODEL = "anthropic.claude-3-haiku-20240307-v1:0"
 
 PORT = 8000
+
+# CrowdStrike (para integración PS_01 — antivirus/antimalware)
+CS_CLIENT_ID     = os.environ.get("CS_CLIENT_ID",     "2626bff7eaf74bea87e2ff3e95c20bf4")
+CS_CLIENT_SECRET = os.environ.get("CS_CLIENT_SECRET", "bCxStEHn8QUDiz62Gj9PK7WOy3IAg0sf1M5mk4pL")
+CS_BASE_URL      = os.environ.get("CS_BASE_URL",      "https://api.eu-1.crowdstrike.com")
 # ════════════════════════════════════════
 
 app = Flask(__name__)
@@ -240,6 +247,122 @@ def list_wafs():
             for w in response.get("WebACLs", [])
         ]
         return jsonify({"scope": scope, "wafs": wafs, "total": len(wafs)})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ── CROWDSTRIKE HELPERS ──────────────────────────────────────────────
+def _cs_token():
+    data = urllib.parse.urlencode({
+        "client_id": CS_CLIENT_ID,
+        "client_secret": CS_CLIENT_SECRET
+    }).encode()
+    req = urllib.request.Request(CS_BASE_URL + "/oauth2/token", data=data, method="POST")
+    with urllib.request.urlopen(req, timeout=15) as r:
+        return json.loads(r.read())["access_token"]
+
+def _cs_get(path, token, params=None):
+    url = CS_BASE_URL + path
+    if params:
+        url += "?" + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url, headers={"Authorization": "Bearer " + token})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        return json.loads(r.read())
+
+def _cs_post(path, token, body):
+    data = json.dumps(body).encode()
+    req = urllib.request.Request(
+        CS_BASE_URL + path, data=data, method="POST",
+        headers={"Authorization": "Bearer " + token, "Content-Type": "application/json"}
+    )
+    with urllib.request.urlopen(req, timeout=15) as r:
+        return json.loads(r.read())
+
+
+# ── ENDPOINT: consultar equipos en CrowdStrike ───────────────────────
+@app.route("/check-crowdstrike", methods=["POST"])
+def check_crowdstrike():
+    """
+    Body: { "hostnames": ["EQUIPO01", "EQUIPO02"] }
+    Devuelve si cada equipo está en la consola y los valores clave de su política:
+      - ml_enabled: si la prevención de Machine Learning está activa
+      - extended_user_mode: si Extended user mode data visibility está activo
+    """
+    try:
+        body = request.get_json(force=True) or {}
+        hostnames = [h.strip() for h in body.get("hostnames", []) if h.strip()]
+        if not hostnames:
+            return jsonify({"error": "hostnames es obligatorio"}), 400
+
+        token = _cs_token()
+
+        # Obtener todas las políticas de prevención (con sus settings)
+        policies_resp = _cs_get("/policy/combined/prevention/v1", token)
+        all_policies = policies_resp.get("resources", [])
+
+        results = []
+        for hostname in hostnames:
+            # Buscar dispositivo por nombre
+            search_resp = _cs_get(
+                "/devices/queries/devices/v1", token,
+                {"filter": "hostname:'" + hostname + "'"}
+            )
+            device_ids = search_resp.get("resources", [])
+
+            if not device_ids:
+                results.append({"hostname": hostname, "found": False})
+                continue
+
+            # Obtener detalle del dispositivo
+            dev_resp = _cs_post("/devices/entities/devices/v2", token, {"ids": device_ids[:1]})
+            devices = dev_resp.get("resources", [])
+            device = devices[0] if devices else {}
+
+            # Encontrar la política de prevención asignada
+            device_policy_id = None
+            for pol in device.get("policies", []):
+                if pol.get("policy_type") == "prevention":
+                    device_policy_id = pol.get("policy_id")
+                    break
+
+            policy_name = ""
+            ml_enabled = None
+            extended_user_mode = None
+
+            for p in all_policies:
+                if p.get("id") == device_policy_id:
+                    policy_name = p.get("name", "")
+                    for cls in p.get("settings", {}).get("classes", []):
+                        for setting in cls.get("settings", []):
+                            sid = setting.get("id", "").lower()
+                            val = setting.get("value", {})
+                            # Machine Learning / cloud anti-malware
+                            if sid in ("cloud_anti_malware", "sensor_anti_malware", "adware_and_pup") or "machine_learning" in sid:
+                                if ml_enabled is None:
+                                    prev = val.get("prevention", "DISABLED")
+                                    ml_enabled = prev not in ("DISABLED", "")
+                            # Extended user mode data visibility
+                            if "extended" in sid and "user" in sid:
+                                extended_user_mode = bool(val.get("enabled", False))
+                    break
+
+            last_seen = device.get("last_seen", "")
+            results.append({
+                "hostname": hostname,
+                "found": True,
+                "device_id": device.get("device_id", ""),
+                "platform": device.get("platform_name", ""),
+                "os_version": device.get("os_version", ""),
+                "agent_version": device.get("agent_version", ""),
+                "last_seen": last_seen,
+                "status": device.get("status", ""),
+                "policy_name": policy_name,
+                "ml_enabled": ml_enabled,
+                "extended_user_mode": extended_user_mode
+            })
+
+        return jsonify({"results": results})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

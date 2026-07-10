@@ -314,6 +314,28 @@
   .val-placeholder strong{color:var(--gray-700)}
   .val-placeholder p{font-size:12px;line-height:1.65;margin-top:6px}
 
+  /* ── CROWDSTRIKE PANEL ── */
+  .cs-query-btn{width:100%;margin-top:10px;padding:10px;background:var(--black);color:var(--white);border:none;font-size:11px;font-weight:700;font-family:'Open Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:background .15s}
+  .cs-query-btn:hover{background:#222}
+  .cs-query-btn:disabled{background:var(--gray-300);cursor:not-allowed}
+  .cs-result{border:1px solid var(--border);margin-top:12px;padding:12px 14px}
+  .cs-result-host{font-size:12px;font-weight:700;color:var(--black);margin-bottom:6px;display:flex;align-items:center;gap:8px}
+  .cs-badge{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border:1px solid currentColor}
+  .cs-online{color:#4a9b1a}
+  .cs-notfound{color:var(--gray-400);font-size:12px;font-style:italic;margin-top:4px}
+  .cs-result-notfound{border-color:var(--gray-200);background:var(--gray-50)}
+  .cs-result-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;margin-bottom:10px}
+  .cs-kv{display:flex;flex-direction:column;gap:1px}
+  .cs-k{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400)}
+  .cs-v{font-size:11px;color:var(--gray-900)}
+  .cs-checks{border-top:1px solid var(--border);padding-top:8px;display:flex;flex-direction:column;gap:6px}
+  .cs-check{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--gray-700)}
+  .cs-check-icon{width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;border:1px solid currentColor;flex-shrink:0}
+  .cs-val-ok{color:#4a9b1a}
+  .cs-val-no{color:#c00000}
+  .cs-val-unknown{color:var(--gray-400)}
+  .cs-error{margin-top:10px;padding:10px 12px;background:#fde8e8;border:1px solid #f5c6c6;font-size:11px;color:#8b1a1a;line-height:1.5}
+
   /* ── HISTORY RESULT VIEW ── */
   #historyView{display:none;padding:28px 40px;background:var(--white);border-bottom:1px solid var(--border)}
   .hv-back{cursor:pointer;background:none;border:none;color:var(--gray-500);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-family:'Open Sans',sans-serif;display:flex;align-items:center;gap:6px;margin-bottom:20px;padding:0;transition:color .15s}
@@ -550,12 +572,32 @@
     </div>
     <!-- CONECTAR PANEL -->
     <div id="valPanelConectar" style="display:none">
-      <div class="val-placeholder">
-        <div class="val-icon">🔌</div>
-        <strong>Conectar con tecnología</strong>
-        <p>Esta opción permitirá obtener evidencias de forma directa desde sistemas conectados: SIEM, GRC, Active Directory, herramientas de cumplimiento, etc.</p>
-        <p style="margin-top:10px;font-size:11px;color:var(--gray-400)">Funcionalidad en desarrollo</p>
+
+      <!-- CrowdStrike (PS_01) -->
+      <div id="csPanelWrap" style="display:none">
+        <div class="val-section-label">Equipos a consultar</div>
+        <textarea class="val-textarea" id="csHostnames" rows="3" placeholder="Introduce uno o varios nombres de equipo (uno por línea)…"></textarea>
+        <button class="cs-query-btn" id="csQueryBtn" onclick="queryCrowdstrike()">Consultar CrowdStrike</button>
+        <div id="csResults"></div>
+        <div id="csComplianceSection" style="display:none">
+          <div class="val-section-label">Resultado de validación</div>
+          <div class="val-compliance-row">
+            <button class="val-comp-btn" id="valBtnCumpleCs" onclick="setValCompliance('cumple')">✓ Cumple</button>
+            <button class="val-comp-btn" id="valBtnNoCumpleCs" onclick="setValCompliance('no_cumple')">✗ No cumple</button>
+          </div>
+        </div>
       </div>
+
+      <!-- Placeholder genérico (otros controles) -->
+      <div id="csPlaceholderWrap">
+        <div class="val-placeholder">
+          <div class="val-icon">🔌</div>
+          <strong>Conectar con tecnología</strong>
+          <p>Esta opción permitirá obtener evidencias de forma directa desde sistemas conectados: SIEM, GRC, Active Directory, herramientas de cumplimiento, etc.</p>
+          <p style="margin-top:10px;font-size:11px;color:var(--gray-400)">Funcionalidad en desarrollo</p>
+        </div>
+      </div>
+
     </div>
   </div>
   <div class="val-footer">

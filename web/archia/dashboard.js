@@ -330,7 +330,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     Object.keys(validations).forEach(function(k) {
       var v = validations[k]; if (!v) return;
       if (v.compliance) { answered++; if (v.compliance === "cumple") cumpleCount++; }
-      else if (v.method && v.method !== "conectar") answered++;
+      else if (v.method === "evidencia") answered++;
     });
 
     var pctRespondidos = Math.round(answered / total * 100);
@@ -437,6 +437,28 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     updateEvidFileListUI();
     document.getElementById("valEvidNotes").value = (existing && existing.method === "evidencia") ? (existing.notes || "") : "";
 
+    // Fill conectar / CrowdStrike panel
+    var isCs = /PS.?01/i.test(controlKey);
+    var csPanelWrap = document.getElementById("csPanelWrap");
+    var csPlaceholder = document.getElementById("csPlaceholderWrap");
+    if (csPanelWrap) csPanelWrap.style.display = isCs ? "" : "none";
+    if (csPlaceholder) csPlaceholder.style.display = isCs ? "none" : "";
+    if (isCs) {
+      var existingHosts = (existing && existing.method === "conectar" && existing.csHostnames) ? existing.csHostnames.join("\n") : "";
+      document.getElementById("csHostnames").value = existingHosts;
+      var savedHtml = (existing && existing.method === "conectar" && existing.csResultsHtml) ? existing.csResultsHtml : "";
+      document.getElementById("csResults").innerHTML = savedHtml;
+      document.getElementById("csComplianceSection").style.display = savedHtml ? "" : "none";
+      var csComp = (existing && existing.method === "conectar" && existing.compliance) || null;
+      window._valState.compliance = csComp;
+      var btnC2 = document.getElementById("valBtnCumpleCs");
+      var btnN2 = document.getElementById("valBtnNoCumpleCs");
+      if (btnC2) btnC2.className = "val-comp-btn" + (csComp === "cumple" ? " sel-cumple" : "");
+      if (btnN2) btnN2.className = "val-comp-btn" + (csComp === "no_cumple" ? " sel-no_cumple" : "");
+      window._valState.csResultsHtml = savedHtml;
+      window._valState.csResults = (existing && existing.csResults) || [];
+    }
+
     drawer.classList.add("open");
     overlay.classList.add("open");
   }
@@ -491,6 +513,72 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     }).join("");
   }
 
+  function renderCsResults(results) {
+    return results.map(function(r) {
+      if (!r.found) {
+        return '<div class="cs-result cs-result-notfound">' +
+          '<div class="cs-result-host">' + escHtml(r.hostname) + '</div>' +
+          '<div class="cs-notfound">✗ No encontrado en la consola de CrowdStrike</div>' +
+          '</div>';
+      }
+      var mlIcon = r.ml_enabled === true ? '✓' : (r.ml_enabled === false ? '✗' : '–');
+      var mlCls  = r.ml_enabled === true ? 'cs-val-ok' : (r.ml_enabled === false ? 'cs-val-no' : 'cs-val-unknown');
+      var extIcon = r.extended_user_mode === true ? '✓' : (r.extended_user_mode === false ? '✗' : '–');
+      var extCls  = r.extended_user_mode === true ? 'cs-val-ok' : (r.extended_user_mode === false ? 'cs-val-no' : 'cs-val-unknown');
+      var lastSeen = r.last_seen ? new Date(r.last_seen).toLocaleString('es-ES') : '–';
+      return '<div class="cs-result cs-result-found">' +
+        '<div class="cs-result-host">' + escHtml(r.hostname) + ' <span class="cs-badge cs-online">Registrado</span></div>' +
+        '<div class="cs-result-grid">' +
+          '<div class="cs-kv"><span class="cs-k">Plataforma</span><span class="cs-v">' + escHtml(r.platform || '–') + '</span></div>' +
+          '<div class="cs-kv"><span class="cs-k">Sistema operativo</span><span class="cs-v">' + escHtml(r.os_version || '–') + '</span></div>' +
+          '<div class="cs-kv"><span class="cs-k">Versión agente</span><span class="cs-v">' + escHtml(r.agent_version || '–') + '</span></div>' +
+          '<div class="cs-kv"><span class="cs-k">Última conexión</span><span class="cs-v">' + escHtml(lastSeen) + '</span></div>' +
+          (r.policy_name ? '<div class="cs-kv" style="grid-column:1/-1"><span class="cs-k">Política aplicada</span><span class="cs-v">' + escHtml(r.policy_name) + '</span></div>' : '') +
+        '</div>' +
+        '<div class="cs-checks">' +
+          '<div class="cs-check"><span class="cs-check-icon ' + mlCls + '">' + mlIcon + '</span><span class="cs-check-label">Machine Learning (prevención)</span></div>' +
+          '<div class="cs-check"><span class="cs-check-icon ' + extCls + '">' + extIcon + '</span><span class="cs-check-label">Extended user mode data visibility</span></div>' +
+        '</div>' +
+      '</div>';
+    }).join("");
+  }
+
+  window.queryCrowdstrike = function() {
+    var hostsRaw = (document.getElementById("csHostnames").value || "").trim();
+    if (!hostsRaw) { alert("Introduce al menos un nombre de equipo."); return; }
+    var hostnames = hostsRaw.split(/[\n,]+/).map(function(h){ return h.trim(); }).filter(Boolean);
+
+    var btn = document.getElementById("csQueryBtn");
+    var resultsDiv = document.getElementById("csResults");
+    var compSection = document.getElementById("csComplianceSection");
+    if (btn) { btn.disabled = true; btn.textContent = "Consultando…"; }
+    resultsDiv.innerHTML = '<div style="padding:16px;text-align:center;color:var(--gray-500);font-size:12px">Conectando con CrowdStrike…</div>';
+    if (compSection) compSection.style.display = "none";
+
+    fetch("http://localhost:8000/check-crowdstrike", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hostnames: hostnames })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (btn) { btn.disabled = false; btn.textContent = "Volver a consultar"; }
+      if (data.error) {
+        resultsDiv.innerHTML = '<div class="cs-error">Error: ' + escHtml(data.error) + '</div>';
+        return;
+      }
+      var html = renderCsResults(data.results);
+      resultsDiv.innerHTML = html;
+      window._valState.csResults = data.results;
+      window._valState.csResultsHtml = html;
+      if (compSection) compSection.style.display = "";
+    })
+    .catch(function() {
+      if (btn) { btn.disabled = false; btn.textContent = "Consultar CrowdStrike"; }
+      resultsDiv.innerHTML = '<div class="cs-error">No se pudo conectar con el servidor local (http://localhost:8000).<br>Asegúrate de que <strong>archia_server.py</strong> está en ejecución.</div>';
+    });
+  };
+
   window.saveValidation = function() {
     var st = window._valState;
     var method = st.currentMethod || "manual";
@@ -503,8 +591,18 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     } else if (method === "evidencia") {
       validation.notes = (document.getElementById("valEvidNotes").value || "").trim();
       validation.evidenceFiles = window._valEvidFiles.slice();
+    } else if (method === "conectar") {
+      var csPanel = document.getElementById("csPanelWrap");
+      var csActive = csPanel && csPanel.style.display !== "none";
+      if (csActive) {
+        if (!st.compliance) { alert("Selecciona si el control Cumple o No cumple."); return; }
+        validation.compliance = st.compliance;
+        var hostsVal = (document.getElementById("csHostnames").value || "").trim();
+        validation.csHostnames = hostsVal ? hostsVal.split(/[\n,]+/).map(function(h){ return h.trim(); }).filter(Boolean) : [];
+        validation.csResults = st.csResults || [];
+        validation.csResultsHtml = st.csResultsHtml || "";
+      }
     }
-    // "conectar" → saved as placeholder
 
     var projects = loadProjects();
     var savedRun = null;
