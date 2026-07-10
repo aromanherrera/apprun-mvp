@@ -39,7 +39,7 @@ PORT = 8000
 
 # CrowdStrike (para integración PS_01 — antivirus/antimalware)
 CS_CLIENT_ID     = os.environ.get("CS_CLIENT_ID",     "2626bff7eaf74bea87e2ff3e95c20bf4")
-CS_CLIENT_SECRET = os.environ.get("CS_CLIENT_SECRET", "bCxStEHn8QUDiz62Gj9PK7WOy3IAg0sf1M5mk4pL")
+CS_CLIENT_SECRET = os.environ.get("CS_CLIENT_SECRET", "bCxStEHn8QUDiz62Gj9PK7WOy3lAg0sf1M5mk4pL")
 CS_BASE_URL      = os.environ.get("CS_BASE_URL",      "https://api.eu-1.crowdstrike.com")
 # ════════════════════════════════════════
 
