@@ -257,7 +257,8 @@ def _cs_token():
     import requests as req_lib
     r = req_lib.post(CS_BASE_URL + "/oauth2/token", data={
         "client_id": CS_CLIENT_ID,
-        "client_secret": CS_CLIENT_SECRET
+        "client_secret": CS_CLIENT_SECRET,
+        "grant_type": "client_credentials"
     }, timeout=15)
     print(f"[CS] Token response status: {r.status_code}")
     if r.status_code != 201:
