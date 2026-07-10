@@ -529,6 +529,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
         '<div class="cs-result-host">' + escHtml(r.hostname) + ' <span class="cs-badge cs-online">Registrado</span></div>' +
         '<div class="cs-result-grid">' +
           (r.platform ? '<div class="cs-kv"><span class="cs-k">Plataforma</span><span class="cs-v">' + escHtml(r.platform) + '</span></div>' : '') +
+          (r.group_name ? '<div class="cs-kv"><span class="cs-k">Grupo</span><span class="cs-v">' + escHtml(r.group_name) + '</span></div>' : '') +
           (r.policy_name ? '<div class="cs-kv" style="grid-column:1/-1"><span class="cs-k">Política aplicada</span><span class="cs-v">' + escHtml(r.policy_name) + '</span></div>' : '') +
           (r.policy_description ? '<div class="cs-kv" style="grid-column:1/-1"><span class="cs-k">Descripción</span><span class="cs-v" style="font-size:10px;line-height:1.5">' + escHtml(r.policy_description) + '</span></div>' : '') +
         '</div>' +

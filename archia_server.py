@@ -297,67 +297,78 @@ def check_crowdstrike():
 
         token = _cs_token()
 
-        # Obtener todas las políticas de prevención (con sus settings)
-        policies_resp = _cs_get("/policy/combined/prevention/v1", token)
-        all_policies = policies_resp.get("resources", [])
+        # Obtener grupos (con assignment_rule) y políticas en paralelo
+        import threading
+        groups_result, policies_result = [None], [None]
+        def fetch_groups():
+            groups_result[0] = _cs_get("/devices/combined/host-groups/v1", token).get("resources", [])
+        def fetch_policies():
+            policies_result[0] = _cs_get("/policy/combined/prevention/v1", token).get("resources", [])
+        t1, t2 = threading.Thread(target=fetch_groups), threading.Thread(target=fetch_policies)
+        t1.start(); t2.start(); t1.join(); t2.join()
+        all_groups   = groups_result[0]
+        all_policies = policies_result[0]
+
+        # Índice de grupos por id para búsqueda rápida
+        groups_by_id = {g["id"]: g for g in all_groups}
 
         results = []
         for hostname in hostnames:
-            # Buscar dispositivo por nombre
-            search_resp = _cs_get(
-                "/devices/queries/devices/v1", token,
-                {"filter": "hostname:'" + hostname + "'"}
-            )
-            device_ids = search_resp.get("resources", [])
+            host_upper = hostname.upper()
 
-            if not device_ids:
+            # Buscar el grupo que contiene el hostname en su assignment_rule
+            matched_group = None
+            for g in all_groups:
+                rule = g.get("assignment_rule", "").upper()
+                if host_upper in rule:
+                    matched_group = g
+                    break
+
+            if not matched_group:
                 results.append({"hostname": hostname, "found": False})
                 continue
 
-            # Obtener detalle del dispositivo
-            dev_resp = _cs_post("/devices/entities/devices/v2", token, {"ids": device_ids[:1]})
-            devices = dev_resp.get("resources", [])
-            device = devices[0] if devices else {}
-
-            # Encontrar la política de prevención asignada
-            device_policy_id = None
-            for pol in device.get("policies", []):
-                if pol.get("policy_type") == "prevention":
-                    device_policy_id = pol.get("policy_id")
+            # Buscar la política que usa ese grupo
+            matched_policy = None
+            for p in all_policies:
+                for pg in p.get("groups", []):
+                    if pg.get("id") == matched_group["id"]:
+                        matched_policy = p
+                        break
+                if matched_policy:
                     break
 
-            policy_name = ""
+            if not matched_policy:
+                # Encontrado en grupo pero sin política asociada
+                results.append({
+                    "hostname": hostname, "found": True,
+                    "group_name": matched_group.get("name", ""),
+                    "policy_name": "", "platform": "",
+                    "ml_enabled": None, "extended_user_mode": None
+                })
+                continue
+
+            # Extraer settings de ML y extended user mode
             ml_enabled = None
             extended_user_mode = None
+            for cls in matched_policy.get("settings", {}).get("classes", []):
+                for setting in cls.get("settings", []):
+                    sid = setting.get("id", "").lower()
+                    val = setting.get("value", {})
+                    if sid in ("cloud_anti_malware", "sensor_anti_malware") or "machine_learning" in sid:
+                        if ml_enabled is None:
+                            prev = val.get("prevention", "DISABLED")
+                            ml_enabled = prev not in ("DISABLED", "")
+                    if "extended" in sid and "user" in sid:
+                        extended_user_mode = bool(val.get("enabled", False))
 
-            for p in all_policies:
-                if p.get("id") == device_policy_id:
-                    policy_name = p.get("name", "")
-                    for cls in p.get("settings", {}).get("classes", []):
-                        for setting in cls.get("settings", []):
-                            sid = setting.get("id", "").lower()
-                            val = setting.get("value", {})
-                            # Machine Learning / cloud anti-malware
-                            if sid in ("cloud_anti_malware", "sensor_anti_malware", "adware_and_pup") or "machine_learning" in sid:
-                                if ml_enabled is None:
-                                    prev = val.get("prevention", "DISABLED")
-                                    ml_enabled = prev not in ("DISABLED", "")
-                            # Extended user mode data visibility
-                            if "extended" in sid and "user" in sid:
-                                extended_user_mode = bool(val.get("enabled", False))
-                    break
-
-            last_seen = device.get("last_seen", "")
             results.append({
                 "hostname": hostname,
                 "found": True,
-                "device_id": device.get("device_id", ""),
-                "platform": device.get("platform_name", ""),
-                "os_version": device.get("os_version", ""),
-                "agent_version": device.get("agent_version", ""),
-                "last_seen": last_seen,
-                "status": device.get("status", ""),
-                "policy_name": policy_name,
+                "platform": matched_policy.get("platform_name", ""),
+                "group_name": matched_group.get("name", ""),
+                "policy_name": matched_policy.get("name", ""),
+                "policy_description": matched_policy.get("description", ""),
                 "ml_enabled": ml_enabled,
                 "extended_user_mode": extended_user_mode
             })
