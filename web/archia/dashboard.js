@@ -525,15 +525,12 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       var mlCls  = r.ml_enabled === true ? 'cs-val-ok' : (r.ml_enabled === false ? 'cs-val-no' : 'cs-val-unknown');
       var extIcon = r.extended_user_mode === true ? '✓' : (r.extended_user_mode === false ? '✗' : '–');
       var extCls  = r.extended_user_mode === true ? 'cs-val-ok' : (r.extended_user_mode === false ? 'cs-val-no' : 'cs-val-unknown');
-      var lastSeen = r.last_seen ? new Date(r.last_seen).toLocaleString('es-ES') : '–';
       return '<div class="cs-result cs-result-found">' +
         '<div class="cs-result-host">' + escHtml(r.hostname) + ' <span class="cs-badge cs-online">Registrado</span></div>' +
         '<div class="cs-result-grid">' +
-          '<div class="cs-kv"><span class="cs-k">Plataforma</span><span class="cs-v">' + escHtml(r.platform || '–') + '</span></div>' +
-          '<div class="cs-kv"><span class="cs-k">Sistema operativo</span><span class="cs-v">' + escHtml(r.os_version || '–') + '</span></div>' +
-          '<div class="cs-kv"><span class="cs-k">Versión agente</span><span class="cs-v">' + escHtml(r.agent_version || '–') + '</span></div>' +
-          '<div class="cs-kv"><span class="cs-k">Última conexión</span><span class="cs-v">' + escHtml(lastSeen) + '</span></div>' +
+          (r.platform ? '<div class="cs-kv"><span class="cs-k">Plataforma</span><span class="cs-v">' + escHtml(r.platform) + '</span></div>' : '') +
           (r.policy_name ? '<div class="cs-kv" style="grid-column:1/-1"><span class="cs-k">Política aplicada</span><span class="cs-v">' + escHtml(r.policy_name) + '</span></div>' : '') +
+          (r.policy_description ? '<div class="cs-kv" style="grid-column:1/-1"><span class="cs-k">Descripción</span><span class="cs-v" style="font-size:10px;line-height:1.5">' + escHtml(r.policy_description) + '</span></div>' : '') +
         '</div>' +
         '<div class="cs-checks">' +
           '<div class="cs-check"><span class="cs-check-icon ' + mlCls + '">' + mlIcon + '</span><span class="cs-check-label">Machine Learning (prevención)</span></div>' +
@@ -582,54 +579,48 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     if (compSection) compSection.style.display = "none";
 
     getCsToken().then(function(token) {
-      // Obtener todas las políticas de prevención
       return csGet("/policy/combined/prevention/v1", token).then(function(polResp) {
         var allPolicies = polResp.resources || [];
-        // Consultar cada hostname en paralelo
+
         return Promise.all(hostnames.map(function(hostname) {
-          return csGet("/devices/queries/devices/v1", token, { filter: "hostname:'" + hostname + "'" })
-            .then(function(searchResp) {
-              var ids = searchResp.resources || [];
-              if (!ids.length) return { hostname: hostname, found: false };
-              return csPost("/devices/entities/devices/v2", token, { ids: [ids[0]] })
-                .then(function(devResp) {
-                  var device = (devResp.resources || [])[0] || {};
-                  var devicePolicyId = null;
-                  (device.policies || []).forEach(function(p) {
-                    if (p.policy_type === "prevention") devicePolicyId = p.policy_id;
-                  });
-                  var policyName = "", mlEnabled = null, extUserMode = null;
-                  allPolicies.forEach(function(p) {
-                    if (p.id !== devicePolicyId) return;
-                    policyName = p.name || "";
-                    ((p.settings || {}).classes || []).forEach(function(cls) {
-                      (cls.settings || []).forEach(function(s) {
-                        var sid = (s.id || "").toLowerCase();
-                        var val = s.value || {};
-                        if (sid === "cloud_anti_malware" || sid === "sensor_anti_malware" || sid.indexOf("machine_learning") !== -1) {
-                          if (mlEnabled === null) mlEnabled = val.prevention && val.prevention !== "DISABLED";
-                        }
-                        if (sid.indexOf("extended") !== -1 && sid.indexOf("user") !== -1) {
-                          extUserMode = !!val.enabled;
-                        }
-                      });
-                    });
-                  });
-                  var lastSeen = device.last_seen || "";
-                  return {
-                    hostname: hostname, found: true,
-                    device_id: device.device_id || "",
-                    platform: device.platform_name || "",
-                    os_version: device.os_version || "",
-                    agent_version: device.agent_version || "",
-                    last_seen: lastSeen,
-                    status: device.status || "",
-                    policy_name: policyName,
-                    ml_enabled: mlEnabled,
-                    extended_user_mode: extUserMode
-                  };
-                });
+          // Buscar en qué política aparece este hostname dentro del assignment_rule de sus grupos
+          var matchedPolicy = null;
+          var hostUpper = hostname.toUpperCase();
+          allPolicies.forEach(function(p) {
+            if (matchedPolicy) return;
+            (p.groups || []).forEach(function(g) {
+              if (matchedPolicy) return;
+              var rule = (g.assignment_rule || "").toUpperCase();
+              if (rule.indexOf(hostUpper) !== -1) matchedPolicy = p;
             });
+          });
+
+          if (!matchedPolicy) return { hostname: hostname, found: false };
+
+          // Extraer settings de la política encontrada
+          var mlEnabled = null, extUserMode = null;
+          ((matchedPolicy.settings || {}).classes || []).forEach(function(cls) {
+            (cls.settings || []).forEach(function(s) {
+              var sid = (s.id || "").toLowerCase();
+              var val = s.value || {};
+              if (sid === "cloud_anti_malware" || sid === "sensor_anti_malware" || sid.indexOf("machine_learning") !== -1) {
+                if (mlEnabled === null) mlEnabled = !!(val.prevention && val.prevention !== "DISABLED");
+              }
+              if (sid.indexOf("extended") !== -1 && sid.indexOf("user") !== -1) {
+                extUserMode = !!val.enabled;
+              }
+            });
+          });
+
+          return {
+            hostname: hostname,
+            found: true,
+            platform: matchedPolicy.platform_name || "",
+            policy_name: matchedPolicy.name || "",
+            policy_description: matchedPolicy.description || "",
+            ml_enabled: mlEnabled,
+            extended_user_mode: extUserMode
+          };
         }));
       });
     })
