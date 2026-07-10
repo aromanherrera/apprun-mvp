@@ -540,32 +540,6 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     }).join("");
   }
 
-  var CS_BASE_URL      = "https://api.eu-1.crowdstrike.com";
-  var CS_CLIENT_ID     = "2626bff7eaf74bea87e2ff3e95c20bf4";
-  var CS_CLIENT_SECRET = "bCxStEHn8QUDiz62Gj9PK7WOy3IAg0sf1M5mk4pL";
-
-  function getCsToken() {
-    return fetch(CS_BASE_URL + "/oauth2/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: "client_id=" + encodeURIComponent(CS_CLIENT_ID) + "&client_secret=" + encodeURIComponent(CS_CLIENT_SECRET)
-    }).then(function(r) { return r.json(); }).then(function(d) { return d.access_token; });
-  }
-
-  function csGet(path, token, params) {
-    var url = CS_BASE_URL + path;
-    if (params) url += "?" + Object.keys(params).map(function(k){ return encodeURIComponent(k) + "=" + encodeURIComponent(params[k]); }).join("&");
-    return fetch(url, { headers: { "Authorization": "Bearer " + token } }).then(function(r){ return r.json(); });
-  }
-
-  function csPost(path, token, body) {
-    return fetch(CS_BASE_URL + path, {
-      method: "POST",
-      headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    }).then(function(r){ return r.json(); });
-  }
-
   window.queryCrowdstrike = function() {
     var hostsRaw = (document.getElementById("csHostnames").value || "").trim();
     if (!hostsRaw) { alert("Introduce al menos un nombre de equipo."); return; }
@@ -578,82 +552,28 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     resultsDiv.innerHTML = '<div style="padding:16px;text-align:center;color:var(--gray-500);font-size:12px">Conectando con CrowdStrike…</div>';
     if (compSection) compSection.style.display = "none";
 
-    getCsToken().then(function(token) {
-      // Obtener políticas Y grupos en paralelo
-      return Promise.all([
-        csGet("/policy/combined/prevention/v1", token),
-        csGet("/devices/combined/host-groups/v1", token)
-      ]).then(function(responses) {
-        var allPolicies = responses[0].resources || [];
-        var allGroups   = responses[1].resources || [];
-
-        console.log("[CS] políticas:", allPolicies.length, "grupos:", allGroups.length);
-        if (allGroups.length) console.log("[CS] ejemplo grupo:", JSON.stringify(allGroups[0]).substring(0, 300));
-
-        return Promise.all(hostnames.map(function(hostname) {
-          var hostUpper = hostname.toUpperCase();
-
-          // Buscar el hostname en el assignment_rule de los grupos
-          var matchedGroup = null;
-          allGroups.forEach(function(g) {
-            if (matchedGroup) return;
-            var rule = (g.assignment_rule || "").toUpperCase();
-            if (rule.indexOf(hostUpper) !== -1) matchedGroup = g;
-          });
-
-          console.log("[CS] hostname:", hostname, "→ grupo encontrado:", matchedGroup ? matchedGroup.name : "ninguno");
-
-          // Encontrar la política que usa ese grupo
-          var matchedPolicy = null;
-          if (matchedGroup) {
-            allPolicies.forEach(function(p) {
-              if (matchedPolicy) return;
-              (p.groups || []).forEach(function(g) {
-                if (g.id === matchedGroup.id) matchedPolicy = p;
-              });
-            });
-          }
-
-          if (!matchedPolicy) return { hostname: hostname, found: false };
-
-          // Extraer settings de la política encontrada
-          var mlEnabled = null, extUserMode = null;
-          ((matchedPolicy.settings || {}).classes || []).forEach(function(cls) {
-            (cls.settings || []).forEach(function(s) {
-              var sid = (s.id || "").toLowerCase();
-              var val = s.value || {};
-              if (sid === "cloud_anti_malware" || sid === "sensor_anti_malware" || sid.indexOf("machine_learning") !== -1) {
-                if (mlEnabled === null) mlEnabled = !!(val.prevention && val.prevention !== "DISABLED");
-              }
-              if (sid.indexOf("extended") !== -1 && sid.indexOf("user") !== -1) {
-                extUserMode = !!val.enabled;
-              }
-            });
-          });
-
-          return {
-            hostname: hostname,
-            found: true,
-            platform: matchedPolicy.platform_name || "",
-            policy_name: matchedPolicy.name || "",
-            policy_description: matchedPolicy.description || "",
-            ml_enabled: mlEnabled,
-            extended_user_mode: extUserMode
-          };
-        }));
-      });
+    fetch("http://localhost:8000/check-crowdstrike", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hostnames: hostnames })
     })
-    .then(function(results) {
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
       if (btn) { btn.disabled = false; btn.textContent = "Volver a consultar"; }
+      if (data.error) {
+        resultsDiv.innerHTML = '<div class="cs-error">Error: ' + escHtml(data.error) + '</div>';
+        return;
+      }
+      var results = data.results || [];
       var html = renderCsResults(results);
       resultsDiv.innerHTML = html;
       window._valState.csResults = results;
       window._valState.csResultsHtml = html;
       if (compSection) compSection.style.display = "";
     })
-    .catch(function(e) {
+    .catch(function() {
       if (btn) { btn.disabled = false; btn.textContent = "Consultar CrowdStrike"; }
-      resultsDiv.innerHTML = '<div class="cs-error">Error al conectar con CrowdStrike: ' + escHtml(String(e)) + '</div>';
+      resultsDiv.innerHTML = '<div class="cs-error">No se pudo conectar con el servidor local (http://localhost:8000).<br>Asegúrate de que <strong>archia_server.py</strong> está en ejecución.</div>';
     });
   };
 
