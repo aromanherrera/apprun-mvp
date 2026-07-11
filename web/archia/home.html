@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>ArchIA — Dashboard | Deloitte</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --green:#86BC25;--green-dark:#6a9a1a;--green-light:#f4f9eb;--green-faint:#edf5d8;
+  --black:#000;--ink:#1a1a1a;--gray-700:#53565A;--gray-500:#75787B;
+  --gray-400:#97999B;--gray-200:#D0D0CE;--gray-100:#F2F2F2;--gray-50:#F8F8F8;
+  --white:#fff;--red:#C00000;--red-faint:#fde8e8;
+  --amber:#D4870A;--amber-faint:#FEF3DC;
+  --blue:#3B6EA8;--blue-faint:#E8EFF8;
+  --purple:#7B5EA7;
+  --border:#E4E4E4;
+  --card-shadow:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
+  --bg:#F3F4F1;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Open Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6;font-variant-numeric:tabular-nums}
+
+/* HEADER */
+header{background:var(--black);height:60px;display:flex;align-items:center;padding:0 32px;position:sticky;top:0;z-index:200}
+.hd-logo{display:flex;align-items:baseline;text-decoration:none;gap:1px}
+.hd-logo-text{font-weight:700;font-size:20px;color:var(--white);letter-spacing:-.2px}
+.hd-logo-dot{color:var(--green);font-size:24px;line-height:1}
+.hd-sep{width:1px;height:24px;background:rgba(255,255,255,.15);margin:0 24px}
+.hd-product{font-size:14px;font-weight:600;color:var(--white)}
+.hd-sub{font-size:11px;color:var(--gray-400);margin-left:10px;font-weight:300;letter-spacing:.08em;text-transform:uppercase}
+nav{margin-left:auto;display:flex;gap:2px}
+nav a{color:rgba(255,255,255,.5);font-size:12px;font-weight:600;text-decoration:none;padding:6px 14px;letter-spacing:.03em;text-transform:uppercase;border-bottom:2px solid transparent;transition:color .15s,border-color .15s}
+nav a:hover{color:var(--white)}
+nav a.active{color:var(--white);border-bottom-color:var(--green)}
+
+/* PAGE */
+.page{max-width:1280px;margin:0 auto;padding:28px 32px 48px}
+
+/* TOP BAR */
+.top-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;gap:16px;flex-wrap:wrap}
+.top-bar-left h1{font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-.2px}
+.top-bar-left .subtitle{font-size:12px;color:var(--gray-500);margin-top:2px}
+.period-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-500);background:var(--white);border:1px solid var(--border);padding:5px 12px}
+.period-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block}
+
+/* SEARCH */
+.search-wrap{position:relative;width:300px}
+.search-wrap input{width:100%;padding:8px 12px 8px 36px;border:1px solid var(--border);background:var(--white);font-family:'Open Sans',sans-serif;font-size:12px;color:var(--ink);outline:none;transition:border-color .15s}
+.search-wrap input:focus{border-color:var(--green)}
+.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--gray-400);pointer-events:none}
+.search-results{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--white);border:1px solid var(--border);z-index:100;display:none;box-shadow:var(--card-shadow)}
+.search-results.open{display:block}
+.sr-item{padding:8px 12px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--gray-100);display:flex;align-items:center;gap:8px}
+.sr-item:last-child{border-bottom:none}
+.sr-item:hover{background:var(--green-faint)}
+.sr-tag{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;background:var(--gray-100);color:var(--gray-500);white-space:nowrap}
+.sr-empty{padding:12px;font-size:12px;color:var(--gray-400);text-align:center}
+
+/* KPI TILES */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.kpi{background:var(--white);border:1px solid var(--border);padding:16px 18px;box-shadow:var(--card-shadow);position:relative;overflow:hidden}
+.kpi::after{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--kpi-accent,var(--green))}
+.kpi-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-400);margin-bottom:6px}
+.kpi-value{font-size:28px;font-weight:700;color:var(--ink);line-height:1}
+.kpi-sub{font-size:11px;color:var(--gray-500);margin-top:4px}
+.kpi-delta{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;margin-top:6px;padding:2px 6px}
+.kpi-delta.up{background:var(--green-faint);color:var(--green-dark)}
+.kpi-delta.down{background:var(--red-faint);color:var(--red)}
+.kpi-delta.neutral{background:var(--gray-100);color:var(--gray-500)}
+
+/* CHART GRID */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.span2{grid-column:1/-1}
+.card{background:var(--white);border:1px solid var(--border);box-shadow:var(--card-shadow);padding:20px 22px}
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:12px}
+.card-title{font-size:12px;font-weight:700;color:var(--ink);letter-spacing:-.1px}
+.card-desc{font-size:10px;color:var(--gray-400);margin-top:2px}
+.card-badge{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;background:var(--gray-100);color:var(--gray-500);white-space:nowrap;flex-shrink:0}
+
+/* LEGEND */
+.legend{display:flex;flex-wrap:wrap;gap:10px}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--gray-500)}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.legend-sq{width:10px;height:10px;flex-shrink:0}
+
+/* MINI TABLE */
+.mini-table{width:100%;border-collapse:collapse;font-size:11px}
+.mini-table th{text-align:left;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);padding:4px 0;border-bottom:1px solid var(--border)}
+.mini-table td{padding:6px 0;border-bottom:1px solid var(--gray-100);color:var(--gray-700);vertical-align:middle}
+.mini-table td:last-child{text-align:right;color:var(--ink);font-weight:600}
+
+footer{padding:16px 32px;background:var(--black);color:rgba(255,255,255,.3);font-size:10px;letter-spacing:.06em;text-transform:uppercase;display:flex;justify-content:space-between}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="hd-logo" href="home.html">
+    <span class="hd-logo-text">Deloitte</span><span class="hd-logo-dot">.</span>
+  </a>
+  <div class="hd-sep"></div>
+  <span class="hd-product">ArchIA</span>
+  <span class="hd-sub">Security Architecture Review</span>
+  <nav>
+    <a href="home.html" class="active">Dashboard</a>
+    <a href="dashboard.html">Análisis</a>
+    <a href="historico.html">Histórico</a>
+    <a href="settings.html">Configuración</a>
+  </nav>
+</header>
+
+<div class="page">
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div class="top-bar-left">
+      <h1>Panel de control</h1>
+      <div class="subtitle">Resumen de actividad de revisiones de arquitectura de seguridad</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div class="search-wrap" id="searchWrap">
+        <svg class="search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.5"/>
+          <line x1="10.5" y1="10.5" x2="14" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <input type="text" id="searchInput" placeholder="Buscar iniciativa…" autocomplete="off"/>
+        <div class="search-results" id="searchResults"></div>
+      </div>
+      <div class="period-badge"><span class="period-dot"></span>Julio 2025</div>
+    </div>
+  </div>
+
+  <!-- KPI TILES -->
+  <div class="kpi-row">
+    <div class="kpi" style="--kpi-accent:var(--green)">
+      <div class="kpi-label">Recibidas este mes</div>
+      <div class="kpi-value">22</div>
+      <div class="kpi-sub">iniciativas</div>
+      <div class="kpi-delta up">▲ 4 vs mes anterior</div>
+    </div>
+    <div class="kpi" style="--kpi-accent:var(--blue)">
+      <div class="kpi-label">Resueltas este mes</div>
+      <div class="kpi-value">16</div>
+      <div class="kpi-sub">análisis cerrados</div>
+      <div class="kpi-delta up">▲ 2 vs mes anterior</div>
+    </div>
+    <div class="kpi" style="--kpi-accent:var(--amber)">
+      <div class="kpi-label">En curso</div>
+      <div class="kpi-value">19</div>
+      <div class="kpi-sub">peticiones activas</div>
+      <div class="kpi-delta neutral">= sin variación</div>
+    </div>
+    <div class="kpi" style="--kpi-accent:var(--red)">
+      <div class="kpi-label">Riesgo alto detectado</div>
+      <div class="kpi-value">3</div>
+      <div class="kpi-sub">de 16 resueltos</div>
+      <div class="kpi-delta down">▲ 1 vs mes anterior</div>
+    </div>
+  </div>
+
+  <!-- CHART GRID -->
+  <div class="chart-grid">
+
+    <!-- 1. DONUT — Creados por tipología -->
+    <div class="card">
+      <div class="card-head">
+        <div><div class="card-title">Análisis creados este mes</div><div class="card-desc">Por tipología · 22 total</div></div>
+        <span class="card-badge">Jul 2025</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:24px">
+        <canvas id="donutCreados" width="140" height="140" style="width:140px;height:140px;flex-shrink:0"></canvas>
+        <div class="legend" style="flex-direction:column;gap:9px">
+          <div class="legend-item" style="justify-content:space-between;gap:16px"><span style="display:flex;align-items:center;gap:5px"><span class="legend-dot" style="background:#86BC25"></span>Arquitectura</span><strong style="color:var(--ink)">8</strong></div>
+          <div class="legend-item" style="justify-content:space-between;gap:16px"><span style="display:flex;align-items:center;gap:5px"><span class="legend-dot" style="background:#3B6EA8"></span>Triaje</span><strong style="color:var(--ink)">5</strong></div>
+          <div class="legend-item" style="justify-content:space-between;gap:16px"><span style="display:flex;align-items:center;gap:5px"><span class="legend-dot" style="background:#D4870A"></span>Búsq. alternativa</span><strong style="color:var(--ink)">4</strong></div>
+          <div class="legend-item" style="justify-content:space-between;gap:16px"><span style="display:flex;align-items:center;gap:5px"><span class="legend-dot" style="background:#7B5EA7"></span>Rev. normativa</span><strong style="color:var(--ink)">3</strong></div>
+          <div class="legend-item" style="justify-content:space-between;gap:16px"><span style="display:flex;align-items:center;gap:5px"><span class="legend-dot" style="background:#97999B"></span>Otro</span><strong style="color:var(--ink)">2</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. BAR VERTICAL — Cerrados por tipología -->
+    <div class="card">
+      <div class="card-head">
+        <div><div class="card-title">Análisis cerrados este mes</div><div class="card-desc">Por tipología · 16 total</div></div>
+        <span class="card-badge">Jul 2025</span>
+      </div>
+      <canvas id="barCerrados" width="400" height="170" style="width:100%"></canvas>
+    </div>
+
+    <!-- 3. LINE DUAL — Histórico 3 meses -->
+    <div class="card span2">
+      <div class="card-head">
+        <div><div class="card-title">Histórico de peticiones — últimos 3 meses</div><div class="card-desc">Recibidas vs. Resueltas por mes</div></div>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-sq" style="background:#86BC25"></span>Recibidas</div>
+          <div class="legend-item"><span class="legend-sq" style="background:#3B6EA8"></span>Resueltas</div>
+        </div>
+      </div>
+      <canvas id="lineHistorico" width="800" height="190" style="width:100%"></canvas>
+    </div>
+
+    <!-- 4. HBAR — En curso por estado -->
+    <div class="card">
+      <div class="card-head">
+        <div><div class="card-title">Peticiones en curso</div><div class="card-desc">Por estado actual</div></div>
+        <span class="card-badge">19 activas</span>
+      </div>
+      <canvas id="hbarEstado" width="400" height="190" style="width:100%"></canvas>
+    </div>
+
+    <!-- 5. PIE — Riesgo -->
+    <div class="card">
+      <div class="card-head">
+        <div><div class="card-title">Nivel de riesgo — resueltos</div><div class="card-desc">Proyectos cerrados este mes</div></div>
+        <span class="card-badge">16 resueltos</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:24px">
+        <canvas id="pieRiesgo" width="140" height="140" style="width:140px;height:140px;flex-shrink:0"></canvas>
+        <table class="mini-table">
+          <thead><tr><th>Nivel</th><th>N.º</th><th style="text-align:right">%</th></tr></thead>
+          <tbody>
+            <tr><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#C00000;margin-right:6px;vertical-align:middle"></span>Alto</td><td>3</td><td>18.8 %</td></tr>
+            <tr><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#D4870A;margin-right:6px;vertical-align:middle"></span>Medio</td><td>8</td><td>50.0 %</td></tr>
+            <tr><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#86BC25;margin-right:6px;vertical-align:middle"></span>Bajo</td><td>5</td><td>31.2 %</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 6. STACKED AREA — Evolución riesgo -->
+    <div class="card span2">
+      <div class="card-head">
+        <div><div class="card-title">Evolución del riesgo</div><div class="card-desc">Distribución alto / medio / bajo — últimos 3 meses</div></div>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-sq" style="background:#C00000"></span>Alto</div>
+          <div class="legend-item"><span class="legend-sq" style="background:#D4870A"></span>Medio</div>
+          <div class="legend-item"><span class="legend-sq" style="background:#86BC25"></span>Bajo</div>
+        </div>
+      </div>
+      <canvas id="stackedArea" width="800" height="190" style="width:100%"></canvas>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <span>ArchIA · Deloitte Cyber · Security Architecture Review</span>
+  <span>Datos a 11 Jul 2025</span>
+</footer>
+
+<script>
+var C={
+  green:'#86BC25',greenD:'#6a9a1a',greenF:'#edf5d8',
+  blue:'#3B6EA8',amber:'#D4870A',red:'#C00000',purple:'#7B5EA7',
+  gray:'#97999B',grayL:'#E4E4E4',ink:'#1a1a1a',bg:'#F3F4F1',white:'#fff'
+};
+function rgba(h,a){var r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);return 'rgba('+r+','+g+','+b+','+a+')';}
+
+function setup(id){
+  var canvas=document.getElementById(id);
+  var ratio=window.devicePixelRatio||1;
+  var w=canvas.clientWidth||parseInt(canvas.style.width)||canvas.width;
+  var h=canvas.clientHeight||parseInt(canvas.style.height)||canvas.height;
+  canvas.width=w*ratio; canvas.height=h*ratio;
+  var ctx=canvas.getContext('2d'); ctx.scale(ratio,ratio);
+  return {ctx:ctx,w:w,h:h};
+}
+
+// 1. DONUT — Creados
+(function(){
+  var canvas=document.getElementById('donutCreados');
+  var ratio=window.devicePixelRatio||1;
+  canvas.width=140*ratio; canvas.height=140*ratio;
+  var ctx=canvas.getContext('2d'); ctx.scale(ratio,ratio);
+  var data=[{v:8,c:C.green},{v:5,c:C.blue},{v:4,c:C.amber},{v:3,c:C.purple},{v:2,c:C.gray}];
+  var total=22, cx=70,cy=70,r=58,ri=38;
+  var angle=-Math.PI/2;
+  data.forEach(function(d){
+    var sweep=d.v/total*Math.PI*2;
+    ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,angle,angle+sweep);
+    ctx.closePath(); ctx.fillStyle=d.c; ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();
+    angle+=sweep;
+  });
+  ctx.beginPath(); ctx.arc(cx,cy,ri,0,Math.PI*2);
+  ctx.fillStyle='#fff'; ctx.fill();
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillStyle=C.ink; ctx.font='700 18px Open Sans,sans-serif'; ctx.fillText('22',cx,cy-6);
+  ctx.fillStyle=C.gray; ctx.font='400 9px Open Sans,sans-serif'; ctx.fillText('total',cx,cy+8);
+})();
+
+// 2. BAR VERTICAL — Cerrados
+(function(){
+  var D=setup('barCerrados'); var ctx=D.ctx,W=D.w,H=D.h;
+  var labels=['Arquitectura','Triaje','B. alternativa','Rev. normativa','Otro'];
+  var vals=[6,4,3,2,1];
+  var colors=[C.green,C.blue,C.amber,C.purple,C.gray];
+  var maxV=8;
+  var pad={t:20,r:16,b:38,l:16};
+  var bw=(W-pad.l-pad.r)/vals.length;
+  var gap=bw*0.32;
+  vals.forEach(function(v,i){
+    var x=pad.l+i*bw+gap/2;
+    var bh=(v/maxV)*(H-pad.t-pad.b);
+    var y=H-pad.b-bh;
+    ctx.fillStyle=rgba(colors[i],.15);
+    ctx.fillRect(x,pad.t,bw-gap,H-pad.t-pad.b);
+    ctx.fillStyle=colors[i]; ctx.fillRect(x,y,bw-gap,bh);
+    ctx.fillStyle=C.ink; ctx.font='700 11px Open Sans,sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='bottom';
+    ctx.fillText(v,x+(bw-gap)/2,y-3);
+    ctx.fillStyle=C.gray; ctx.font='400 9px Open Sans,sans-serif';
+    ctx.textBaseline='top';
+    var lbl=labels[i];
+    ctx.fillText(lbl,x+(bw-gap)/2,H-pad.b+6);
+  });
+  ctx.strokeStyle=C.grayL; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pad.l,H-pad.b); ctx.lineTo(W-pad.r,H-pad.b); ctx.stroke();
+})();
+
+// 3. LINE DUAL — Histórico
+(function(){
+  var D=setup('lineHistorico'); var ctx=D.ctx,W=D.w,H=D.h;
+  var months=['Mayo','Junio','Julio'];
+  var recibidas=[18,22,15];
+  var resueltas=[14,19,16];
+  var pad={t:20,r:40,b:36,l:44};
+  var maxV=26;
+  function px(i){return pad.l+i*(W-pad.l-pad.r)/(months.length-1);}
+  function py(v){return H-pad.b-(v/maxV)*(H-pad.t-pad.b);}
+
+  [0,5,10,15,20,25].forEach(function(v){
+    var y=py(v);
+    ctx.strokeStyle=C.grayL; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=C.gray; ctx.font='400 9px Open Sans,sans-serif';
+    ctx.textAlign='right'; ctx.textBaseline='middle'; ctx.fillText(v,pad.l-6,y);
+  });
+
+  function drawArea(vals,color){
+    ctx.beginPath(); ctx.moveTo(px(0),H-pad.b);
+    vals.forEach(function(v,i){ctx.lineTo(px(i),py(v));});
+    ctx.lineTo(px(vals.length-1),H-pad.b); ctx.closePath();
+    ctx.fillStyle=rgba(color,.1); ctx.fill();
+  }
+  function drawLine(vals,color){
+    ctx.beginPath();
+    vals.forEach(function(v,i){i===0?ctx.moveTo(px(i),py(v)):ctx.lineTo(px(i),py(v));});
+    ctx.strokeStyle=color; ctx.lineWidth=2.5; ctx.stroke();
+    vals.forEach(function(v,i){
+      ctx.beginPath(); ctx.arc(px(i),py(v),5,0,Math.PI*2);
+      ctx.fillStyle='#fff'; ctx.fill();
+      ctx.strokeStyle=color; ctx.lineWidth=2; ctx.stroke();
+      ctx.fillStyle=C.ink; ctx.font='700 12px Open Sans,sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(v,px(i),py(v)-9);
+    });
+  }
+  drawArea(recibidas,C.green); drawArea(resueltas,C.blue);
+  drawLine(recibidas,C.green); drawLine(resueltas,C.blue);
+  months.forEach(function(m,i){
+    ctx.fillStyle=C.gray; ctx.font='400 10px Open Sans,sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText(m,px(i),H-pad.b+8);
+  });
+})();
+
+// 4. HBAR — En curso
+(function(){
+  var D=setup('hbarEstado'); var ctx=D.ctx,W=D.w,H=D.h;
+  var data=[
+    {label:'En triaje',v:7,c:C.amber},
+    {label:'Pendiente evidencia',v:5,c:C.blue},
+    {label:'En análisis',v:4,c:C.green},
+    {label:'Pendiente aprobación',v:3,c:C.purple}
+  ];
+  var maxV=8;
+  var pad={t:10,r:44,b:10,l:152};
+  var rowH=(H-pad.t-pad.b)/data.length;
+  data.forEach(function(d,i){
+    var y=pad.t+i*rowH;
+    var bh=rowH*0.44;
+    var bw=(d.v/maxV)*(W-pad.l-pad.r);
+    var by=y+(rowH-bh)/2;
+    ctx.fillStyle=rgba(d.c,.12); ctx.fillRect(pad.l,by,W-pad.l-pad.r,bh);
+    ctx.fillStyle=d.c; ctx.fillRect(pad.l,by,bw,bh);
+    ctx.fillStyle=C.ink; ctx.font='400 10px Open Sans,sans-serif';
+    ctx.textAlign='right'; ctx.textBaseline='middle'; ctx.fillText(d.label,pad.l-8,y+rowH/2);
+    ctx.fillStyle=C.ink; ctx.font='700 12px Open Sans,sans-serif';
+    ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(d.v,pad.l+bw+8,y+rowH/2);
+  });
+})();
+
+// 5. PIE — Riesgo
+(function(){
+  var canvas=document.getElementById('pieRiesgo');
+  var ratio=window.devicePixelRatio||1;
+  canvas.width=140*ratio; canvas.height=140*ratio;
+  var ctx=canvas.getContext('2d'); ctx.scale(ratio,ratio);
+  var data=[{v:3,c:C.red},{v:8,c:C.amber},{v:5,c:C.green}];
+  var total=16, cx=70,cy=70,r=62;
+  var angle=-Math.PI/2;
+  data.forEach(function(d){
+    var sweep=d.v/total*Math.PI*2;
+    ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,angle,angle+sweep);
+    ctx.closePath(); ctx.fillStyle=d.c; ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();
+    angle+=sweep;
+  });
+})();
+
+// 6. STACKED AREA — Evolución riesgo
+(function(){
+  var D=setup('stackedArea'); var ctx=D.ctx,W=D.w,H=D.h;
+  var months=['Mayo','Junio','Julio'];
+  var alto=[2,4,3], medio=[7,9,8], bajo=[5,7,5];
+  var pad={t:20,r:40,b:36,l:44};
+  var maxV=20;
+  var n=months.length;
+  function px(i){return pad.l+i*(W-pad.l-pad.r)/(n-1);}
+  function py(v){return H-pad.b-(v/maxV)*(H-pad.t-pad.b);}
+  function cumPts(series,belowData){
+    return series.map(function(v,i){return [px(i),py(v+(belowData?belowData[i]:0))];});
+  }
+  var ptsBajo=cumPts(bajo,null);
+  var ptsMedio=cumPts(medio,bajo);
+  var ptsAlto=cumPts(alto,bajo.map(function(b,i){return b+medio[i];}));
+
+  function drawStack(pts,ptsBelow,color){
+    ctx.beginPath();
+    pts.forEach(function(p,i){i===0?ctx.moveTo(p[0],p[1]):ctx.lineTo(p[0],p[1]);});
+    if(ptsBelow){for(var i=ptsBelow.length-1;i>=0;i--)ctx.lineTo(ptsBelow[i][0],ptsBelow[i][1]);}
+    else{ctx.lineTo(px(pts.length-1),H-pad.b);ctx.lineTo(px(0),H-pad.b);}
+    ctx.closePath(); ctx.fillStyle=rgba(color,.82); ctx.fill();
+    ctx.beginPath();
+    pts.forEach(function(p,i){i===0?ctx.moveTo(p[0],p[1]):ctx.lineTo(p[0],p[1]);});
+    ctx.strokeStyle='rgba(255,255,255,.6)'; ctx.lineWidth=1.5; ctx.stroke();
+  }
+  drawStack(ptsBajo,null,C.green);
+  drawStack(ptsMedio,ptsBajo,C.amber);
+  drawStack(ptsAlto,ptsMedio,C.red);
+
+  // y-axis labels (on top of fills)
+  [5,10,15].forEach(function(v){
+    var y=py(v);
+    ctx.strokeStyle='rgba(255,255,255,.25)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y); ctx.stroke();
+    ctx.setLineDash([]);
+  });
+  [0,5,10,15,20].forEach(function(v){
+    ctx.fillStyle=C.gray; ctx.font='400 9px Open Sans,sans-serif';
+    ctx.textAlign='right'; ctx.textBaseline='middle'; ctx.fillText(v,pad.l-6,py(v));
+  });
+  months.forEach(function(m,i){
+    ctx.fillStyle=C.gray; ctx.font='400 10px Open Sans,sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText(m,px(i),H-pad.b+8);
+  });
+})();
+
+// SEARCH
+var initiatives=[
+  {name:'Migración S3 a EFS — Equipo Data',type:'Arquitectura'},
+  {name:'Revisión endpoint protection Win11',type:'Triaje'},
+  {name:'Alternativa a CrowdStrike legacy',type:'Búsq. alternativa'},
+  {name:'Cumplimiento ENS nivel Alto — Core',type:'Rev. normativa'},
+  {name:'Zero Trust acceso VPN Deloitte',type:'Arquitectura'},
+  {name:'IAM unificado Azure AD + AWS SSO',type:'Arquitectura'},
+  {name:'SIEM log retention policy',type:'Triaje'},
+  {name:'Revisión WAF CloudFront',type:'Triaje'},
+  {name:'Red segmentación DMZ',type:'Arquitectura'},
+  {name:'Alternativa DLP on-premise',type:'Búsq. alternativa'},
+  {name:'PCI-DSS eCommerce scope reduction',type:'Rev. normativa'},
+  {name:'EDR rollout endpoints móviles',type:'Triaje'}
+];
+var input=document.getElementById('searchInput');
+var resultsDiv=document.getElementById('searchResults');
+input.addEventListener('input',function(){
+  var q=this.value.trim().toLowerCase();
+  if(!q){resultsDiv.classList.remove('open');return;}
+  var matches=initiatives.filter(function(x){return x.name.toLowerCase().indexOf(q)!==-1||x.type.toLowerCase().indexOf(q)!==-1;}).slice(0,6);
+  resultsDiv.innerHTML=matches.length
+    ? matches.map(function(m){return '<div class="sr-item"><span class="sr-tag">'+m.type+'</span>'+m.name+'</div>';}).join('')
+    : '<div class="sr-empty">Sin resultados para "'+q+'"</div>';
+  resultsDiv.classList.add('open');
+});
+document.addEventListener('click',function(e){
+  if(!document.getElementById('searchWrap').contains(e.target)) resultsDiv.classList.remove('open');
+});
+</script>
+</body>
+</html>
