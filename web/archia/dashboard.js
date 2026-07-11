@@ -1376,6 +1376,176 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
   renderSidebar();
   renderProgressBar(null);
 
+  // ================================================================
+  // AI EVIDENCE ANALYSIS (Analizar evidencia panel)
+  // ================================================================
+  var _aiEvid = { file: null, filename: null, uploaded: false, polling: null };
+
+  window.handleAiEvidFile = function(input) {
+    var f = input.files && input.files[0];
+    if (!f) return;
+    _aiEvid.file = f;
+    _aiEvid.filename = null;
+    _aiEvid.uploaded = false;
+    var info = $("aiEvidFileInfo");
+    if (info) info.style.display = "flex";
+    var nameEl = $("aiEvidFileName");
+    if (nameEl) nameEl.textContent = f.name;
+    var statusEl = $("aiEvidUploadStatus");
+    if (statusEl) statusEl.innerHTML = spinner("Subiendo…");
+    var btn = $("aiEvidBtn");
+    if (btn) btn.disabled = true;
+    _aiEvidUpload(f);
+  };
+
+  async function _aiEvidUpload(f) {
+    var statusEl = $("aiEvidUploadStatus");
+    function setStatus(html) { if (statusEl) statusEl.innerHTML = html; }
+    try {
+      var fd = new FormData(); fd.append("file", f);
+      var res = await apiFetch(API_BASE + "/datasource/uploadfile/", { method:"POST", headers:authHeaders(), body:fd });
+      if (!res.ok) {
+        // Check if already exists
+        var listRes = await apiFetch(API_BASE + "/datasource/listfiles/", { headers:authHeaders() });
+        var data = null; try { data = JSON.parse(listRes.text); } catch(_) {}
+        if (listRes.ok && fileFoundInList(data, f.name)) {
+          _aiEvid.filename = f.name; _aiEvid.uploaded = true;
+          setStatus(checkIcon("Disponible"));
+          var btn = $("aiEvidBtn"); if (btn) btn.disabled = false;
+          return;
+        }
+        throw new Error("HTTP " + res.status);
+      }
+      setStatus(spinner("Verificando…"));
+      _aiEvidPollFile(f.name);
+    } catch(e) {
+      setStatus(errorIcon("Error: " + e.message));
+    }
+  }
+
+  function _aiEvidPollFile(filename) {
+    clearInterval(_aiEvid.polling);
+    _aiEvid.polling = setInterval(async function() {
+      try {
+        var res = await apiFetch(API_BASE + "/datasource/listfiles/", { headers:authHeaders() });
+        if (!res.ok) return;
+        var data = null; try { data = JSON.parse(res.text); } catch(_) {}
+        if (fileFoundInList(data, filename)) {
+          clearInterval(_aiEvid.polling);
+          _aiEvid.filename = filename; _aiEvid.uploaded = true;
+          var statusEl = $("aiEvidUploadStatus");
+          if (statusEl) statusEl.innerHTML = checkIcon("Disponible");
+          var btn = $("aiEvidBtn"); if (btn) btn.disabled = false;
+        }
+      } catch(_) {}
+    }, POLL_INTERVAL);
+  }
+
+  window.clearAiEvidFile = function() {
+    clearInterval(_aiEvid.polling);
+    _aiEvid = { file: null, filename: null, uploaded: false, polling: null };
+    var fi = $("aiEvidFile"); if (fi) fi.value = "";
+    var info = $("aiEvidFileInfo"); if (info) info.style.display = "none";
+    var btn = $("aiEvidBtn"); if (btn) btn.disabled = true;
+    var res = $("aiEvidResult"); if (res) res.innerHTML = "";
+    var st = $("aiEvidStatus"); if (st) st.innerHTML = "";
+  };
+
+  window.runAiAnalysis = async function() {
+    var btn = $("aiEvidBtn");
+    var statusEl = $("aiEvidStatus");
+    var resultEl = $("aiEvidResult");
+    if (!statusEl || !resultEl) return;
+
+    var vs = window._valState || {};
+    var controlKey   = vs.currentControlKey   || "";
+    var controlLabel = vs.currentControlLabel || "";
+    var requisito = controlKey ? (controlKey + (controlLabel ? " – " + controlLabel : "")) : controlLabel;
+    var evidencia   = _aiEvid.filename || "";
+    var comentarios = ($("aiEvidNotes") || {}).value || "";
+
+    if (!requisito) { statusEl.innerHTML = errorIcon("No hay control seleccionado."); return; }
+
+    if (btn) { btn.disabled = true; btn.textContent = "Analizando…"; }
+    statusEl.innerHTML = spinner("Enviando análisis…");
+    resultEl.innerHTML = "";
+
+    try {
+      var res = await apiFetch(API_BASE + "/playbooks/invoke/analisis-evidencias", {
+        method: "POST",
+        headers: Object.assign({}, authHeaders(), { "Content-Type": "application/json" }),
+        body: JSON.stringify({ requisito: requisito, evidencia: evidencia, comentarios: comentarios })
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status + " – " + res.text.slice(0, 200));
+      var json; try { json = JSON.parse(res.text); } catch(_) { throw new Error("Respuesta no es JSON"); }
+      var taskId = json.id || json.task_id || json.taskId || (json.status && json.status.id) || null;
+      if (!taskId) throw new Error("Sin task ID: " + JSON.stringify(json).slice(0, 200));
+      statusEl.innerHTML = spinner("Analizando con IA…");
+      var result = await pollTask(taskId);
+      statusEl.innerHTML = "";
+      resultEl.innerHTML = _renderAiEvidResult(result.text);
+    } catch(e) {
+      statusEl.innerHTML = errorIcon("Error: " + e.message);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "Analizar evidencia con IA"; }
+    }
+  };
+
+  function _renderAiEvidResult(text) {
+    var data = null;
+    // Try to parse JSON from the text
+    try {
+      var match = text.match(/\{[\s\S]*\}/);
+      if (match) data = JSON.parse(match[0]);
+    } catch(_) {}
+
+    if (!data) {
+      return '<div class="ai-result"><div class="ai-result-body">' + escHtml(text) + '</div></div>';
+    }
+
+    var veredicto   = (data.veredicto || "").toLowerCase();
+    var pct         = parseInt(data.porcentaje_validez || data.porcentaje || 0, 10);
+    var justif      = data.justificacion || data.justificación || "";
+    var cubiertos   = data.aspectos_cubiertos   || data.aspectos_positivos   || [];
+    var faltantes   = data.aspectos_faltantes   || data.aspectos_negativos   || [];
+    var recs        = data.recomendaciones || [];
+
+    var vClass = veredicto.includes("cumple") && !veredicto.includes("no") && !veredicto.includes("parcial")
+      ? "ai-verdict-cumple"
+      : veredicto.includes("parcial") ? "ai-verdict-parcial" : "ai-verdict-no";
+    var pctClass = pct >= 70 ? "ai-pct-high" : pct >= 40 ? "ai-pct-mid" : "ai-pct-low";
+
+    function listHtml(arr, cls) {
+      if (!arr || !arr.length) return "";
+      return '<ul class="ai-lists">' + arr.map(function(i){ return '<li class="' + cls + '">' + escHtml(i) + '</li>'; }).join("") + '</ul>';
+    }
+
+    var html = '<div class="ai-result">';
+    html += '<div class="' + vClass + '">' + escHtml(data.veredicto || veredicto) + '</div>';
+    if (!isNaN(pct)) {
+      html += '<div style="margin:10px 0 6px;font-size:11px;color:rgba(255,255,255,.5);letter-spacing:.08em;text-transform:uppercase">Validez</div>';
+      html += '<div style="display:flex;align-items:center;gap:10px">';
+      html += '<div style="flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px"><div class="ai-pct-bar-fill ' + pctClass + '" style="width:' + Math.min(pct,100) + '%"></div></div>';
+      html += '<span style="font-size:13px;font-weight:700;color:#fff">' + pct + '%</span></div>';
+    }
+    html += '<div class="ai-result-body">' + escHtml(justif) + '</div>';
+    if (cubiertos.length) {
+      html += '<div style="font-size:11px;color:rgba(255,255,255,.4);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.08em">Aspectos cubiertos</div>';
+      html += listHtml(cubiertos, "ai-list-ok");
+    }
+    if (faltantes.length) {
+      html += '<div style="font-size:11px;color:rgba(255,255,255,.4);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.08em">Aspectos faltantes</div>';
+      html += listHtml(faltantes, "ai-list-no");
+    }
+    if (recs.length) {
+      html += '<div class="ai-recs"><div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em">Recomendaciones</div>';
+      html += listHtml(recs, "");
+      html += '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
 })();
 
 // ================================================================
