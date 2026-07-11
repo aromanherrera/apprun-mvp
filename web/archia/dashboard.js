@@ -521,9 +521,12 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
           '<div class="cs-notfound">✗ No encontrado en la consola de CrowdStrike</div>' +
           '</div>';
       }
-      var mlIcon = r.ml_enabled === true ? '✓' : (r.ml_enabled === false ? '✗' : '–');
+      var SVG_OK  = '<svg width="11" height="11" viewBox="0 0 12 12" fill="none"><polyline points="1.5,6 4.5,9.5 10.5,2.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      var SVG_NO  = '<svg width="10" height="10" viewBox="0 0 12 12" fill="none"><line x1="2" y1="2" x2="10" y2="10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+      var SVG_UNK = '<svg width="10" height="10" viewBox="0 0 12 12" fill="none"><line x1="2" y1="6" x2="10" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+      var mlIcon = r.ml_enabled === true ? SVG_OK : (r.ml_enabled === false ? SVG_NO : SVG_UNK);
       var mlCls  = r.ml_enabled === true ? 'cs-val-ok' : (r.ml_enabled === false ? 'cs-val-no' : 'cs-val-unknown');
-      var extIcon = r.extended_user_mode === true ? '✓' : (r.extended_user_mode === false ? '✗' : '–');
+      var extIcon = r.extended_user_mode === true ? SVG_OK : (r.extended_user_mode === false ? SVG_NO : SVG_UNK);
       var extCls  = r.extended_user_mode === true ? 'cs-val-ok' : (r.extended_user_mode === false ? 'cs-val-no' : 'cs-val-unknown');
       return '<div class="cs-result cs-result-found">' +
         '<div class="cs-result-host">' + escHtml(r.hostname) + ' <span class="cs-badge cs-online">Registrado</span></div>' +
