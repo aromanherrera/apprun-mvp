@@ -1429,19 +1429,28 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
 
   function _aiEvidPollFile(filename) {
     clearInterval(_aiEvid.polling);
+    var attempts = 0; var maxAttempts = 6; // 30s then assume available
     _aiEvid.polling = setInterval(async function() {
+      attempts++;
       try {
         var res = await apiFetch(API_BASE + "/datasource/listfiles/", { headers:authHeaders() });
-        if (!res.ok) return;
-        var data = null; try { data = JSON.parse(res.text); } catch(_) {}
-        if (fileFoundInList(data, filename)) {
-          clearInterval(_aiEvid.polling);
-          _aiEvid.filename = filename; _aiEvid.uploaded = true;
-          var statusEl = $("aiEvidUploadStatus");
-          if (statusEl) statusEl.innerHTML = checkIcon("Disponible");
-          var btn = $("aiEvidBtn"); if (btn) btn.disabled = false;
+        if (res.ok) {
+          var data = null; try { data = JSON.parse(res.text); } catch(_) {}
+          if (fileFoundInList(data, filename)) {
+            clearInterval(_aiEvid.polling);
+            _aiEvid.uploaded = true;
+            var statusEl = $("aiEvidUploadStatus");
+            if (statusEl) statusEl.innerHTML = checkIcon("Disponible");
+            return;
+          }
         }
       } catch(_) {}
+      if (attempts >= maxAttempts) {
+        clearInterval(_aiEvid.polling);
+        _aiEvid.uploaded = true;
+        var statusEl = $("aiEvidUploadStatus");
+        if (statusEl) statusEl.innerHTML = checkIcon("Subido");
+      }
     }, POLL_INTERVAL);
   }
 
