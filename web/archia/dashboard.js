@@ -1385,16 +1385,19 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     var f = input.files && input.files[0];
     if (!f) return;
     _aiEvid.file = f;
-    _aiEvid.filename = null;
+    _aiEvid.filename = f.name; // allow sending even before upload confirms
     _aiEvid.uploaded = false;
     var info = $("aiEvidFileInfo");
     if (info) info.style.display = "flex";
+    var drop = $("aiEvidDrop");
+    if (drop) drop.style.display = "none";
     var nameEl = $("aiEvidFileName");
     if (nameEl) nameEl.textContent = f.name;
     var statusEl = $("aiEvidUploadStatus");
     if (statusEl) statusEl.innerHTML = spinner("Subiendo…");
+    // Enable button immediately so user isn't blocked
     var btn = $("aiEvidBtn");
-    if (btn) btn.disabled = true;
+    if (btn) { btn.disabled = false; btn.style.opacity = "1"; }
     _aiEvidUpload(f);
   };
 
@@ -1419,7 +1422,8 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       setStatus(spinner("Verificando…"));
       _aiEvidPollFile(f.name);
     } catch(e) {
-      setStatus(errorIcon("Error: " + e.message));
+      // Non-blocking: keep button enabled, just show warning
+      setStatus('<span style="color:#f59e0b">⚠ No se pudo confirmar subida — se intentará al analizar</span>');
     }
   }
 
@@ -1446,7 +1450,8 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     _aiEvid = { file: null, filename: null, uploaded: false, polling: null };
     var fi = $("aiEvidFile"); if (fi) fi.value = "";
     var info = $("aiEvidFileInfo"); if (info) info.style.display = "none";
-    var btn = $("aiEvidBtn"); if (btn) btn.disabled = true;
+    var drop = $("aiEvidDrop"); if (drop) drop.style.display = "";
+    var btn = $("aiEvidBtn"); if (btn) { btn.disabled = true; btn.style.opacity = ".45"; }
     var res = $("aiEvidResult"); if (res) res.innerHTML = "";
     var st = $("aiEvidStatus"); if (st) st.innerHTML = "";
   };
