@@ -432,10 +432,10 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     if (btnC) btnC.className = "val-comp-btn" + (comp === "cumple" ? " sel-cumple" : "");
     if (btnN) btnN.className = "val-comp-btn" + (comp === "no_cumple" ? " sel-no_cumple" : "");
 
-    // Fill evidencia panel
-    window._valEvidFiles = (existing && existing.evidenceFiles) ? existing.evidenceFiles.slice() : [];
-    updateEvidFileListUI();
-    document.getElementById("valEvidNotes").value = (existing && existing.method === "evidencia") ? (existing.notes || "") : "";
+    // Fill evidencia panel (AI analysis tab — reset state on open)
+    window.clearAiEvidFile && window.clearAiEvidFile();
+    window._valState.currentControlKey   = controlKey;
+    window._valState.currentControlLabel = controlLabel;
 
     // Fill conectar / CrowdStrike panel
     var isCs = /PS.?01/i.test(controlKey);
