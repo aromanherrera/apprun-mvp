@@ -1493,7 +1493,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       statusEl.innerHTML = spinner("Analizando con IA… (task: " + taskId + ")");
       var result = await pollTask(taskId);
       statusEl.innerHTML = "";
-      resultEl.innerHTML = '<pre style="white-space:pre-wrap;word-break:break-word;font-size:12px;color:rgba(255,255,255,.8);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);padding:12px;border-radius:6px">' + escHtml(result.text) + '</pre>';
+      resultEl.innerHTML = _renderAiEvidResult(result.text);
     } catch(e) {
       statusEl.innerHTML = errorIcon("Error: " + e.message);
     } finally {
@@ -1503,57 +1503,90 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
 
   function _renderAiEvidResult(text) {
     var data = null;
-    // Try to parse JSON from the text
     try {
       var match = text.match(/\{[\s\S]*\}/);
       if (match) data = JSON.parse(match[0]);
     } catch(_) {}
 
     if (!data) {
-      return '<div class="ai-result"><div class="ai-result-body">' + escHtml(text) + '</div></div>';
+      return '<pre style="white-space:pre-wrap;word-break:break-word;font-size:12px;color:rgba(255,255,255,.8);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);padding:12px;border-radius:6px">' + escHtml(text) + '</pre>';
     }
 
-    var veredicto   = (data.veredicto || "").toLowerCase();
-    var pct         = parseInt(data.porcentaje_validez || data.porcentaje || 0, 10);
-    var justif      = data.justificacion || data.justificación || "";
-    var cubiertos   = data.aspectos_cubiertos   || data.aspectos_positivos   || [];
-    var faltantes   = data.aspectos_faltantes   || data.aspectos_negativos   || [];
-    var recs        = data.recomendaciones || [];
+    var veredictoRaw = data.veredicto || "";
+    var vLo = veredictoRaw.toUpperCase();
+    var isCumple  = vLo === "CUMPLE";
+    var isParcial = vLo.includes("PARCIAL");
+    var isNoCumple = vLo.includes("NO CUMPLE") || (!isCumple && !isParcial);
 
-    var vClass = veredicto.includes("cumple") && !veredicto.includes("no") && !veredicto.includes("parcial")
-      ? "ai-verdict-cumple"
-      : veredicto.includes("parcial") ? "ai-verdict-parcial" : "ai-verdict-no";
-    var pctClass = pct >= 70 ? "ai-pct-high" : pct >= 40 ? "ai-pct-mid" : "ai-pct-low";
+    var pct       = parseInt(data.porcentaje_validez || data.porcentaje || 0, 10);
+    var resumen   = data.resumen || "";
+    var justif    = data.justificacion || data.justificación || "";
+    var cubiertos = data.aspectos_cubiertos  || [];
+    var faltantes = data.aspectos_faltantes  || [];
+    var recs      = data.recomendaciones     || [];
 
-    function listHtml(arr, cls) {
+    var accentColor = isCumple ? "#86BC25" : isParcial ? "#f59e0b" : "#ef4444";
+    var bgColor     = isCumple ? "rgba(134,188,37,.08)" : isParcial ? "rgba(245,158,11,.08)" : "rgba(239,68,68,.08)";
+    var borderColor = isCumple ? "rgba(134,188,37,.3)"  : isParcial ? "rgba(245,158,11,.3)"  : "rgba(239,68,68,.3)";
+    var icon        = isCumple ? "✓" : isParcial ? "~" : "✗";
+
+    function listHtml(arr, bullet, bulletColor) {
       if (!arr || !arr.length) return "";
-      return '<ul class="ai-lists">' + arr.map(function(i){ return '<li class="' + cls + '">' + escHtml(i) + '</li>'; }).join("") + '</ul>';
+      return '<ul style="margin:6px 0 0;padding:0;list-style:none">' +
+        arr.map(function(i) {
+          return '<li style="display:flex;gap:8px;padding:4px 0;font-size:12px;color:rgba(255,255,255,.75);border-bottom:1px solid rgba(255,255,255,.04)">' +
+            '<span style="color:' + bulletColor + ';flex-shrink:0;font-weight:700">' + bullet + '</span>' +
+            '<span>' + escHtml(i) + '</span></li>';
+        }).join("") + '</ul>';
     }
 
-    var html = '<div class="ai-result">';
-    html += '<div class="' + vClass + '">' + escHtml(data.veredicto || veredicto) + '</div>';
-    if (!isNaN(pct)) {
-      html += '<div style="margin:10px 0 6px;font-size:11px;color:rgba(255,255,255,.5);letter-spacing:.08em;text-transform:uppercase">Validez</div>';
-      html += '<div style="display:flex;align-items:center;gap:10px">';
-      html += '<div style="flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px"><div class="ai-pct-bar-fill ' + pctClass + '" style="width:' + Math.min(pct,100) + '%"></div></div>';
-      html += '<span style="font-size:13px;font-weight:700;color:#fff">' + pct + '%</span></div>';
+    var h = '';
+    // Header
+    h += '<div style="border:1px solid ' + borderColor + ';border-radius:8px;overflow:hidden;margin-top:8px">';
+    h += '<div style="background:' + bgColor + ';padding:12px 14px;display:flex;align-items:center;gap:10px">';
+    h += '<span style="width:28px;height:28px;border-radius:50%;background:' + accentColor + ';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#000;flex-shrink:0">' + icon + '</span>';
+    h += '<div style="flex:1">';
+    h += '<div style="font-size:13px;font-weight:800;letter-spacing:.06em;color:' + accentColor + '">' + escHtml(veredictoRaw) + '</div>';
+    if (resumen) h += '<div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px">' + escHtml(resumen) + '</div>';
+    h += '</div>';
+    // Pct badge
+    if (!isNaN(pct) && pct > 0) {
+      h += '<div style="text-align:center;flex-shrink:0">';
+      h += '<div style="font-size:20px;font-weight:900;color:' + accentColor + ';line-height:1">' + pct + '<span style="font-size:11px">%</span></div>';
+      h += '<div style="font-size:9px;color:rgba(255,255,255,.35);letter-spacing:.06em;text-transform:uppercase">validez</div>';
+      h += '</div>';
     }
-    html += '<div class="ai-result-body">' + escHtml(justif) + '</div>';
+    h += '</div>';
+
+    // Progress bar
+    if (!isNaN(pct) && pct > 0) {
+      h += '<div style="height:3px;background:rgba(255,255,255,.06)"><div style="height:100%;width:' + Math.min(pct,100) + '%;background:' + accentColor + ';transition:width .4s"></div></div>';
+    }
+
+    // Body sections
+    h += '<div style="padding:12px 14px;display:flex;flex-direction:column;gap:10px">';
+
+    if (justif) {
+      h += '<div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.6">' + escHtml(justif) + '</div>';
+    }
+
     if (cubiertos.length) {
-      html += '<div style="font-size:11px;color:rgba(255,255,255,.4);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.08em">Aspectos cubiertos</div>';
-      html += listHtml(cubiertos, "ai-list-ok");
+      h += '<div><div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:2px">Aspectos cubiertos</div>';
+      h += listHtml(cubiertos, "✓", "#86BC25") + '</div>';
     }
     if (faltantes.length) {
-      html += '<div style="font-size:11px;color:rgba(255,255,255,.4);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.08em">Aspectos faltantes</div>';
-      html += listHtml(faltantes, "ai-list-no");
+      h += '<div><div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:2px">Aspectos faltantes</div>';
+      h += listHtml(faltantes, "✗", "#ef4444") + '</div>';
     }
     if (recs.length) {
-      html += '<div class="ai-recs"><div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em">Recomendaciones</div>';
-      html += listHtml(recs, "");
-      html += '</div>';
+      h += '<div style="background:rgba(255,255,255,.03);border-radius:6px;padding:10px 12px">';
+      h += '<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:4px">Recomendaciones</div>';
+      h += listHtml(recs, "→", "rgba(255,255,255,.4)");
+      h += '</div>';
     }
-    html += '</div>';
-    return html;
+
+    h += '</div></div>';
+    return h;
   }
 
 })();
