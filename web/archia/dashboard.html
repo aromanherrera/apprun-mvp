@@ -819,6 +819,12 @@
       <!-- Estado / resultado -->
       <div id="aiEvidStatus" style="margin-top:10px;font-size:12px;color:var(--gray-700);display:flex;align-items:center;gap:8px"></div>
       <div id="aiEvidResult" style="margin-top:12px"></div>
+      <!-- Resultado de validación -->
+      <div class="val-section-label" style="margin-top:16px">Resultado de validación</div>
+      <div class="val-compliance-row">
+        <button class="val-comp-btn" id="valBtnCumpleEvid" onclick="setValCompliance('cumple')">✓ Cumple</button>
+        <button class="val-comp-btn" id="valBtnNoCumpleEvid" onclick="setValCompliance('no_cumple')">✗ No cumple</button>
+      </div>
     </div>
     <!-- CONECTAR PANEL -->
     <div id="valPanelConectar" style="display:none">

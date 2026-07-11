@@ -432,6 +432,12 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     if (btnC) btnC.className = "val-comp-btn" + (comp === "cumple" ? " sel-cumple" : "");
     if (btnN) btnN.className = "val-comp-btn" + (comp === "no_cumple" ? " sel-no_cumple" : "");
 
+    // Fill evidencia compliance buttons
+    var evidComp = (existing && existing.method === "evidencia" && existing.compliance) || null;
+    var btnCE = $("valBtnCumpleEvid"); var btnNE = $("valBtnNoCumpleEvid");
+    if (btnCE) btnCE.className = "val-comp-btn" + (evidComp === "cumple" ? " sel-cumple" : "");
+    if (btnNE) btnNE.className = "val-comp-btn" + (evidComp === "no_cumple" ? " sel-no_cumple" : "");
+
     // Fill evidencia panel (AI analysis tab)
     window._valState.currentControlKey   = controlKey;
     window._valState.currentControlLabel = controlLabel;
@@ -494,10 +500,12 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
   window.setValCompliance = function(val) {
     window._valState.compliance = window._valState.compliance === val ? null : val;
     var c = window._valState.compliance;
-    var btnC = document.getElementById("valBtnCumple");
-    var btnN = document.getElementById("valBtnNoCumple");
-    if (btnC) btnC.className = "val-comp-btn" + (c === "cumple" ? " sel-cumple" : "");
-    if (btnN) btnN.className = "val-comp-btn" + (c === "no_cumple" ? " sel-no_cumple" : "");
+    // Sync all compliance button pairs
+    [["valBtnCumple","valBtnNoCumple"],["valBtnCumpleEvid","valBtnNoCumpleEvid"],["valBtnCumpleCs","valBtnNoCumpleCs"]].forEach(function(pair) {
+      var bC = document.getElementById(pair[0]); var bN = document.getElementById(pair[1]);
+      if (bC) bC.className = "val-comp-btn" + (c === "cumple" ? " sel-cumple" : "");
+      if (bN) bN.className = "val-comp-btn" + (c === "no_cumple" ? " sel-no_cumple" : "");
+    });
   };
 
   window.handleEvidFiles = function(input) {
@@ -675,8 +683,10 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       validation.compliance = st.compliance;
       validation.notes = (document.getElementById("valManualNotes").value || "").trim();
     } else if (method === "evidencia") {
-      validation.notes = (document.getElementById("valEvidNotes").value || "").trim();
-      validation.evidenceFiles = window._valEvidFiles.slice();
+      if (!st.compliance) { alert("Selecciona si el control Cumple o No cumple."); return; }
+      validation.compliance = st.compliance;
+      validation.notes = (document.getElementById("aiEvidNotes") ? document.getElementById("aiEvidNotes").value : "").trim();
+      validation.evidenceFiles = [];
     } else if (method === "conectar") {
       var csPanel = document.getElementById("csPanelWrap");
       var csActive = csPanel && csPanel.style.display !== "none";
