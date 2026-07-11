@@ -771,8 +771,11 @@
       <!-- Comentarios -->
       <div class="val-section-label" style="margin-top:12px">Comentarios adicionales <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(opcional)</span></div>
       <textarea class="val-textarea" id="aiEvidNotes" rows="3" placeholder="Contexto adicional, nombre del equipo afectado, rango de fechas…"></textarea>
-      <!-- Botón analizar -->
-      <button id="aiEvidBtn" onclick="runAiAnalysis()" style="width:100%;margin-top:12px;padding:11px;background:var(--green);color:#000;border:none;font-size:11px;font-weight:700;font-family:inherit;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:background .15s;opacity:.45" disabled>Analizar evidencia con IA</button>
+      <!-- Botones -->
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button id="aiEvidBtn" onclick="runAiAnalysis()" style="flex:1;padding:11px;background:var(--green);color:#000;border:none;font-size:11px;font-weight:700;font-family:inherit;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:background .15s;opacity:.45" disabled>Analizar con IA</button>
+        <button id="aiEvidClearBtn" onclick="clearAiEvidAnalysis()" style="display:none;padding:11px 14px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.1);font-size:11px;font-weight:700;font-family:inherit;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:background .15s" title="Limpiar análisis">Limpiar</button>
+      </div>
       <!-- Estado / resultado -->
       <div id="aiEvidStatus" style="margin-top:10px;font-size:12px;color:var(--gray-700);display:flex;align-items:center;gap:8px"></div>
       <div id="aiEvidResult" style="margin-top:12px"></div>
