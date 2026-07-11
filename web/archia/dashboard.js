@@ -544,10 +544,31 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     }).join("");
   }
 
+  var CS_BASE    = "https://api.eu-1.crowdstrike.com";
+  var CS_ID      = "2626bff7eaf74bea87e2ff3e95c20bf4";
+  var CS_SECRET  = "bCxStEHn8QUDiz62Gj9PK7WOy3lAg0sf1M5mk4pL";
+
+  function csGetToken() {
+    return fetch(CS_BASE + "/oauth2/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "grant_type=client_credentials&client_id=" + CS_ID + "&client_secret=" + CS_SECRET
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (!d.access_token) throw new Error("No se pudo obtener token de CrowdStrike");
+      return d.access_token;
+    });
+  }
+
+  function csGet(path, token, params) {
+    var url = CS_BASE + path;
+    if (params) url += "?" + new URLSearchParams(params).toString();
+    return fetch(url, { headers: { "Authorization": "Bearer " + token } }).then(function(r) { return r.json(); });
+  }
+
   window.queryCrowdstrike = function() {
     var hostsRaw = (document.getElementById("csHostnames").value || "").trim();
     if (!hostsRaw) { alert("Introduce al menos un nombre de equipo."); return; }
-    var hostnames = hostsRaw.split(/[\n,]+/).map(function(h){ return h.trim(); }).filter(Boolean);
+    var hostnames = hostsRaw.split(/[\n,]+/).map(function(h){ return h.trim().toUpperCase(); }).filter(Boolean);
 
     var btn = document.getElementById("csQueryBtn");
     var resultsDiv = document.getElementById("csResults");
@@ -556,28 +577,82 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     resultsDiv.innerHTML = '<div style="padding:16px;text-align:center;color:var(--gray-500);font-size:12px">Conectando con CrowdStrike…</div>';
     if (compSection) compSection.style.display = "none";
 
-    fetch("http://localhost:8000/check-crowdstrike", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ hostnames: hostnames })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (btn) { btn.disabled = false; btn.textContent = "Volver a consultar"; }
-      if (data.error) {
-        resultsDiv.innerHTML = '<div class="cs-error">Error: ' + escHtml(data.error) + '</div>';
-        return;
-      }
-      var results = data.results || [];
-      var html = renderCsResults(results);
-      resultsDiv.innerHTML = html;
-      window._valState.csResults = results;
-      window._valState.csResultsHtml = html;
-      if (compSection) compSection.style.display = "";
-    })
-    .catch(function() {
+    csGetToken().then(function(token) {
+      return Promise.all([
+        csGet("/devices/combined/host-groups/v1", token, { limit: 100 }),
+        csGet("/policy/combined/prevention/v1", token, { limit: 100 })
+      ]).then(function(responses) {
+        var groups   = (responses[0].resources || []);
+        var policies = (responses[1].resources || []);
+
+        var results = hostnames.map(function(hostname) {
+          // find group containing this hostname in assignment_rule
+          var group = null;
+          for (var i = 0; i < groups.length; i++) {
+            var rule = (groups[i].assignment_rule || "").toUpperCase();
+            if (rule.indexOf("HOSTNAME:[") !== -1) {
+              var m = rule.match(/HOSTNAME:\[([^\]]*)\]/);
+              if (m) {
+                var names = m[1].split(",").map(function(n){ return n.replace(/['"]/g,"").trim(); });
+                if (names.indexOf(hostname) !== -1) { group = groups[i]; break; }
+              }
+            }
+          }
+          if (!group) return { hostname: hostname, found: false };
+
+          // find policy that applies to this group
+          var policy = null;
+          for (var j = 0; j < policies.length; j++) {
+            var pg = policies[j].groups || [];
+            for (var k = 0; k < pg.length; k++) {
+              if (pg[k].id === group.id) { policy = policies[j]; break; }
+            }
+            if (policy) break;
+          }
+
+          // extract ML and extended user mode settings
+          var ml_enabled = null;
+          var extended_user_mode = null;
+          if (policy) {
+            var classes = policy.prevention_settings && policy.prevention_settings.classes || [];
+            classes.forEach(function(cls) {
+              (cls.settings || []).forEach(function(s) {
+                var sid = (s.id || "").toLowerCase();
+                if (sid === "cloud_anti_malware" || sid === "sensor_anti_malware") {
+                  var v = s.value || {};
+                  if (v.prevention !== undefined && ml_enabled === null) ml_enabled = v.prevention;
+                  else if (v.enabled !== undefined && ml_enabled === null) ml_enabled = v.enabled;
+                }
+                if (sid.indexOf("extended") !== -1 && sid.indexOf("user") !== -1) {
+                  var v2 = s.value || {};
+                  extended_user_mode = v2.enabled !== undefined ? v2.enabled : (v2.prevention !== undefined ? v2.prevention : null);
+                }
+              });
+            });
+          }
+
+          return {
+            hostname: hostname,
+            found: true,
+            group_name: group.name || "",
+            policy_name: policy ? policy.name : "",
+            policy_description: policy ? policy.description : "",
+            platform: group.assignment_rule && group.assignment_rule.match(/platform_name:'([^']+)'/i) ? group.assignment_rule.match(/platform_name:'([^']+)'/i)[1] : "",
+            ml_enabled: ml_enabled,
+            extended_user_mode: extended_user_mode
+          };
+        });
+
+        if (btn) { btn.disabled = false; btn.textContent = "Volver a consultar"; }
+        var html = renderCsResults(results);
+        resultsDiv.innerHTML = html;
+        window._valState.csResults = results;
+        window._valState.csResultsHtml = html;
+        if (compSection) compSection.style.display = "";
+      });
+    }).catch(function(err) {
       if (btn) { btn.disabled = false; btn.textContent = "Consultar CrowdStrike"; }
-      resultsDiv.innerHTML = '<div class="cs-error">No se pudo conectar con el servidor local (http://localhost:8000).<br>Asegúrate de que <strong>archia_server.py</strong> está en ejecución.</div>';
+      resultsDiv.innerHTML = '<div class="cs-error">Error al conectar con CrowdStrike: ' + escHtml(err.message || String(err)) + '</div>';
     });
   };
 
