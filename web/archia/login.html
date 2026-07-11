@@ -162,7 +162,7 @@ function doLogin() {
   var err  = document.getElementById('loginError');
   if (user === 'demo' && pass === '1234') {
     sessionStorage.setItem('archiaAuth', '1');
-    window.location.href = 'dashboard.html';
+    window.location.href = 'home.html';
   } else {
     err.style.display = 'block';
     document.getElementById('password').value = '';
