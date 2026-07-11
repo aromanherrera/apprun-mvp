@@ -1488,7 +1488,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       statusEl.innerHTML = spinner("Analizando con IA…");
       var result = await pollTask(taskId);
       statusEl.innerHTML = "";
-      resultEl.innerHTML = _renderAiEvidResult(result.text);
+      resultEl.innerHTML = '<pre style="white-space:pre-wrap;word-break:break-word;font-size:12px;color:rgba(255,255,255,.8);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);padding:12px;border-radius:6px">' + escHtml(result.text) + '</pre>';
     } catch(e) {
       statusEl.innerHTML = errorIcon("Error: " + e.message);
     } finally {
