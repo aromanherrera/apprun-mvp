@@ -1578,12 +1578,6 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       h += '<div><div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:2px">Aspectos faltantes</div>';
       h += listHtml(faltantes, "✗", "#ef4444") + '</div>';
     }
-    if (recs.length) {
-      h += '<div style="background:rgba(255,255,255,.03);border-radius:6px;padding:10px 12px">';
-      h += '<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:4px">Recomendaciones</div>';
-      h += listHtml(recs, "→", "rgba(255,255,255,.4)");
-      h += '</div>';
-    }
 
     h += '</div></div>';
     return h;
