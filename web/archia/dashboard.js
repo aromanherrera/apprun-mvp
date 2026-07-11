@@ -1476,16 +1476,20 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     resultEl.innerHTML = "";
 
     try {
+      var invokeBody = { requisito: requisito, evidencia: evidencia, comentarios: comentarios };
+      resultEl.innerHTML = '<pre style="white-space:pre-wrap;word-break:break-word;font-size:11px;color:rgba(255,255,255,.6);background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);padding:12px;border-radius:6px">Enviando:\n' + escHtml(JSON.stringify(invokeBody, null, 2)) + '</pre>';
       var res = await apiFetch(API_BASE + "/playbooks/invoke/analisis-evidencias", {
         method: "POST",
         headers: Object.assign({}, authHeaders(), { "Content-Type": "application/json" }),
-        body: JSON.stringify({ requisito: requisito, evidencia: evidencia, comentarios: comentarios })
+        body: JSON.stringify(invokeBody)
       });
-      if (!res.ok) throw new Error("HTTP " + res.status + " – " + res.text.slice(0, 200));
-      var json; try { json = JSON.parse(res.text); } catch(_) { throw new Error("Respuesta no es JSON"); }
+      var rawInvoke = res.text;
+      resultEl.innerHTML = '<pre style="white-space:pre-wrap;word-break:break-word;font-size:11px;color:rgba(255,255,255,.6);background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);padding:12px;border-radius:6px">Invoke response (HTTP ' + res.status + '):\n' + escHtml(rawInvoke) + '</pre>';
+      if (!res.ok) throw new Error("HTTP " + res.status + " – " + rawInvoke.slice(0, 200));
+      var json; try { json = JSON.parse(rawInvoke); } catch(_) { throw new Error("Respuesta no es JSON"); }
       var taskId = json.id || json.task_id || json.taskId || (json.status && json.status.id) || null;
       if (!taskId) throw new Error("Sin task ID: " + JSON.stringify(json).slice(0, 200));
-      statusEl.innerHTML = spinner("Analizando con IA…");
+      statusEl.innerHTML = spinner("Analizando con IA… (task: " + taskId + ")");
       var result = await pollTask(taskId);
       statusEl.innerHTML = "";
       resultEl.innerHTML = '<pre style="white-space:pre-wrap;word-break:break-word;font-size:12px;color:rgba(255,255,255,.8);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);padding:12px;border-radius:6px">' + escHtml(result.text) + '</pre>';
