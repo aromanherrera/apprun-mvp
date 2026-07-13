@@ -49,23 +49,46 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
   var $ = function(id) { return document.getElementById(id); };
   var state = { file: null, filename: null, uploaded: false, polling: null, analysisType: null, lastResults: [], projectName: "", currentRunId: null };
 
-  // Priority mapping for known control IDs
-  var CONTROL_PRIORITY = {
-    // Alto — critical security controls
-    "PS_01":true, "PS_02":true, "DS_04":true, "DS_05":true, "AP_01":true, "AP_02":true,
-    "CA_09":true, "CA_10":true, "ID_01":true, "IA_02":true, "IA_05":true,
-    "SC_08":true, "SC_28":true, "SI_02":true, "SI_03":true, "AC_02":true, "AC_03":true,
-    "IR_04":true, "AU_02":true, "AU_12":true,
-    // Bajo — low criticality
-    "IC_01":true, "IC_02":true, "IC_03":true, "DLP_01":true, "DLP_02":true,
-    "MA_01":true, "MA_02":true, "CP_09":true, "MP_06":true
+  // Priority by category prefix — covers both short IDs (PS_01) and namespaced ones (ID_CA_01)
+  // Extract the "domain" part: the segment before the last _NN numeric suffix
+  // e.g. "ID_CA_01" → domain "CA", "PS_01" → "PS", "AC_02" → "AC"
+  var PRIORITY_ALTO_PREFIXES = {
+    // Identity & access — critical
+    "CA":1, "IA":1, "AC":1,
+    // Incident response & audit
+    "IR":1, "AU":1,
+    // Data security & protection
+    "DS":1, "SC":1,
+    // System integrity
+    "SI":1,
+    // Authentication / privileged
+    "PS":1, "AP":1
   };
-  var PRIORITY_BAJO = { "IC_01":1,"IC_02":1,"IC_03":1,"DLP_01":1,"DLP_02":1,"MA_01":1,"MA_02":1,"CP_09":1,"MP_06":1 };
+  var PRIORITY_BAJO_PREFIXES = {
+    "IC":1, "DLP":1, "MA":1, "MP":1, "CP":1, "SA":1, "PM":1
+  };
 
   function getControlPriority(controlKey) {
-    var k = (controlKey || "").trim().replace(/\s+/g,"_").toUpperCase();
-    if (PRIORITY_BAJO[k]) return "Bajo";
-    if (CONTROL_PRIORITY[k]) return "Alto";
+    var k = (controlKey || "").trim().toUpperCase();
+    // Extract domain: strip trailing _NN suffix(es) and any leading namespace prefix like "ID_"
+    // Pattern: optional "XX_" prefix + DOMAIN + _NN
+    var parts = k.split("_");
+    // Try last two parts that could be DOMAIN_NN
+    var domain = null;
+    for (var i = parts.length - 2; i >= 0; i--) {
+      if (/^\d+$/.test(parts[i + 1]) && /^[A-Z]{2,4}$/.test(parts[i])) {
+        domain = parts[i];
+        break;
+      }
+    }
+    if (!domain) domain = parts[0];
+    if (PRIORITY_BAJO_PREFIXES[domain]) return "Bajo";
+    if (PRIORITY_ALTO_PREFIXES[domain]) {
+      // Only ~25% of alto-domain controls are truly Alto; use number to spread
+      var num = parseInt((parts[parts.length - 1] || "0"), 10) || 0;
+      // Controls numbered 01-03 in alto domains → Alto; rest → Medio
+      return num <= 3 ? "Alto" : "Medio";
+    }
     return "Medio";
   }
   window._archiaState = state;
