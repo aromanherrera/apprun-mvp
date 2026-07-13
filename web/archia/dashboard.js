@@ -48,6 +48,26 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
 
   var $ = function(id) { return document.getElementById(id); };
   var state = { file: null, filename: null, uploaded: false, polling: null, analysisType: null, lastResults: [], projectName: "", currentRunId: null };
+
+  // Priority mapping for known control IDs
+  var CONTROL_PRIORITY = {
+    // Alto — critical security controls
+    "PS_01":true, "PS_02":true, "DS_04":true, "DS_05":true, "AP_01":true, "AP_02":true,
+    "CA_09":true, "CA_10":true, "ID_01":true, "IA_02":true, "IA_05":true,
+    "SC_08":true, "SC_28":true, "SI_02":true, "SI_03":true, "AC_02":true, "AC_03":true,
+    "IR_04":true, "AU_02":true, "AU_12":true,
+    // Bajo — low criticality
+    "IC_01":true, "IC_02":true, "IC_03":true, "DLP_01":true, "DLP_02":true,
+    "MA_01":true, "MA_02":true, "CP_09":true, "MP_06":true
+  };
+  var PRIORITY_BAJO = { "IC_01":1,"IC_02":1,"IC_03":1,"DLP_01":1,"DLP_02":1,"MA_01":1,"MA_02":1,"CP_09":1,"MP_06":1 };
+
+  function getControlPriority(controlKey) {
+    var k = (controlKey || "").trim().replace(/\s+/g,"_").toUpperCase();
+    if (PRIORITY_BAJO[k]) return "Bajo";
+    if (CONTROL_PRIORITY[k]) return "Alto";
+    return "Medio";
+  }
   window._archiaState = state;
 
   function authHeaders() { return { "Authorization": "Bearer " + API_TOKEN }; }
@@ -760,8 +780,52 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
         var isOpt = k === "arquitectura";
         phaseDots += '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:3px;background:' + (isDone ? 'var(--green)' : (isOpt ? 'var(--gray-200)' : 'var(--gray-200)')) + ';border:1px solid ' + (isDone ? 'var(--green)' : 'var(--gray-200)') + '"></span>';
       });
-      nameDiv.innerHTML = '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(proj.name) + '</span><span style="display:flex;align-items:center;gap:0;flex-shrink:0">' + phaseDots + '</span><span class="sb-chevron" style="margin-left:6px">&#9656;</span>';
-      nameDiv.onclick = function() { div.classList.toggle("open"); };
+      var nameSpan = document.createElement("span");
+      nameSpan.style.cssText = "flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text";
+      nameSpan.textContent = proj.name;
+      nameSpan.title = "Doble clic para renombrar";
+      (function(projRef, nameSpanRef) {
+        nameSpanRef.addEventListener("dblclick", function(e) {
+          e.stopPropagation();
+          var input = document.createElement("input");
+          input.value = projRef.name;
+          input.style.cssText = "flex:1;min-width:0;background:transparent;border:none;border-bottom:1px solid var(--green);outline:none;font-size:12px;font-weight:700;color:inherit;font-family:inherit;padding:0 2px";
+          nameSpanRef.replaceWith(input);
+          input.focus(); input.select();
+          function commit() {
+            var newName = input.value.trim();
+            if (newName && newName !== projRef.name) {
+              var ps = loadProjects();
+              ps.forEach(function(p) {
+                if (p.name === projRef.name) {
+                  p.name = newName;
+                  (p.runs || []).forEach(function(r) { r.projectName = newName; });
+                }
+              });
+              saveProjects(ps);
+              renderSidebar();
+            } else {
+              renderSidebar();
+            }
+          }
+          input.addEventListener("blur", commit);
+          input.addEventListener("keydown", function(ev) {
+            if (ev.key === "Enter") { input.blur(); }
+            if (ev.key === "Escape") { input.value = projRef.name; input.blur(); }
+          });
+        });
+      })(proj, nameSpan);
+      nameDiv.appendChild(nameSpan);
+      var dotsSpan = document.createElement("span");
+      dotsSpan.style.cssText = "display:flex;align-items:center;gap:0;flex-shrink:0";
+      dotsSpan.innerHTML = phaseDots;
+      nameDiv.appendChild(dotsSpan);
+      var chevron = document.createElement("span");
+      chevron.className = "sb-chevron";
+      chevron.style.marginLeft = "6px";
+      chevron.innerHTML = "&#9656;";
+      nameDiv.appendChild(chevron);
+      nameDiv.onclick = function(e) { if (e.target !== nameSpan) div.classList.toggle("open"); };
       div.appendChild(nameDiv);
       var runsDiv = document.createElement("div");
       runsDiv.className = "sb-runs";
@@ -1108,7 +1172,9 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     var statHtml = buildStatCards(combinedText);
     // Risk cards placeholder (only for formulario — populated after DOM insertion)
     var riskPlaceholder = isFormulario ? '<div id="riskCardsSection"></div>' : "";
-    return statHtml + riskPlaceholder + allHtml;
+    // Priority chart (formulario only)
+    var prioHtml = isFormulario ? buildPriorityChartHtml(combinedText) : "";
+    return statHtml + riskPlaceholder + prioHtml + allHtml;
   }
 
   // ================================================================
@@ -1204,6 +1270,53 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     });
     html += '</div>';
     return html;
+  }
+
+  // ================================================================
+  // PRIORITY CHART
+  // ================================================================
+  function buildPriorityChartHtml(text) {
+    // Count applicable controls by priority from the markdown table
+    var alto = 0, medio = 0, bajo = 0;
+    var tmp = document.createElement("div");
+    tmp.innerHTML = renderMarkdown(text);
+    var rows = tmp.querySelectorAll("table tbody tr");
+    rows.forEach(function(row) {
+      var cells = row.querySelectorAll("td");
+      if (!cells.length) return;
+      var controlKey = (cells[0] ? cells[0].textContent : "").trim();
+      // Only count applicable/sí rows
+      var hasApplicable = false;
+      for (var i = 1; i < cells.length; i++) {
+        var cel = (cells[i].textContent || "").toLowerCase().trim();
+        if (cel === "sí" || cel === "si" || cel === "aplicable" || cel === "parcial") { hasApplicable = true; break; }
+      }
+      if (!hasApplicable) return;
+      var p = getControlPriority(controlKey);
+      if (p === "Alto") alto++;
+      else if (p === "Bajo") bajo++;
+      else medio++;
+    });
+    var total = alto + medio + bajo;
+    if (!total) return "";
+
+    function bar(label, count, color, bg) {
+      var pct = Math.round(count / total * 100);
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0">' +
+        '<div style="width:50px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:' + color + ';text-align:right;flex-shrink:0">' + label + '</div>' +
+        '<div style="flex:1;height:18px;background:rgba(255,255,255,.05);border-radius:2px;overflow:hidden">' +
+          '<div style="height:100%;width:' + pct + '%;background:' + color + ';opacity:.85;transition:width .4s"></div>' +
+        '</div>' +
+        '<div style="width:56px;flex-shrink:0;font-size:11px;color:rgba(255,255,255,.55)">' + count + ' <span style="font-size:10px;color:rgba(255,255,255,.3)">(' + pct + '%)</span></div>' +
+        '</div>';
+    }
+
+    return '<div style="margin-bottom:20px;padding:16px 18px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:6px">' +
+      '<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:10px">Distribución de prioridad — controles aplicables</div>' +
+      bar("Alto", alto, "#ef4444") +
+      bar("Medio", medio, "#f59e0b") +
+      bar("Bajo", bajo, "#86BC25") +
+      '</div>';
   }
 
   // ================================================================
@@ -1338,7 +1451,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       var validations = (opts && opts.validations) || {};
       var html = '<div class="tbl-wrap"><table><thead><tr>';
       html += header.map(function(c){ return "<th>"+inlineRender(c)+"</th>"; }).join("");
-      if (isFormulario) html += '<th style="width:110px">Validación</th>';
+      if (isFormulario) html += '<th style="width:80px">Prioridad</th><th style="width:110px">Validación</th>';
       html += "</tr></thead><tbody>";
       body.forEach(function(row, rowIdx){
         var controlKey = (row[0] || ("row-" + rowIdx)).trim();
@@ -1349,6 +1462,8 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
           return "<td>" + (ci > 0 ? statusBadge(c) : inlineRender(c)) + "</td>";
         }).join("");
         if (isFormulario) {
+          var prio = getControlPriority(controlKey);
+          html += '<td>' + statusBadge(prio) + '</td>';
           var btnLbl = compliance === "cumple" ? "✓ Cumple" : (compliance === "no_cumple" ? "✗ No cumple" : (val && val.method === "evidencia" ? "📄 Con evidencia" : "Validar"));
           var btnCls = compliance ? (" val-btn-" + compliance) : "";
           html += '<td><button class="val-btn' + btnCls + '" data-key="' + escHtml(controlKey) + '" data-runid="' + escHtml(String(runId)) + '" data-label="' + escHtml(controlKey) + '" onclick="openValDrawerFromBtn(this)">' + escHtml(btnLbl) + '</button></td>';
