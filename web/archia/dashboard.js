@@ -916,7 +916,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       '<div class="hv-meta-item"><div class="hv-meta-label">Módulos</div><div class="hv-meta-val">' + escHtml(modules) + '</div></div>' +
       '<div class="hv-meta-item"><div class="hv-meta-label">Fecha</div><div class="hv-meta-val">' + dateStr + '</div></div>';
     // Render results
-    var html = buildResultsHtml(run.results || [], false, run);
+    var html = buildResultsHtml(run.results || [], false, { id: run.id, analysisType: run.analysisType, validations: run.validations || {}, elapsedMs: run.elapsedMs || null });
     $("hvContent").innerHTML = html;
     if (run.analysisType === "formulario") { ensureRiskStored(run); updateRiskCards(run); }
     // Store for Word export
@@ -1079,6 +1079,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       return;
     }
     state.projectName = pname;
+    state._startTs = Date.now();
     $("btnPlaybook").disabled = true;
     $("playbookStatus").textContent = "";
     $("resultCard").style.display = "block";
@@ -1128,6 +1129,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
   }
 
   function finalizeResults(results, labels) {
+    var elapsedMs = state._startTs ? (Date.now() - state._startTs) : null;
     state.lastResults = [];
     var stored = [];
     results.forEach(function(r, i) {
@@ -1149,10 +1151,11 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       analysisType: state.analysisType,
       filename: state.filename,
       modules: modules,
-      results: stored
+      results: stored,
+      elapsedMs: elapsedMs
     });
 
-    var runCtx = { id: state.currentRunId, analysisType: state.analysisType, validations: {} };
+    var runCtx = { id: state.currentRunId, analysisType: state.analysisType, validations: {}, elapsedMs: elapsedMs };
     var html = buildResultsHtml(stored, true, runCtx);
     $("resultSpinner").style.display = "none";
     $("resultBox").style.display = "block";
@@ -1194,25 +1197,110 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
 
   function buildResultsHtml(stored, multiSection, runCtx) {
     var isFormulario = !!(runCtx && runCtx.analysisType === "formulario");
+    var isArquitectura = !!(runCtx && runCtx.analysisType === "arquitectura");
     var mdOpts = isFormulario ? { isFormulario: true, runId: runCtx.id, validations: runCtx.validations || {} } : null;
+
+    // Elapsed time banner
+    var elapsed = runCtx && runCtx.elapsedMs;
+    var elapsedHtml = "";
+    if (elapsed) {
+      var secs = Math.round(elapsed / 1000);
+      var mins = Math.floor(secs / 60); secs = secs % 60;
+      var elapsedStr = mins > 0 ? mins + " min " + secs + " s" : secs + " s";
+      elapsedHtml = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:11px;color:rgba(255,255,255,.35);font-weight:600;letter-spacing:.06em;text-transform:uppercase">' +
+        '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/><path d="M6 3v3l2 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>' +
+        'Tiempo de ejecución: <span style="color:rgba(255,255,255,.6)">' + elapsedStr + '</span></div>';
+    }
+
     var allHtml = "";
     stored.forEach(function(r, i) {
-      var bodyText = r.text ? stripSummarySection(r.text) : null;
-      var sectionHtml = bodyText ? renderMarkdown(bodyText, mdOpts) : '<p style="color:var(--red)">Error al procesar este módulo.</p>';
+      // Try to render as HLD JSON table first (arquitectura results)
+      var hldHtml = isArquitectura && r.text ? tryRenderHldResult(r.text) : null;
+      var sectionHtml;
+      if (hldHtml) {
+        sectionHtml = hldHtml;
+      } else {
+        var bodyText = r.text ? stripSummarySection(r.text) : null;
+        sectionHtml = bodyText ? renderMarkdown(bodyText, mdOpts) : '<p style="color:var(--red)">Error al procesar este módulo.</p>';
+      }
       if (multiSection && stored.length > 1) {
         allHtml += '<div class="result-section-label">' + escHtml(r.label) + '</div>';
       }
       allHtml += '<div class="result-body">' + sectionHtml + '</div>';
       if (i < stored.length - 1) allHtml += '<hr style="border:none;border-top:1px solid var(--border);margin:24px 0">';
     });
-    // Stat cards (always shown)
+
+    // Stat cards (always shown, except arquitectura which has its own layout)
     var combinedText = stored.map(function(r){ return r.text || ""; }).join("\n");
-    var statHtml = buildStatCards(combinedText);
+    var statHtml = isArquitectura ? "" : buildStatCards(combinedText);
     // Risk cards placeholder (only for formulario — populated after DOM insertion)
     var riskPlaceholder = isFormulario ? '<div id="riskCardsSection"></div>' : "";
     // Priority chart (formulario only)
     var prioHtml = isFormulario ? buildPriorityChartHtml(combinedText) : "";
-    return statHtml + riskPlaceholder + prioHtml + allHtml;
+    return elapsedHtml + statHtml + riskPlaceholder + prioHtml + allHtml;
+  }
+
+  function tryRenderHldResult(text) {
+    var data = null;
+    try {
+      var match = text.match(/\{[\s\S]*\}/);
+      if (match) data = JSON.parse(match[0]);
+    } catch(_) {}
+    if (!data || !data.controles) return null;
+
+    var controles = data.controles || [];
+    var modulos = (data.modulos_analizados || []).join(", ");
+
+    // Summary chips
+    var cumple = controles.filter(function(c){ return c.estado === "cumple"; }).length;
+    var noCumple = controles.filter(function(c){ return c.estado === "no_cumple"; }).length;
+    var noId = controles.filter(function(c){ return c.estado === "no_identificado"; }).length;
+
+    var html = '';
+    // Module tag + summary row
+    if (modulos) {
+      html += '<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:12px">Módulos: ' + escHtml(modulos) + '</div>';
+    }
+    html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">';
+    html += '<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(134,188,37,.1);border:1px solid rgba(134,188,37,.2);border-radius:3px"><span style="font-size:16px;font-weight:800;color:#86BC25">' + cumple + '</span><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.4)">Cumple</span></div>';
+    html += '<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:3px"><span style="font-size:16px;font-weight:800;color:#ef4444">' + noCumple + '</span><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.4)">No cumple</span></div>';
+    html += '<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:3px"><span style="font-size:16px;font-weight:800;color:rgba(255,255,255,.5)">' + noId + '</span><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.4)">No identificado</span></div>';
+    html += '<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:3px"><span style="font-size:16px;font-weight:800;color:rgba(255,255,255,.7)">' + controles.length + '</span><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.4)">Total controles</span></div>';
+    html += '</div>';
+
+    // Table
+    html += '<div class="tbl-wrap"><table><thead><tr>' +
+      '<th style="width:72px">ID</th>' +
+      '<th style="width:180px">Control</th>' +
+      '<th>Descripción (referencia)</th>' +
+      '<th style="width:110px">Estado</th>' +
+      '<th>Justificación</th>' +
+      '</tr></thead><tbody>';
+
+    controles.forEach(function(c) {
+      var estado = (c.estado || "").toLowerCase();
+      var estadoBadge, rowCls;
+      if (estado === "cumple") {
+        estadoBadge = '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:rgba(134,188,37,.12);color:#86BC25;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:2px">✓ Cumple</span>';
+        rowCls = '';
+      } else if (estado === "no_cumple") {
+        estadoBadge = '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:rgba(239,68,68,.12);color:#ef4444;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:2px">✗ No cumple</span>';
+        rowCls = ' class="val-row-nocumple"';
+      } else {
+        estadoBadge = '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:rgba(255,255,255,.05);color:rgba(255,255,255,.4);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:2px">— No ident.</span>';
+        rowCls = '';
+      }
+      html += '<tr' + rowCls + '>' +
+        '<td style="font-family:monospace;font-size:11px;font-weight:700;color:var(--green);white-space:nowrap">' + escHtml(c.id || "") + '</td>' +
+        '<td style="font-weight:600">' + escHtml(c.nombre || "") + '</td>' +
+        '<td style="font-size:12px;color:rgba(255,255,255,.55)">' + escHtml(c.descripcion_referencia || "") + '</td>' +
+        '<td>' + estadoBadge + '</td>' +
+        '<td style="font-size:12px">' + escHtml(c.justificacion || "") + '</td>' +
+        '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    return html;
   }
 
   // ================================================================
