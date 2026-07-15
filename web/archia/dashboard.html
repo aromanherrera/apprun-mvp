@@ -853,9 +853,9 @@
       <div class="val-section-label">Fichero de evidencia</div>
       <div class="val-file-drop" id="aiEvidDrop" onclick="document.getElementById('aiEvidFile').click()" style="cursor:pointer">
         Haz clic para seleccionar un fichero<br>
-        <span style="font-size:11px">PDF, Word, texto u otros formatos</span>
+        <span style="font-size:11px">PDF, Word, Excel, CSV, imagen u otros formatos</span>
       </div>
-      <input type="file" id="aiEvidFile" style="display:none" onchange="handleAiEvidFile(this)"/>
+      <input type="file" id="aiEvidFile" style="display:none" accept=".pdf,.doc,.docx,.txt,.md,.jpg,.jpeg,.png,.xls,.xlsx,.csv" onchange="handleAiEvidFile(this)"/>
       <div id="aiEvidFileInfo" style="display:none;margin-top:6px;padding:7px 10px;border:1px solid var(--border);background:var(--gray-50);font-size:12px;display:none;align-items:center;gap:8px">
         <span style="color:var(--green)">📄</span>
         <span id="aiEvidFileName" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gray-900);font-weight:600"></span>
