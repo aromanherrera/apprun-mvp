@@ -1102,8 +1102,11 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
   async function runArquitectura() {
     var arqTypes = state.arqTypes || ["completo"];
     var ctxFilename = state.arqCtxFilename || "";
-    var query = "incluye en la variable {documentos} el fichero denominado " + state.file.name;
-    if (ctxFilename) query += "\n\nDocumento de contexto adicional: " + ctxFilename;
+    var modulosStr = arqTypes.join(",");
+    var query = "incluye en la variable {documento} el fichero denominado " + state.file.name +
+      "\nincluye en la variable {modulos} el valor: " + modulosStr;
+    if (ctxFilename) query += "\nincluye en la variable {contexto} el fichero denominado " + ctxFilename;
+    else query += "\nla variable {contexto} viene vacía";
 
     var jobs = [], labels = [];
     if (arqTypes.includes("completo")) {
