@@ -964,6 +964,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     ["typeArquitectura","typeFormulario"].forEach(function(id){ $(id).classList.remove("selected"); });
     $(type === "arquitectura" ? "typeArquitectura" : "typeFormulario").classList.add("selected");
     state.analysisType = type;
+    state.arqType = "completo";
     resetSubSteps();
     $("stepUpload").style.display = "block";
     if (type === "arquitectura") {
@@ -1024,7 +1025,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
           state.uploaded = true;
           if (state.analysisType === "arquitectura") {
             $("stepOpciones").style.display = "block";
-            $("optArqPub").disabled = false; $("optArqNav").disabled = false;
+            $("arqTypeGrid").style.display = "block";
           }
           $("stepEjecutar").style.display = "block"; $("btnPlaybook").disabled = false;
           return;
@@ -1048,7 +1049,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
           setUploadStatus(checkIcon("Fichero disponible: " + filename));
           if (state.analysisType === "arquitectura") {
             $("stepOpciones").style.display = "block";
-            $("optArqPub").disabled = false; $("optArqNav").disabled = false;
+            $("arqTypeGrid").style.display = "block";
           }
           $("stepEjecutar").style.display = "block"; $("btnPlaybook").disabled = false;
         }
@@ -1101,13 +1102,33 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
   }
 
   async function runArquitectura() {
+    var arqType = state.arqType || "completo";
+    var context = ($("arqContextToggle") && $("arqContextToggle").checked && $("arqContextText"))
+      ? ($("arqContextText").value || "").trim() : "";
     var query = "incluye en la variable {documentos} el fichero denominado " + state.file.name;
-    var doArqPub = $("optArqPub").classList.contains("selected");
-    var doArqNav = $("optArqNav").classList.contains("selected");
-    var jobs = [invokePlaybook("analisis-de-diseno-inicial-de-arquitectura", query)];
-    var labels = ["Análisis de arquitectura"];
-    if (doArqPub) { jobs.push(invokePlaybook("revarquitectura", query)); labels.push("Arquitectura de publicación"); }
-    if (doArqNav) { jobs.push(invokePlaybook("revarquitectura", query)); labels.push("Arquitectura de navegación"); }
+    if (context) query += "\n\nContexto adicional: " + context;
+
+    var jobs = [], labels = [];
+    if (arqType === "completo") {
+      jobs = [
+        invokePlaybook("analisis-de-diseno-inicial-de-arquitectura", query),
+        invokePlaybook("revarquitectura", query),
+        invokePlaybook("revarquitectura", query)
+      ];
+      labels = ["Análisis completo", "Arquitectura de publicación", "Arquitectura de navegación"];
+    } else if (arqType === "publicacion") {
+      jobs = [invokePlaybook("revarquitectura", query)];
+      labels = ["Arquitectura de publicación"];
+    } else if (arqType === "navegacion") {
+      jobs = [invokePlaybook("revarquitectura", query)];
+      labels = ["Arquitectura de navegación"];
+    } else if (arqType === "powerbi") {
+      jobs = [invokePlaybook("analisis-de-diseno-inicial-de-arquitectura", query)];
+      labels = ["Arquitectura de PowerBI"];
+    } else {
+      jobs = [invokePlaybook("analisis-de-diseno-inicial-de-arquitectura", query)];
+      labels = ["Análisis de arquitectura"];
+    }
     var results = await Promise.allSettled(jobs);
     finalizeResults(results, labels);
   }
@@ -1406,12 +1427,13 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     dropZone.style.display = "";
     $("btnPlaybook").disabled = true; $("playbookStatus").textContent = "";
     $("stepOpciones").style.display = "none"; $("stepEjecutar").style.display = "none";
+    var ag = $("arqTypeGrid"); if (ag) ag.style.display = "none";
+    var ct = $("arqContextToggle"); if (ct) ct.checked = false;
+    var cw = $("arqContextWrap"); if (cw) cw.style.display = "none";
+    var cx = $("arqContextText"); if (cx) cx.value = "";
     $("resultCard").style.display = "none"; $("resultSpinner").style.display = "none";
     $("resultBox").style.display = "none"; $("resultBox").innerHTML = "";
     var btnW = $("btnDownloadWord"); if (btnW) btnW.style.display = "none";
-    ["optArqPub","optArqNav"].forEach(function(id) {
-      var el = $(id); if (el) { el.disabled = true; el.classList.remove("selected"); }
-    });
   }
 
   function resetAll() {
@@ -1785,6 +1807,28 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
 // GLOBAL FUNCTIONS (called from HTML onclick)
 // ================================================================
 function toggleOpt(btn) { btn.classList.toggle("selected"); }
+
+function selectArqType(type) {
+  var ids = ["arqTypeCompleto","arqTypePublicacion","arqTypeNavegacion","arqTypePowerBI"];
+  var map = { completo:"arqTypeCompleto", publicacion:"arqTypePublicacion", navegacion:"arqTypeNavegacion", powerbi:"arqTypePowerBI" };
+  ids.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var isSelected = id === map[type];
+    el.classList.toggle("selected", isSelected);
+    var check = el.querySelector(".tc-check");
+    if (check) check.style.display = isSelected ? "flex" : "none";
+  });
+  if (window._archiaState) window._archiaState.arqType = type;
+}
+
+function toggleArqContext() {
+  var wrap = document.getElementById("arqContextWrap");
+  var toggle = document.getElementById("arqContextToggle");
+  if (!wrap || !toggle) return;
+  wrap.style.display = toggle.checked ? "block" : "none";
+  if (toggle.checked) { var t = document.getElementById("arqContextText"); if (t) t.focus(); }
+}
 
 function startEvidencias() {
   var btn = document.getElementById("btnStartEvidencias");
