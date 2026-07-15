@@ -1108,19 +1108,20 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     if (ctxFilename) query += "\nincluye en la variable {contexto} el fichero denominado " + ctxFilename;
     else query += "\nla variable {contexto} viene vacía";
 
+    // Navegación no tiene playbook activo aún — se excluye silenciosamente
+    var activeTypes = arqTypes.filter(function(t) { return t !== "navegacion"; });
+    if (arqTypes.includes("completo")) activeTypes = ["completo"];
+
     var jobs = [], labels = [];
-    if (arqTypes.includes("completo")) {
-      jobs = [
-        invokePlaybook("analisis-de-diseno-inicial-de-arquitectura", query),
-        invokePlaybook("revarquitectura", query),
-        invokePlaybook("revarquitectura", query)
-      ];
-      labels = ["Análisis completo", "Arquitectura de publicación", "Arquitectura de navegación"];
+    if (activeTypes.includes("completo") || (!activeTypes.length && arqTypes.includes("completo"))) {
+      // Completo: una sola llamada pasando modulos=completo (navegacion excluida por ahora)
+      var queryCompleto = query.replace("el valor: completo", "el valor: publicacion,powerbi");
+      jobs = [invokePlaybook("analisis-hld", queryCompleto)];
+      labels = ["Análisis completo"];
     } else {
-      if (arqTypes.includes("publicacion")) { jobs.push(invokePlaybook("revarquitectura", query)); labels.push("Arquitectura de publicación"); }
-      if (arqTypes.includes("navegacion"))  { jobs.push(invokePlaybook("revarquitectura", query)); labels.push("Arquitectura de navegación"); }
-      if (arqTypes.includes("powerbi"))     { jobs.push(invokePlaybook("analisis-de-diseno-inicial-de-arquitectura", query)); labels.push("Arquitectura de PowerBI"); }
-      if (!jobs.length) { jobs = [invokePlaybook("analisis-de-diseno-inicial-de-arquitectura", query)]; labels = ["Análisis de arquitectura"]; }
+      if (activeTypes.includes("publicacion")) { jobs.push(invokePlaybook("analisis-hld", query)); labels.push("Arquitectura de publicación"); }
+      if (activeTypes.includes("powerbi"))     { jobs.push(invokePlaybook("analisis-hld", query)); labels.push("Arquitectura de PowerBI"); }
+      if (!jobs.length) { jobs = [invokePlaybook("analisis-hld", query)]; labels = ["Análisis de arquitectura"]; }
     }
     var results = await Promise.allSettled(jobs);
     finalizeResults(results, labels);
