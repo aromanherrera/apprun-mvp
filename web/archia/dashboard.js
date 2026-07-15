@@ -964,20 +964,23 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     ["typeArquitectura","typeFormulario"].forEach(function(id){ $(id).classList.remove("selected"); });
     $(type === "arquitectura" ? "typeArquitectura" : "typeFormulario").classList.add("selected");
     state.analysisType = type;
-    state.arqType = "completo";
+    state.arqTypes = ["completo"]; // multi-select array
     resetSubSteps();
-    $("stepUpload").style.display = "block";
     if (type === "arquitectura") {
+      // Show type selection FIRST, then document upload
+      $("stepOpciones").style.display = "block";
+      $("stepUpload").style.display = "block";
       $("uploadDesc").textContent = "Adjunta el documento o imagen de arquitectura a analizar. Formatos: .doc, .docx, .pdf, .md, .jpg, .png…";
       $("executeStepLabel").textContent = "Paso 4 — Ejecución";
-      // Show analysis type selector immediately on arquitectura selection
-      $("stepOpciones").style.display = "block";
-      $("arqTypeGrid").style.display = "block";
+      $("opcionesStepLabel").textContent = "Paso 2 — Configuración";
+      $("uploadStepLabel").textContent = "Paso 3 — Documentación";
+      $("stepOpciones").scrollIntoView({ behavior:"smooth", block:"start" });
     } else {
+      $("stepUpload").style.display = "block";
       $("uploadDesc").textContent = "Adjunta el cuestionario o formulario a analizar. Formatos: .doc, .docx, .pdf, .md";
       $("executeStepLabel").textContent = "Paso 3 — Ejecución";
+      $("stepUpload").scrollIntoView({ behavior:"smooth", block:"start" });
     }
-    $("stepUpload").scrollIntoView({ behavior:"smooth", block:"start" });
   };
 
   // ================================================================
@@ -1026,10 +1029,6 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
           // File already uploaded — treat as success
           setUploadStatus(checkIcon("Fichero ya disponible en la plataforma: " + f.name));
           state.uploaded = true;
-          if (state.analysisType === "arquitectura") {
-            $("stepOpciones").style.display = "block";
-            $("arqTypeGrid").style.display = "block";
-          }
           $("stepEjecutar").style.display = "block"; $("btnPlaybook").disabled = false;
           return;
         }
@@ -1050,10 +1049,6 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
         if (fileFoundInList(data, filename)) {
           clearInterval(state.polling); state.uploaded = true;
           setUploadStatus(checkIcon("Fichero disponible: " + filename));
-          if (state.analysisType === "arquitectura") {
-            $("stepOpciones").style.display = "block";
-            $("arqTypeGrid").style.display = "block";
-          }
           $("stepEjecutar").style.display = "block"; $("btnPlaybook").disabled = false;
         }
       } catch(_) {}
@@ -1105,32 +1100,24 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
   }
 
   async function runArquitectura() {
-    var arqType = state.arqType || "completo";
-    var context = ($("arqContextToggle") && $("arqContextToggle").checked && $("arqContextText"))
-      ? ($("arqContextText").value || "").trim() : "";
+    var arqTypes = state.arqTypes || ["completo"];
+    var ctxFilename = state.arqCtxFilename || "";
     var query = "incluye en la variable {documentos} el fichero denominado " + state.file.name;
-    if (context) query += "\n\nContexto adicional: " + context;
+    if (ctxFilename) query += "\n\nDocumento de contexto adicional: " + ctxFilename;
 
     var jobs = [], labels = [];
-    if (arqType === "completo") {
+    if (arqTypes.includes("completo")) {
       jobs = [
         invokePlaybook("analisis-de-diseno-inicial-de-arquitectura", query),
         invokePlaybook("revarquitectura", query),
         invokePlaybook("revarquitectura", query)
       ];
       labels = ["Análisis completo", "Arquitectura de publicación", "Arquitectura de navegación"];
-    } else if (arqType === "publicacion") {
-      jobs = [invokePlaybook("revarquitectura", query)];
-      labels = ["Arquitectura de publicación"];
-    } else if (arqType === "navegacion") {
-      jobs = [invokePlaybook("revarquitectura", query)];
-      labels = ["Arquitectura de navegación"];
-    } else if (arqType === "powerbi") {
-      jobs = [invokePlaybook("analisis-de-diseno-inicial-de-arquitectura", query)];
-      labels = ["Arquitectura de PowerBI"];
     } else {
-      jobs = [invokePlaybook("analisis-de-diseno-inicial-de-arquitectura", query)];
-      labels = ["Análisis de arquitectura"];
+      if (arqTypes.includes("publicacion")) { jobs.push(invokePlaybook("revarquitectura", query)); labels.push("Arquitectura de publicación"); }
+      if (arqTypes.includes("navegacion"))  { jobs.push(invokePlaybook("revarquitectura", query)); labels.push("Arquitectura de navegación"); }
+      if (arqTypes.includes("powerbi"))     { jobs.push(invokePlaybook("analisis-de-diseno-inicial-de-arquitectura", query)); labels.push("Arquitectura de PowerBI"); }
+      if (!jobs.length) { jobs = [invokePlaybook("analisis-de-diseno-inicial-de-arquitectura", query)]; labels = ["Análisis de arquitectura"]; }
     }
     var results = await Promise.allSettled(jobs);
     finalizeResults(results, labels);
@@ -1430,10 +1417,9 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     dropZone.style.display = "";
     $("btnPlaybook").disabled = true; $("playbookStatus").textContent = "";
     $("stepOpciones").style.display = "none"; $("stepEjecutar").style.display = "none";
-    var ag = $("arqTypeGrid"); if (ag) ag.style.display = "none";
-    var ct = $("arqContextToggle"); if (ct) ct.checked = false;
+    var ct = $("arqDocToggle"); if (ct) { ct.classList.remove("on"); ct.setAttribute("aria-checked","false"); }
     var cw = $("arqContextWrap"); if (cw) cw.style.display = "none";
-    var cx = $("arqContextText"); if (cx) cx.value = "";
+    if (typeof clearArqCtxFile === "function") clearArqCtxFile();
     $("resultCard").style.display = "none"; $("resultSpinner").style.display = "none";
     $("resultBox").style.display = "none"; $("resultBox").innerHTML = "";
     var btnW = $("btnDownloadWord"); if (btnW) btnW.style.display = "none";
@@ -1812,25 +1798,76 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
 function toggleOpt(btn) { btn.classList.toggle("selected"); }
 
 function selectArqType(type) {
-  var ids = ["arqTypeCompleto","arqTypePublicacion","arqTypeNavegacion","arqTypePowerBI"];
+  var state = window._archiaState;
+  if (!state) return;
+  if (!state.arqTypes) state.arqTypes = ["completo"];
+
+  if (type === "completo") {
+    // Completo is exclusive — deselect all others
+    state.arqTypes = ["completo"];
+  } else {
+    // Remove "completo" if it was selected
+    state.arqTypes = state.arqTypes.filter(function(t) { return t !== "completo"; });
+    // Toggle this type
+    var idx = state.arqTypes.indexOf(type);
+    if (idx >= 0) { state.arqTypes.splice(idx, 1); }
+    else { state.arqTypes.push(type); }
+    // If nothing selected, default to completo
+    if (!state.arqTypes.length) state.arqTypes = ["completo"];
+  }
+
+  // Sync UI
   var map = { completo:"arqTypeCompleto", publicacion:"arqTypePublicacion", navegacion:"arqTypeNavegacion", powerbi:"arqTypePowerBI" };
-  ids.forEach(function(id) {
-    var el = document.getElementById(id);
+  Object.keys(map).forEach(function(t) {
+    var el = document.getElementById(map[t]);
     if (!el) return;
-    var isSelected = id === map[type];
-    el.classList.toggle("selected", isSelected);
+    var sel = state.arqTypes.includes(t);
+    el.classList.toggle("selected", sel);
     var check = el.querySelector(".tc-check");
-    if (check) check.style.display = isSelected ? "flex" : "none";
+    if (check) check.style.display = sel ? "flex" : "none";
   });
-  if (window._archiaState) window._archiaState.arqType = type;
 }
 
 function toggleArqContext() {
   var wrap = document.getElementById("arqContextWrap");
-  var toggle = document.getElementById("arqContextToggle");
+  var toggle = document.getElementById("arqDocToggle");
   if (!wrap || !toggle) return;
-  wrap.style.display = toggle.checked ? "block" : "none";
-  if (toggle.checked) { var t = document.getElementById("arqContextText"); if (t) t.focus(); }
+  var on = toggle.classList.toggle("on");
+  toggle.setAttribute("aria-checked", on ? "true" : "false");
+  wrap.style.display = on ? "block" : "none";
+}
+
+function handleArqCtxFile(input) {
+  var f = input.files && input.files[0];
+  if (!f) return;
+  if (window._archiaState) window._archiaState.arqCtxFilename = f.name;
+  var info = document.getElementById("arqCtxFileInfo");
+  var nameEl = document.getElementById("arqCtxFileName");
+  var drop = document.getElementById("arqCtxDropZone");
+  if (nameEl) nameEl.textContent = f.name;
+  if (info) info.style.display = "flex";
+  if (drop) drop.style.display = "none";
+  // Upload context file
+  var statusEl = document.getElementById("arqCtxUploadStatus");
+  var API_BASE = "https://api1-soarplus-pre.es.deloitte.com";
+  var API_TOKEN = "sk-UmL4haDNvWZdQ4a8ZxKb3Q";
+  if (statusEl) statusEl.innerHTML = '<div class="spinner" style="width:12px;height:12px;border-width:2px;display:inline-block"></div> Subiendo…';
+  var fd = new FormData(); fd.append("file", f);
+  fetch(API_BASE + "/datasource/uploadfile/", { method:"POST", headers:{ Authorization:"Bearer "+API_TOKEN }, body:fd })
+    .then(function(r) { if (statusEl) statusEl.innerHTML = r.ok ? '<span style="color:var(--green);font-size:11px">✓ Documento de contexto subido</span>' : '<span style="color:#f59e0b;font-size:11px">⚠ No se pudo confirmar la subida</span>'; })
+    .catch(function() { if (statusEl) statusEl.innerHTML = '<span style="color:#f59e0b;font-size:11px">⚠ Error al subir</span>'; });
+}
+
+function clearArqCtxFile() {
+  if (window._archiaState) window._archiaState.arqCtxFilename = "";
+  var info = document.getElementById("arqCtxFileInfo");
+  var drop = document.getElementById("arqCtxDropZone");
+  var status = document.getElementById("arqCtxUploadStatus");
+  var fi = document.getElementById("arqCtxFile");
+  if (info) info.style.display = "none";
+  if (drop) drop.style.display = "";
+  if (status) status.innerHTML = "";
+  if (fi) fi.value = "";
 }
 
 function startEvidencias() {

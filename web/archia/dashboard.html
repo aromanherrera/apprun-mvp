@@ -126,6 +126,11 @@
 
   /* ── OPTION BUTTONS ── */
   .opt-row{display:flex;gap:0;flex-wrap:wrap;border:1px solid var(--border);max-width:640px}
+  /* Pill toggle switch */
+  .pill-toggle{width:44px;height:24px;border-radius:12px;background:var(--gray-200);border:none;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
+  .pill-toggle.on{background:var(--green)}
+  .pill-thumb{width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .pill-toggle.on .pill-thumb{transform:translateX(20px)}
   .opt-btn{cursor:pointer;padding:11px 22px;border:none;border-right:1px solid var(--border);background:var(--white);color:var(--gray-700);font-size:13px;font-weight:600;font-family:'Open Sans',sans-serif;transition:background .15s,color .15s;position:relative}
   .opt-btn:last-child{border-right:none}
   .opt-btn:disabled{opacity:.35;cursor:not-allowed}
@@ -456,6 +461,8 @@
   /* Opt buttons */
   .opt-row{background:#1a1a1a;border-color:var(--border)}
   .opt-btn{background:#1a1a1a;border-right-color:var(--border);color:var(--gray-700)!important}
+  .pill-toggle{background:#333}
+  .pill-toggle.on{background:var(--green)}
   .opt-btn.selected{background:rgba(134,188,37,.1);color:var(--green)!important}
   .opt-btn:not(:disabled):hover::before{background:var(--border)}
 
@@ -686,15 +693,74 @@
           </div>
         </div>
 
-        <!-- STEP 2: FILE UPLOAD -->
+        <!-- STEP 2: OPTIONS (shown first for arquitectura) -->
+        <div class="step" id="stepOpciones" style="display:none">
+          <div class="step-inner">
+            <span class="step-num" id="opcionesStepLabel">Paso 2 — Configuración</span>
+            <div class="step-title">Tipo de análisis</div>
+            <div class="step-desc">Selecciona los módulos a analizar. <em style="font-style:normal;color:var(--gray-500)">"Análisis completo" es excluyente; el resto son combinables.</em></div>
+            <!-- Arquitectura analysis type selector (multi-select) -->
+            <div id="arqTypeGrid">
+              <div class="type-grid" style="grid-template-columns:repeat(2,1fr);max-width:560px;margin-bottom:24px">
+                <div class="type-card selected" id="arqTypeCompleto" onclick="selectArqType('completo')">
+                  <div class="tc-check" style="display:flex"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                  <div class="tc-tag">Recomendado · Excluyente</div>
+                  <div class="tc-name">Análisis completo</div>
+                  <div class="tc-desc">Revisión integral: marcos de control, publicación y navegación.</div>
+                </div>
+                <div class="type-card" id="arqTypePublicacion" onclick="selectArqType('publicacion')">
+                  <div class="tc-check"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                  <div class="tc-tag">Módulo</div>
+                  <div class="tc-name">Arquitectura de publicación</div>
+                  <div class="tc-desc">Servicios publicados en DMZ, balanceadores y exposición exterior.</div>
+                </div>
+                <div class="type-card" id="arqTypeNavegacion" onclick="selectArqType('navegacion')">
+                  <div class="tc-check"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                  <div class="tc-tag">Módulo</div>
+                  <div class="tc-name">Arquitectura de navegación</div>
+                  <div class="tc-desc">Flujos internos a internet, proxies y controles de salida.</div>
+                </div>
+                <div class="type-card" id="arqTypePowerBI" onclick="selectArqType('powerbi')">
+                  <div class="tc-check"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                  <div class="tc-tag">Módulo</div>
+                  <div class="tc-name">Arquitectura de PowerBI</div>
+                  <div class="tc-desc">Gateways, datasources y modelo de datos Power BI.</div>
+                </div>
+              </div>
+              <!-- Document toggle (pill switch) -->
+              <div style="display:flex;align-items:center;gap:14px;margin-bottom:4px">
+                <div class="pill-toggle" id="arqDocToggle" onclick="toggleArqContext()" role="switch" aria-checked="false">
+                  <div class="pill-thumb"></div>
+                </div>
+                <span style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;user-select:none" onclick="toggleArqContext()">Adjuntar documento de contexto</span>
+              </div>
+              <div id="arqContextWrap" style="display:none;margin-top:14px">
+                <div class="drop" id="arqCtxDropZone" style="min-height:90px;padding:20px" onclick="document.getElementById('arqCtxFile').click()">
+                  <div class="drop-title" style="font-size:13px">Arrastra el documento de contexto aquí</div>
+                  <div class="drop-sub">PDF, Word, TXT, MD u otros</div>
+                  <div class="drop-cta" style="padding:6px 14px;font-size:11px;margin-top:10px">Seleccionar archivo</div>
+                  <input type="file" id="arqCtxFile" style="display:none" accept=".pdf,.doc,.docx,.txt,.md,.csv,.xls,.xlsx" onchange="handleArqCtxFile(this)"/>
+                </div>
+                <div id="arqCtxFileInfo" style="display:none;margin-top:6px;padding:7px 10px;border:1px solid var(--border);background:var(--gray-50);font-size:12px;align-items:center;gap:8px">
+                  <span style="color:var(--green)">📄</span>
+                  <span id="arqCtxFileName" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gray-900);font-weight:600"></span>
+                  <button onclick="clearArqCtxFile()" style="background:none;border:none;cursor:pointer;color:var(--gray-400);font-size:16px;line-height:1;padding:0" title="Quitar">×</button>
+                </div>
+                <div id="arqCtxUploadStatus" style="margin-top:6px;font-size:12px"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 3: FILE UPLOAD -->
         <div class="step" id="stepUpload" style="display:none">
           <div class="step-inner">
-            <span class="step-num">Paso 2 — Documentación</span>
+            <span class="step-num" id="uploadStepLabel">Paso 3 — Documentación</span>
             <div class="step-title">Adjuntar documento</div>
-            <div class="step-desc" id="uploadDesc">Adjunta el documento a analizar. Formatos admitidos: .doc, .docx, .pdf, .md</div>
+            <div class="step-desc" id="uploadDesc">Adjunta el documento o imagen de arquitectura a analizar. Formatos: .doc, .docx, .pdf, .md, .jpg, .png…</div>
             <div class="drop" id="dropZone">
               <div class="drop-title">Arrastra el documento aquí</div>
-              <div class="drop-sub">Formatos admitidos: .doc, .docx, .pdf, .md</div>
+              <div class="drop-sub">Formatos admitidos: .doc, .docx, .pdf, .md, .jpg, .png…</div>
               <div class="drop-cta">Seleccionar archivo</div>
               <input type="file" id="fileInput" accept=".doc,.docx,.pdf,.md,.jpg,.jpeg,.png,.gif,.svg,.webp,.bmp,.tif,.tiff"/>
             </div>
@@ -703,54 +769,6 @@
               <a class="fremove" id="btnRemove">Eliminar</a>
             </div>
             <div id="uploadStatus" style="display:none"></div>
-          </div>
-        </div>
-
-        <!-- STEP 3: OPTIONS -->
-        <div class="step" id="stepOpciones" style="display:none">
-          <div class="step-inner">
-            <span class="step-num">Paso 3 — Configuración</span>
-            <div class="step-title">Tipo de análisis</div>
-            <div class="step-desc">Selecciona el análisis a realizar sobre el documento de arquitectura.</div>
-            <!-- Arquitectura analysis type selector -->
-            <div id="arqTypeGrid" style="display:none">
-              <div class="type-grid" style="grid-template-columns:repeat(2,1fr);max-width:560px;margin-bottom:20px">
-                <div class="type-card selected" id="arqTypeCompleto" onclick="selectArqType('completo')">
-                  <div class="tc-check" style="display:flex"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-                  <div class="tc-tag">Recomendado</div>
-                  <div class="tc-name">Análisis completo</div>
-                  <div class="tc-desc">Revisión integral de la arquitectura: marcos de control, publicación y navegación.</div>
-                </div>
-                <div class="type-card" id="arqTypePublicacion" onclick="selectArqType('publicacion')">
-                  <div class="tc-check"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-                  <div class="tc-tag">Módulo</div>
-                  <div class="tc-name">Arquitectura de publicación</div>
-                  <div class="tc-desc">Revisión de servicios publicados en DMZ, balanceadores y exposición exterior.</div>
-                </div>
-                <div class="type-card" id="arqTypeNavegacion" onclick="selectArqType('navegacion')">
-                  <div class="tc-check"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-                  <div class="tc-tag">Módulo</div>
-                  <div class="tc-name">Arquitectura de navegación</div>
-                  <div class="tc-desc">Análisis de flujos internos hacia internet, proxies y controles de salida.</div>
-                </div>
-                <div class="type-card" id="arqTypePowerBI" onclick="selectArqType('powerbi')">
-                  <div class="tc-check"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-                  <div class="tc-tag">Módulo</div>
-                  <div class="tc-name">Arquitectura de PowerBI</div>
-                  <div class="tc-desc">Revisión de componentes Power BI: gateways, datasources y modelo de datos.</div>
-                </div>
-              </div>
-              <!-- Context toggle -->
-              <div style="margin-top:4px">
-                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--gray-700);font-weight:600;user-select:none">
-                  <input type="checkbox" id="arqContextToggle" onchange="toggleArqContext()" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer"/>
-                  Añadir contexto adicional
-                </label>
-                <div id="arqContextWrap" style="display:none;margin-top:12px">
-                  <textarea id="arqContextText" rows="4" placeholder="Describe el contexto del proyecto: sector, tecnologías clave, restricciones específicas, entorno (nube, on-premise, híbrido)…" style="width:100%;max-width:560px;padding:10px 12px;border:1px solid var(--border);background:var(--gray-50);font-family:'Open Sans',sans-serif;font-size:13px;color:var(--gray-900);outline:none;resize:vertical;transition:border-color .15s" onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor=''"></textarea>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
