@@ -968,8 +968,11 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     resetSubSteps();
     $("stepUpload").style.display = "block";
     if (type === "arquitectura") {
-      $("uploadDesc").textContent = "Adjunta el documento de arquitectura a analizar. Formatos: .doc, .docx, .pdf, .md";
+      $("uploadDesc").textContent = "Adjunta el documento o imagen de arquitectura a analizar. Formatos: .doc, .docx, .pdf, .md, .jpg, .png…";
       $("executeStepLabel").textContent = "Paso 4 — Ejecución";
+      // Show analysis type selector immediately on arquitectura selection
+      $("stepOpciones").style.display = "block";
+      $("arqTypeGrid").style.display = "block";
     } else {
       $("uploadDesc").textContent = "Adjunta el cuestionario o formulario a analizar. Formatos: .doc, .docx, .pdf, .md";
       $("executeStepLabel").textContent = "Paso 3 — Ejecución";
@@ -996,10 +999,10 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
 
   function setFile(f) {
     try {
-      var allowed = [".doc",".docx",".pdf",".md"];
+      var allowed = [".doc",".docx",".pdf",".md",".jpg",".jpeg",".png",".gif",".svg",".webp",".bmp",".tif",".tiff"];
       var ext = f.name.slice(f.name.lastIndexOf(".")).toLowerCase();
       if (!allowed.includes(ext)) {
-        setUploadStatus(errorIcon("Formato no admitido: " + ext + ". Usa .doc, .docx, .pdf o .md"));
+        setUploadStatus(errorIcon("Formato no admitido: " + ext + ". Usa .doc, .docx, .pdf, .md o imagen"));
         $("fileInfo").style.display = "none"; dropZone.style.display = ""; return;
       }
       state.file = f; state.filename = f.name; state.uploaded = false;
