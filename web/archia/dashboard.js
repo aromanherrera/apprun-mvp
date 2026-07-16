@@ -1825,6 +1825,11 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       return '<pre style="white-space:pre-wrap;word-break:break-word;font-size:12px;color:rgba(255,255,255,.8);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);padding:12px;border-radius:6px">' + escHtml(text) + '</pre>';
     }
 
+    // Vulnerability scanner result (tipo_analisis === "vulnerabilidades")
+    if (data.tipo_analisis === "vulnerabilidades") {
+      return _renderVulnResult(data);
+    }
+
     var veredictoRaw = data.veredicto || "";
     var vLo = veredictoRaw.toUpperCase();
     var isCumple  = vLo === "CUMPLE";
@@ -1836,7 +1841,6 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     var justif    = data.justificacion || data.justificación || "";
     var cubiertos = data.aspectos_cubiertos  || [];
     var faltantes = data.aspectos_faltantes  || [];
-    var recs      = data.recomendaciones     || [];
 
     var accentColor = isCumple ? "#86BC25" : isParcial ? "#f59e0b" : "#ef4444";
     var borderColor = isCumple ? "rgba(134,188,37,.25)" : isParcial ? "rgba(245,158,11,.25)" : "rgba(239,68,68,.25)";
@@ -1879,6 +1883,83 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       h += listHtml(faltantes, "✗", "#ef4444") + '</div>';
     }
     h += '</div></div>';
+    return h;
+  }
+
+  function _renderVulnResult(data) {
+    var veredictoRaw = data.veredicto || "";
+    var vLo = veredictoRaw.toUpperCase();
+    var isCumple  = vLo === "CUMPLE";
+    var isParcial = vLo.includes("PARCIAL");
+
+    var pct         = Math.round(parseFloat(data.porcentaje_cumplimiento) || 0);
+    var justif      = data.justificacion || data.justificación || "";
+    var maquina     = data.maquina || "Global";
+    var conteo      = data.conteo || {};
+    var critical    = conteo.critical || 0;
+    var high        = conteo.high || 0;
+    var medium      = conteo.medium || 0;
+    var low         = conteo.low || 0;
+    var total       = conteo.total || (critical + high + medium + low);
+
+    var accentColor = isCumple ? "#86BC25" : isParcial ? "#f59e0b" : "#ef4444";
+    var borderColor = isCumple ? "rgba(134,188,37,.25)" : isParcial ? "rgba(245,158,11,.25)" : "rgba(239,68,68,.25)";
+    var icon        = isCumple ? "✓" : isParcial ? "~" : "✗";
+
+    var vulnRows = [
+      { label: "Critical", count: critical, color: "#ef4444" },
+      { label: "High",     count: high,     color: "#f97316" },
+      { label: "Medium",   count: medium,   color: "#f59e0b" },
+      { label: "Low",      count: low,      color: "#86BC25" }
+    ];
+
+    var h = '';
+    h += '<div style="border:1px solid ' + borderColor + ';border-radius:8px;overflow:hidden;margin-top:8px;background:#111">';
+
+    // Header
+    h += '<div style="padding:12px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.06)">';
+    h += '<span style="width:26px;height:26px;border-radius:50%;background:' + accentColor + ';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#000;flex-shrink:0">' + icon + '</span>';
+    h += '<div style="flex:1">';
+    h += '<div style="font-size:13px;font-weight:800;letter-spacing:.04em;color:' + accentColor + '">' + escHtml(veredictoRaw) + '</div>';
+    h += '<div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:2px">Análisis de vulnerabilidades · ' + escHtml(maquina) + '</div>';
+    h += '</div>';
+    h += '<div style="text-align:right;flex-shrink:0"><span style="font-size:22px;font-weight:900;color:' + accentColor + '">' + pct + '</span><span style="font-size:11px;color:rgba(255,255,255,.35)">%</span></div>';
+    h += '</div>';
+
+    // Progress bar
+    h += '<div style="height:3px;background:rgba(255,255,255,.05)"><div style="height:100%;width:' + Math.min(pct, 100) + '%;background:' + accentColor + ';transition:width .4s"></div></div>';
+
+    // Vulnerability breakdown
+    h += '<div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.06)">';
+    h += '<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:10px">Vulnerabilidades detectadas · ' + total + ' total</div>';
+    h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">';
+    vulnRows.forEach(function(v) {
+      h += '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:6px;padding:8px 10px;text-align:center">';
+      h += '<div style="font-size:20px;font-weight:900;color:' + v.color + '">' + v.count + '</div>';
+      h += '<div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px">' + v.label + '</div>';
+      h += '</div>';
+    });
+    h += '</div>';
+
+    // Mini bar chart
+    if (total > 0) {
+      h += '<div style="margin-top:10px;display:flex;height:6px;border-radius:3px;overflow:hidden;gap:1px">';
+      vulnRows.forEach(function(v) {
+        var pctBar = Math.round((v.count / total) * 100);
+        if (pctBar > 0) {
+          h += '<div style="flex:' + v.count + ';background:' + v.color + ';opacity:.8" title="' + v.label + ': ' + v.count + '"></div>';
+        }
+      });
+      h += '</div>';
+    }
+    h += '</div>';
+
+    // Justification
+    if (justif) {
+      h += '<div style="padding:12px 14px;font-size:12px;color:rgba(255,255,255,.7);line-height:1.6">' + escHtml(justif) + '</div>';
+    }
+
+    h += '</div>';
     return h;
   }
 
