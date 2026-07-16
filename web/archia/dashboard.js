@@ -749,6 +749,9 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       (p.runs || []).forEach(function(r) {
         if (r.id === st.runId) {
           if (!r.validations) r.validations = {};
+          // Preserve AI evidence result across saves
+          var prevAiResult = r.validations[st.controlKey] && r.validations[st.controlKey].aiEvidResult;
+          if (prevAiResult && !validation.aiEvidResult) validation.aiEvidResult = prevAiResult;
           r.validations[st.controlKey] = validation;
           savedRun = r;
         }
