@@ -32,11 +32,12 @@
   nav a.active{color:var(--white);border-bottom-color:var(--green)}
 
   /* ── HERO ── */
-  .hero{background:var(--black);padding:28px 32px 24px;border-bottom:3px solid var(--green)}
-  .hero-label{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--green);margin-bottom:8px}
-  .hero h1{font-size:24px;font-weight:300;color:var(--white);line-height:1.25}
-  .hero h1 strong{font-weight:700}
-  .hero p{font-size:13px;color:rgba(255,255,255,.4);margin-top:6px;font-weight:300;line-height:1.7}
+  .hero{background:var(--black);padding:36px 40px 32px;border-bottom:1px solid rgba(134,188,37,.2);position:relative;overflow:hidden}
+  .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 100% at 80% 50%,rgba(134,188,37,.07) 0%,transparent 70%);pointer-events:none}
+  .hero-label{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--green);margin-bottom:10px;opacity:.85}
+  .hero h1{font-size:32px;font-weight:200;color:var(--white);line-height:1.2;letter-spacing:-.01em}
+  .hero h1 strong{font-weight:700;color:#fff}
+  .hero p{font-size:13px;color:rgba(255,255,255,.38);margin-top:8px;font-weight:300;line-height:1.7;max-width:520px}
 
   /* ── APP SHELL ── */
   #appShell{display:flex;min-height:calc(100vh - 60px - 3px - 56px - 53px)}
@@ -406,10 +407,10 @@
   nav a.active{color:#fff!important}
 
   /* Hero */
-  .hero{background:#111;border-bottom:1px solid var(--border)}
+  .hero{background:#0e0e0e;border-bottom:1px solid rgba(134,188,37,.15)}
   .hero-label{color:var(--green)!important}
-  .hero h1{font-size:20px;color:#f0f0f0}
-  .hero p{color:var(--gray-500)!important}
+  .hero h1{font-size:28px;color:#f0f0f0}
+  .hero p{color:rgba(240,240,240,.35)!important}
 
   /* Phase bar */
   .phase-bar{background:#111;border-bottom:1px solid var(--border)}
