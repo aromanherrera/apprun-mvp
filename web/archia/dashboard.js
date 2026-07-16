@@ -549,6 +549,8 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       if (bC) bC.className = "val-comp-btn" + (c === "cumple" ? " sel-cumple" : "");
       if (bN) bN.className = "val-comp-btn" + (c === "no_cumple" ? " sel-no_cumple" : "");
     });
+    // Auto-save when in evidencia mode so state persists without clicking Guardar
+    _autoSaveEvidCompliance();
   };
 
   window.handleEvidFiles = function(input) {
@@ -1728,10 +1730,48 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
           if (!r.validations[st.currentControlKey]) r.validations[st.currentControlKey] = {};
           r.validations[st.currentControlKey].aiEvidResult = text;
           r.validations[st.currentControlKey].method = "evidencia";
+          if (st.compliance) r.validations[st.currentControlKey].compliance = st.compliance;
         }
       });
     });
     saveProjects(projects);
+    _syncValBtnInTable();
+  }
+
+  function _autoSaveEvidCompliance() {
+    var st = window._valState || {};
+    if (!st.runId || !st.currentControlKey || st.currentMethod !== "evidencia") return;
+    var projects = loadProjects();
+    var savedRun = null;
+    projects.forEach(function(p) {
+      (p.runs || []).forEach(function(r) {
+        if (r.id === st.runId) {
+          if (!r.validations) r.validations = {};
+          if (!r.validations[st.currentControlKey]) r.validations[st.currentControlKey] = {};
+          r.validations[st.currentControlKey].method = "evidencia";
+          r.validations[st.currentControlKey].compliance = st.compliance || null;
+          savedRun = r;
+        }
+      });
+    });
+    if (savedRun) { saveProjects(projects); ensureRiskStored(savedRun); updateRiskCards(savedRun); }
+    _syncValBtnInTable();
+  }
+
+  function _syncValBtnInTable() {
+    var st = window._valState || {};
+    if (!st.controlKey) return;
+    var run = loadRunById(st.runId);
+    var v = run && run.validations && run.validations[st.controlKey];
+    if (!v) return;
+    document.querySelectorAll(".val-btn[data-key]").forEach(function(btn) {
+      if (btn.dataset.key !== st.controlKey) return;
+      var lbl = v.compliance === "cumple" ? "✓ Cumple" : (v.compliance === "no_cumple" ? "✗ No cumple" : "📄 Con evidencia");
+      btn.textContent = lbl;
+      btn.className = "val-btn" + (v.compliance ? " val-btn-" + v.compliance : "");
+      var row = btn.closest("tr");
+      if (row) row.className = v.compliance === "cumple" ? "val-row-cumple" : (v.compliance === "no_cumple" ? "val-row-nocumple" : "");
+    });
   }
 
   function _aiEvidLoadResult(runId, controlKey) {
