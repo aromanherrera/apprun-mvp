@@ -1809,6 +1809,86 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     var st = $("aiEvidStatus"); if (st) st.innerHTML = "";
   };
 
+  // Parse CSV text, return array of objects keyed by header
+  function _parseCSV(text) {
+    var lines = text.split(/\r?\n/).filter(function(l) { return l.trim(); });
+    if (lines.length < 2) return [];
+    var sep = lines[0].indexOf(";") > lines[0].indexOf(",") ? ";" : ",";
+    function splitRow(line) {
+      var cells = []; var cur = ""; var inQ = false;
+      for (var i = 0; i < line.length; i++) {
+        var c = line[i];
+        if (c === '"') { inQ = !inQ; }
+        else if (c === sep && !inQ) { cells.push(cur.trim()); cur = ""; }
+        else { cur += c; }
+      }
+      cells.push(cur.trim());
+      return cells;
+    }
+    var headers = splitRow(lines[0]).map(function(h) { return h.replace(/^"|"$/g, "").trim(); });
+    return lines.slice(1).map(function(l) {
+      var cells = splitRow(l);
+      var obj = {};
+      headers.forEach(function(h, i) { obj[h] = (cells[i] || "").replace(/^"|"$/g, "").trim(); });
+      return obj;
+    });
+  }
+
+  // Try to compute vuln result locally from CSV/Excel file with CVE Score column
+  function _tryLocalVulnAnalysis(file, comentarios, callback) {
+    var name = (file.name || "").toLowerCase();
+    if (!name.endsWith(".csv") && !name.endsWith(".txt")) return false;
+    var hostFilter = (comentarios || "").match(/\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|[\w.-]+\.\w{2,})\b/);
+    var hostname = hostFilter ? hostFilter[1] : null;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        var rows = _parseCSV(e.target.result);
+        if (!rows.length) { callback(null); return; }
+        // Detect CVE Score column (case-insensitive variants)
+        var scoreCol = Object.keys(rows[0]).find(function(k) {
+          return /cve.?score|cvss/i.test(k);
+        });
+        var ipCol = Object.keys(rows[0]).find(function(k) { return /^ip$/i.test(k); });
+        if (!scoreCol) { callback(null); return; }
+        // Filter by hostname/IP if provided
+        var filtered = hostname && ipCol
+          ? rows.filter(function(r) { return (r[ipCol] || "").includes(hostname); })
+          : rows;
+        var counts = { critical: 0, high: 0, medium: 0, low: 0 };
+        filtered.forEach(function(r) {
+          var score = parseFloat((r[scoreCol] || "").replace(",", "."));
+          if (isNaN(score)) return;
+          if (score >= 9.0) counts.critical++;
+          else if (score >= 7.0) counts.high++;
+          else if (score >= 4.0) counts.medium++;
+          else if (score > 0) counts.low++;
+        });
+        var total = counts.critical + counts.high + counts.medium + counts.low;
+        var pct = Math.max(0, Math.round(100 - counts.critical*15 - counts.high*8 - counts.medium*2 - counts.low*0.5));
+        var veredicto = pct >= 85 ? "CUMPLE" : pct >= 60 ? "CUMPLE PARCIALMENTE" : "NO CUMPLE";
+        var data = {
+          tipo_analisis: "vulnerabilidades",
+          maquina: hostname || (ipCol && filtered.length && filtered[0][ipCol]) || "Global",
+          conteo: { critical: counts.critical, high: counts.high, medium: counts.medium, low: counts.low, total: total },
+          porcentaje_cumplimiento: pct,
+          veredicto: veredicto,
+          justificacion: total + " vulnerabilidades analizadas (C:" + counts.critical + " H:" + counts.high + " M:" + counts.medium + " L:" + counts.low + "). Puntuación calculada localmente desde CVE Score."
+        };
+        callback(data);
+      } catch(_) { callback(null); }
+    };
+    reader.onerror = function() { callback(null); };
+    reader.readAsText(file);
+    return true;
+  }
+
+  // Detect if control+file looks like a vuln scan scenario
+  function _isVulnScanContext(controlKey, filename) {
+    return /ps.?03|patch|vuln/i.test(controlKey) &&
+      /\.(csv|txt|xls|xlsx)$/i.test(filename || "");
+  }
+
   window.runAiAnalysis = async function() {
     var btn = $("aiEvidBtn");
     var statusEl = $("aiEvidStatus");
@@ -1828,6 +1908,28 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     statusEl.innerHTML = spinner("Enviando análisis…");
     resultEl.innerHTML = "";
 
+    // Fast local path: parse CSV vuln report in browser (instant, no API call)
+    if (_isVulnScanContext(controlKey, evidencia) && _aiEvid.file) {
+      var localDone = _tryLocalVulnAnalysis(_aiEvid.file, comentarios, function(data) {
+        if (data) {
+          statusEl.innerHTML = "";
+          var jsonText = JSON.stringify(data);
+          resultEl.innerHTML = _renderVulnResult(data);
+          _aiEvidSaveResult(jsonText);
+          var clearBtn = $("aiEvidClearBtn"); if (clearBtn) clearBtn.style.display = "";
+          if (btn) { btn.disabled = false; btn.textContent = "Analizar evidencia con IA"; }
+        } else {
+          // Fallback to AI if local parse failed
+          _runAiAnalysisRemote(btn, statusEl, resultEl, requisito, evidencia, comentarios);
+        }
+      });
+      if (localDone) return;
+    }
+
+    _runAiAnalysisRemote(btn, statusEl, resultEl, requisito, evidencia, comentarios);
+  };
+
+  async function _runAiAnalysisRemote(btn, statusEl, resultEl, requisito, evidencia, comentarios) {
     try {
       var queryStr = "Requisito: " + requisito + "\nEvidencia: " + (evidencia || "ninguna") + (comentarios ? "\nComentarios: " + comentarios : "");
       var invokeBody = { query: queryStr };
@@ -1845,7 +1947,6 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
       var result = await pollTask(taskId);
       statusEl.innerHTML = "";
       resultEl.innerHTML = _renderAiEvidResult(result.text);
-      // Persist result
       _aiEvidSaveResult(result.text);
       var clearBtn = $("aiEvidClearBtn"); if (clearBtn) clearBtn.style.display = "";
     } catch(e) {
@@ -1853,7 +1954,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = "Analizar evidencia con IA"; }
     }
-  };
+  }
 
   function _renderAiEvidResult(text) {
     var data = null;
