@@ -2045,7 +2045,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     var conteo = data.conteo || {};
     if ((conteo.critical || 0) > 0) {
       data.veredicto = "NO CUMPLE";
-      data.porcentaje_cumplimiento = Math.min(data.porcentaje_cumplimiento || 0, 59);
+      data.porcentaje_cumplimiento = 0;
     }
     var veredictoRaw = data.veredicto || "";
     var vLo = veredictoRaw.toUpperCase();
