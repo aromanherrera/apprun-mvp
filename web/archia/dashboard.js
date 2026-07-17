@@ -490,6 +490,16 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     if (savedAiResult) {
       if (resultEl2) resultEl2.innerHTML = _renderAiEvidResult(savedAiResult);
       if (clearBtn2) clearBtn2.style.display = "";
+      // Restore saved filename as "available" so user sees which file was analyzed
+      var savedFilename = run && run.validations && run.validations[controlKey] && run.validations[controlKey].aiEvidFilename;
+      if (savedFilename) {
+        _aiEvid.filename = savedFilename;
+        var nameEl = $("aiEvidFileName"); if (nameEl) nameEl.textContent = savedFilename;
+        var infoEl = $("aiEvidFileInfo"); if (infoEl) infoEl.style.display = "flex";
+        var dropEl = $("aiEvidDrop"); if (dropEl) dropEl.style.display = "none";
+        var upSt = $("aiEvidUploadStatus"); if (upSt) upSt.innerHTML = '<span style="color:var(--green);font-size:11px;font-weight:700;letter-spacing:.04em">✓ DISPONIBLE</span>';
+        var btn2 = $("aiEvidBtn"); if (btn2) { btn2.disabled = false; btn2.style.opacity = "1"; }
+      }
     } else {
       if (resultEl2) resultEl2.innerHTML = "";
       if (clearBtn2) clearBtn2.style.display = "none";
@@ -1731,6 +1741,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
           r.validations[st.currentControlKey].aiEvidResult = text;
           r.validations[st.currentControlKey].method = "evidencia";
           if (st.compliance) r.validations[st.currentControlKey].compliance = st.compliance;
+          if (_aiEvid.filename) r.validations[st.currentControlKey].aiEvidFilename = _aiEvid.filename;
         }
       });
     });
@@ -1866,7 +1877,8 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
         });
         var total = counts.critical + counts.high + counts.medium + counts.low;
         var pct = Math.max(0, Math.round(100 - counts.critical*15 - counts.high*8 - counts.medium*2 - counts.low*0.5));
-        var veredicto = pct >= 85 ? "CUMPLE" : pct >= 60 ? "CUMPLE PARCIALMENTE" : "NO CUMPLE";
+        // Any critical vulnerability = automatic NO CUMPLE
+        var veredicto = counts.critical > 0 ? "NO CUMPLE" : pct >= 85 ? "CUMPLE" : pct >= 60 ? "CUMPLE PARCIALMENTE" : "NO CUMPLE";
         var data = {
           tipo_analisis: "vulnerabilidades",
           maquina: hostname || (ipCol && filtered.length && filtered[0][ipCol]) || "Global",
