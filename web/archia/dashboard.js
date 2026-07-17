@@ -1897,7 +1897,7 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
 
   // Detect if control+file looks like a vuln scan scenario
   function _isVulnScanContext(controlKey, filename) {
-    return /ps.?03|patch|vuln/i.test(controlKey) &&
+    return /ps[\s_-]*0*3|patch|vuln/i.test(controlKey) &&
       /\.(csv|txt|xls|xlsx)$/i.test(filename || "");
   }
 
