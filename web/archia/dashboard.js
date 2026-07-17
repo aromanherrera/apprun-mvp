@@ -939,6 +939,23 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
     $("historyView").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  window.deleteCurrentRun = function() {
+    var run = window._archiaHistoryRun;
+    if (!run) return;
+    if (!confirm("¿Eliminar este análisis? Esta acción no se puede deshacer.")) return;
+    var projects = loadProjects();
+    projects.forEach(function(p) {
+      p.runs = (p.runs || []).filter(function(r) { return r.id !== run.id; });
+    });
+    // Remove projects with no runs left
+    projects = projects.filter(function(p) { return p.runs && p.runs.length > 0; });
+    saveProjects(projects);
+    window._archiaHistoryRun = null;
+    $("historyView").style.display = "none";
+    $("wizardView").style.display = "block";
+    renderSidebar();
+  };
+
   $("btnHvBack").addEventListener("click", function() {
     $("historyView").style.display = "none";
     $("wizardView").style.display = "block";

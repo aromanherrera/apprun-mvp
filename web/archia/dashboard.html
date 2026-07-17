@@ -649,9 +649,12 @@
         <button class="hv-back" id="btnHvBack">&#8592; Volver al análisis</button>
         <div class="hv-meta" id="hvMeta"></div>
         <div id="hvContent"></div>
-        <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
-          <button class="btn-green" id="btnHvDownload" onclick="downloadWordFromHistory()">Descargar informe Word</button>
-          <button class="btn-ghost" id="btnStartEvidencias" style="display:none" onclick="startEvidencias()">Iniciar análisis de evidencias</button>
+        <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+            <button class="btn-green" id="btnHvDownload" onclick="downloadWordFromHistory()">Descargar informe Word</button>
+            <button class="btn-ghost" id="btnStartEvidencias" style="display:none" onclick="startEvidencias()">Iniciar análisis de evidencias</button>
+          </div>
+          <button id="btnDeleteRun" onclick="deleteCurrentRun()" style="padding:9px 16px;background:transparent;border:1px solid rgba(239,68,68,.4);color:#ef4444;font-size:11px;font-weight:700;font-family:inherit;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:4px;transition:background .15s" onmouseover="this.style.background='rgba(239,68,68,.1)'" onmouseout="this.style.background='transparent'">Eliminar análisis</button>
         </div>
       </div>
 
