@@ -2041,6 +2041,12 @@ function doLogout() { sessionStorage.removeItem('archiaAuth'); window.location.h
   }
 
   function _renderVulnResult(data) {
+    // Any critical vulnerability = NO CUMPLE, always
+    var conteo = data.conteo || {};
+    if ((conteo.critical || 0) > 0) {
+      data.veredicto = "NO CUMPLE";
+      data.porcentaje_cumplimiento = Math.min(data.porcentaje_cumplimiento || 0, 59);
+    }
     var veredictoRaw = data.veredicto || "";
     var vLo = veredictoRaw.toUpperCase();
     var isCumple  = vLo === "CUMPLE";
